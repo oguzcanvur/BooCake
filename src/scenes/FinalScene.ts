@@ -1,0 +1,84 @@
+import Phaser from 'phaser';
+import { sfx } from '../audio';
+import { DEPTH, FONT, H, W } from '../config';
+import { DAY_COUNT } from '../data/gameConfig';
+import { fadeIn, fadeOutThen } from '../fx';
+import { Shop } from '../objects/Shop';
+import { gameState, resetGame } from '../systems/GameState';
+import { T } from '../text';
+import { makeButton } from '../ui/button';
+import { drawPanel } from '../ui/panel';
+
+/** Shown after day 4: "Kazandın! BooCake şehrin en iyi canavar pastanesi!" */
+export class FinalScene extends Phaser.Scene {
+  constructor() {
+    super('Final');
+  }
+
+  create(): void {
+    fadeIn(this, 600);
+    new Shop(this).update(1);
+    this.add.rectangle(W / 2, H / 2, W, H, 0x0a0618, 0.55).setDepth(DEPTH.bubble);
+    sfx(this, 'win', 0.6);
+
+    const cy = H / 2 - 30;
+    const panel = this.add.container(W / 2, cy).setDepth(DEPTH.hud);
+    const g = this.add.graphics();
+    drawPanel(g, 860, 470);
+    panel.add(g);
+    const title = this.add
+      .text(0, -140, T.finalTitle, { fontFamily: FONT, fontSize: '88px', color: '#ffd166', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
+      .setOrigin(0.5);
+    panel.add(title);
+    panel.add(
+      this.add
+        .text(0, -30, T.finalText, { fontFamily: FONT, fontSize: '36px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: 760 } })
+        .setOrigin(0.5),
+    );
+
+    // stars earned over all days
+    let total = 0;
+    for (let d = 0; d < DAY_COUNT; d++) total += gameState.stars[d] ?? 0;
+    const row = this.add.container(0, 80);
+    panel.add(row);
+    for (let d = 0; d < DAY_COUNT; d++) {
+      const s = this.add.image((d - (DAY_COUNT - 1) / 2) * 90, 0, 'star').setScale(0.9);
+      s.setAlpha(0);
+      row.add(s);
+      this.tweens.add({ targets: s, alpha: 1, scale: { from: 1.8, to: 0.9 }, delay: 500 + d * 250, duration: 350, ease: 'Back.easeOut' });
+      row.add(this.add.text((d - (DAY_COUNT - 1) / 2) * 90, 36, `${gameState.stars[d] ?? 0}/3`, { fontFamily: FONT, fontSize: '18px', color: '#c9bdf0', fontStyle: 'bold' }).setOrigin(0.5));
+    }
+    panel.add(this.add.text(0, 150, `${total}/${DAY_COUNT * 3}`, { fontFamily: FONT, fontSize: '26px', color: '#ffd166', fontStyle: 'bold' }).setOrigin(0.5));
+
+    this.tweens.add({ targets: title, scale: { from: 0.7, to: 1 }, duration: 600, ease: 'Back.easeOut' });
+    this.confetti();
+
+    makeButton(this, W / 2 - 170, cy + 235 + 40, 300, 66, T.playAgain, () => {
+      resetGame();
+      fadeOutThen(this, () => this.scene.start('Night'));
+    }, { color: 'green', fontSize: 30, depth: DEPTH.hud + 2 });
+    makeButton(this, W / 2 + 170, cy + 235 + 40, 300, 66, T.menu, () => fadeOutThen(this, () => this.scene.start('Menu')), {
+      color: 'blue',
+      fontSize: 30,
+      depth: DEPTH.hud + 2,
+    });
+  }
+
+  private confetti(): void {
+    this.add
+      .particles(0, -20, 'fx_star_01', {
+        x: { min: 0, max: W },
+        speedY: { min: 90, max: 220 },
+        speedX: { min: -50, max: 50 },
+        lifespan: 4200,
+        frequency: 45,
+        quantity: 1,
+        scale: { start: 0.26, end: 0.08 },
+        alpha: { start: 1, end: 0.2 },
+        rotate: { min: 0, max: 360 },
+        tint: [0xffe066, 0xff8fc7, 0x8fffd0, 0xb98cff],
+        blendMode: 'ADD',
+      })
+      .setDepth(DEPTH.bubble + 1);
+  }
+}

@@ -1,16 +1,23 @@
-// Customer monster types. Each one is assembled from Kenney "Monster Builder Pack" parts
-// (body, arms, legs, eyes, details). Add a new monster by adding an entry here: no other code changes.
+// Customer monsters, assembled from Kenney "Monster Builder Pack" parts (body, arms, legs, eyes, details).
+// Add a new monster by adding an entry here: no other code changes.
+
+import type { SpecialId } from './gameConfig';
 
 export type MonsterColor = 'green' | 'red' | 'yellow' | 'blue' | 'white' | 'dark';
 export type Letter = 'A' | 'B' | 'C' | 'D' | 'E' | 'F';
 export type DetailKind = 'ear' | 'ear_round' | 'horn_small' | 'horn_large' | 'antenna_small' | 'antenna_large';
+export type Mood = 'happy' | 'neutral' | 'angry';
+/** Extra drawn pieces that are not in the Kenney pack. */
+export type Accessory = 'cape' | 'mask' | 'cap' | 'bandage';
+export type MonsterKind = 'normal' | SpecialId | 'guard';
 
 export interface MonsterDef {
   id: string;
+  kind: MonsterKind;
   color: MonsterColor;
   body: Letter;
   arm: Letter;
-  /** No leg = the monster floats (ghost). */
+  /** No leg = the monster floats or sits on the counter. */
   leg?: Letter;
   eyes: 1 | 2;
   /** Frame name (without ".png") of the calm eye. */
@@ -19,103 +26,122 @@ export interface MonsterDef {
   /** A pair of ears / horns / antennae on top of the head. x = fraction of body width from the center. */
   detail?: { kind: DetailKind; x: number; y?: number };
   nose?: string;
+  /** Mouth frame per mood, if different from the default. */
+  mouths?: Partial<Record<Mood, string>>;
+  accessory?: Accessory;
   /** Height of the body on screen, in pixels. */
   targetH: number;
-  /** How often this monster shows up (relative). */
-  weight: number;
   /** Floats up and down more (ghost). */
   hover?: boolean;
   alpha?: number;
 }
 
-export const MONSTERS: MonsterDef[] = [
+/** Regular customers: only the looks differ. */
+export const NORMAL_MONSTERS: MonsterDef[] = [
   {
-    id: 'cyclops',
+    id: 'zombie',
+    kind: 'normal',
     color: 'green',
-    body: 'C',
-    arm: 'A',
-    leg: 'A',
-    eyes: 1,
+    body: 'A',
+    arm: 'D',
+    leg: 'C',
+    eyes: 2,
     eyeFrame: 'eye_human_green',
-    eyeScale: 1.5,
-    detail: { kind: 'horn_small', x: 0.26 },
-    targetH: 118,
-    weight: 3,
+    targetH: 128,
   },
   {
-    id: 'bear',
-    color: 'yellow',
-    body: 'B',
+    id: 'mummy',
+    kind: 'normal',
+    color: 'white',
+    body: 'E',
     arm: 'B',
     leg: 'B',
     eyes: 2,
     eyeFrame: 'eye_human',
-    nose: 'nose_brown',
-    detail: { kind: 'ear_round', x: 0.33, y: 0.2 },
-    targetH: 112,
-    weight: 3,
+    accessory: 'bandage',
+    targetH: 158,
   },
   {
-    id: 'square',
+    id: 'wolf',
+    kind: 'normal',
+    color: 'dark',
+    body: 'F',
+    arm: 'A',
+    leg: 'E',
+    eyes: 2,
+    eyeFrame: 'eye_yellow',
+    nose: 'nose_brown',
+    detail: { kind: 'ear', x: 0.3, y: 0.08 },
+    targetH: 150,
+  },
+  {
+    id: 'slime',
+    kind: 'normal',
     color: 'blue',
-    body: 'A',
+    body: 'D',
+    arm: 'E',
+    eyes: 2,
+    eyeFrame: 'eye_human_blue',
+    targetH: 124,
+  },
+];
+
+/** Special monsters (see the design document, chapter 8). */
+export const SPECIAL_MONSTERS: Record<SpecialId, MonsterDef> = {
+  vampire: {
+    id: 'vampire',
+    kind: 'vampire',
+    color: 'dark',
+    body: 'C',
     arm: 'C',
     leg: 'D',
     eyes: 2,
-    eyeFrame: 'eye_human_blue',
-    nose: 'nose_brown',
-    detail: { kind: 'antenna_small', x: 0.2 },
-    targetH: 108,
-    weight: 3,
+    eyeFrame: 'eye_human_red',
+    detail: { kind: 'ear', x: 0.32, y: 0.1 },
+    mouths: { happy: 'mouthB', neutral: 'mouth_closed_fangs', angry: 'mouthC' },
+    accessory: 'cape',
+    targetH: 150,
   },
-  {
-    id: 'imp',
-    color: 'red',
-    body: 'E',
-    arm: 'D',
-    leg: 'C',
-    eyes: 1,
-    eyeFrame: 'eye_psycho_dark',
-    eyeScale: 1.3,
-    detail: { kind: 'horn_large', x: 0.28 },
-    targetH: 132,
-    weight: 2,
-  },
-  {
+  ghost: {
     id: 'ghost',
+    kind: 'ghost',
     color: 'white',
     body: 'C',
     arm: 'E',
     eyes: 2,
     eyeFrame: 'eye_human_blue',
     hover: true,
-    alpha: 0.92,
-    targetH: 118,
-    weight: 2,
+    alpha: 0.9,
+    targetH: 134,
   },
-  {
-    id: 'furry',
+  thief: {
+    id: 'thief',
+    kind: 'thief',
     color: 'dark',
-    body: 'F',
-    arm: 'A',
-    leg: 'E',
+    body: 'B',
+    arm: 'C',
+    leg: 'D',
     eyes: 2,
-    eyeFrame: 'eye_red',
-    nose: 'nose_brown',
-    detail: { kind: 'antenna_large', x: 0.2 },
-    targetH: 126,
-    weight: 2,
+    eyeFrame: 'eye_human',
+    accessory: 'mask',
+    targetH: 100,
   },
-];
+};
 
-/** Pick a random monster type, respecting weights. `pool` limits how many types are unlocked (first N). */
-export function pickMonster(pool: number, rand: () => number = Math.random): MonsterDef {
-  const list = MONSTERS.slice(0, Math.max(1, Math.min(pool, MONSTERS.length)));
-  const total = list.reduce((sum, m) => sum + m.weight, 0);
-  let r = rand() * total;
-  for (const m of list) {
-    r -= m.weight;
-    if (r <= 0) return m;
-  }
-  return list[list.length - 1];
+/** The security guard you can buy in the shop. */
+export const GUARD_MONSTER: MonsterDef = {
+  id: 'guard',
+  kind: 'guard',
+  color: 'blue',
+  body: 'A',
+  arm: 'C',
+  leg: 'D',
+  eyes: 2,
+  eyeFrame: 'eye_human',
+  accessory: 'cap',
+  targetH: 104,
+};
+
+export function pickNormal(rand: () => number = Math.random): MonsterDef {
+  return NORMAL_MONSTERS[Math.floor(rand() * NORMAL_MONSTERS.length)];
 }

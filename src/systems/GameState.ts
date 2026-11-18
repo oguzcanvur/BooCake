@@ -1,23 +1,50 @@
-import type { NightConfig } from '../data/nights';
+import { CONFIG, DAY_COUNT, type DayConfig } from '../data/gameConfig';
 
-// Global progress that survives scene changes.
+export interface Upgrades {
+  garlic: boolean;
+  guard: boolean;
+  oven3: boolean;
+}
+
+/** Progress that survives scene changes. Everything resets when the page is reloaded (no saving needed). */
 export const gameState = {
-  /** Index into NIGHTS (0 = Night 1). */
-  night: 0,
-  /** Best star count per night. */
+  /** Index into CONFIG.days (0 = Day 1). */
+  day: 0,
+  /** Money kept between days (earned on completed days, minus shop purchases). */
+  wallet: 0,
+  upgrades: { garlic: false, guard: false, oven3: false } as Upgrades,
+  /** Best star count per day. */
   stars: [] as number[],
+  /** Special monsters whose "new customer" card was already shown. */
+  seenCards: [] as string[],
 };
 
 export function resetGame(): void {
-  gameState.night = 0;
+  gameState.day = 0;
+  gameState.wallet = 0;
+  gameState.upgrades = { garlic: false, guard: false, oven3: false };
   gameState.stars = [];
+  gameState.seenCards = [];
 }
 
-/** 0 stars = failed the night. */
-export function starsFor(money: number, cfg: NightConfig): number {
+export function currentDay(): DayConfig {
+  return CONFIG.days[gameState.day];
+}
+
+export function isLastDay(): boolean {
+  return gameState.day >= DAY_COUNT - 1;
+}
+
+/** 0 stars = the goal was missed. */
+export function starsFor(earned: number, goal: number): number {
   let stars = 0;
-  cfg.starMultipliers.forEach((mult, i) => {
-    if (money >= Math.ceil(cfg.goal * mult)) stars = i + 1;
+  CONFIG.stars.forEach((share, i) => {
+    if (earned >= Math.ceil(goal * share)) stars = i + 1;
   });
   return stars;
+}
+
+/** How many oven slots the player has right now. */
+export function ovenCount(): number {
+  return CONFIG.oven.slots + (gameState.upgrades.oven3 ? 1 : 0);
 }

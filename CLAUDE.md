@@ -95,3 +95,11 @@ Bütün sayılar `src/data/nights.ts` ve `src/data/recipes.ts` içinde; tasarım
 - Satır sonları LF (`.gitattributes`); `node_modules/`, `dist/` ve build'ler commit'lenmez.
 - Her asset'in kaynağı ve lisansı `CREDITS.md`'ye yazılır.
 - Tasarım değişince önce [docs/game-design.md](docs/game-design.md), sonra bu dosyadaki özet güncellenir.
+
+## GÜNCEL DURUM (2026-11-18, oturum sonu) — önce bunu oku
+- Geçerli tasarım: [docs/game-design-v2.md](docs/game-design-v2.md) (ekibin ayrıntılı dokümanı; game-design.md'nin yerine geçer).
+- Kod bu dokümana göre yeniden yazıldı (1280x720, Türkçe arayüz `src/text.ts`, tüm sayılar `src/data/gameConfig.ts`): hamur→fırın→tabak→krema→topping→servis/hazır tepsi, 4 gün, vampir/hayalet/hırsız, sarımsak/güvenlik/3. fırın dükkânı, nasıl oynanır, gün özeti, final.
+- Asset'ler artık `src/assets/` (kod içine gömülür). `npm run build` → `dist/BooCake.html` tek dosya, çift tıklayınca açılır (file:// ile doğrulandı).
+- Test edildi (mantık): pişirme/yanma, çöp, tepsi, yanlış sipariş (-%20 sabır), bahşiş, vampir ısırığı/sarımsak, hayalet, hırsız/güvenlik. TEST EDİLMEDİ: Dükkân ekranı, Nasıl Oynanır, Final, gün 2/4 akışı, 3. fırın slotu, tek dosya build'in son hali.
+- Bilinen küçük işler: menüde tagline hero cupcake ile çakışıyor; CLAUDE.md'nin üstündeki eski bölümler (Phaser 960x640, 3 gece vb.) eskidi; docs/visual-upgrade-plan.md güncellenmedi; Frankenstein ve müzik yok.
+- Test aracı: headless Edge + CDP betiği (scratchpad'de, repoda yok) ile gerçek zamanlı test yapıldı.

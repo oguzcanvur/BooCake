@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { MONSTER_ATLAS } from '../assets';
-import type { MonsterDef } from '../data/monsters';
+import type { Accessory, MonsterDef, Mood } from '../data/monsters';
 
-export type Mood = 'happy' | 'neutral' | 'angry';
+export type { Mood };
 
 const MOUTH: Record<Mood, string> = {
   happy: 'mouthA',
@@ -11,8 +11,8 @@ const MOUTH: Record<Mood, string> = {
 };
 
 /**
- * A monster built from Kenney Monster Builder parts. Handles the face (mood), idle bobbing,
- * blinking and the enter / leave animations.
+ * A monster built from Kenney Monster Builder parts (plus a few drawn accessories: cape, mask, cap, bandages).
+ * Handles the face (mood), idle bobbing, blinking and the enter / leave animations.
  * `root` is positioned at the center of the body; legs hang below it.
  */
 export class MonsterView {
@@ -23,6 +23,7 @@ export class MonsterView {
   private readonly brows: Phaser.GameObjects.Image[] = [];
   private readonly mouth: Phaser.GameObjects.Image;
   private readonly blinkTimer: Phaser.Time.TimerEvent;
+  private readonly mouths: Record<Mood, string>;
   private mood: Mood = 'happy';
   private gone = false;
 
@@ -30,11 +31,12 @@ export class MonsterView {
     private readonly scene: Phaser.Scene,
     x: number,
     y: number,
-    private readonly def: MonsterDef,
+    readonly def: MonsterDef,
   ) {
     this.root = scene.add.container(x, y);
     this.inner = scene.add.container(0, 0);
     this.root.add(this.inner);
+    this.mouths = { ...MOUTH, ...def.mouths };
 
     const body = this.frameSize(`body_${def.color}${def.body}`);
     const bw = body.w;
@@ -60,8 +62,10 @@ export class MonsterView {
       this.part(name, -bw * d.x, dy, 0.2, 0.92, -1);
     }
 
+    if (def.accessory === 'cape') this.drawAccessory('cape', bw, bh);
     this.part(`body_${def.color}${def.body}`, 0, 0, 0.5, 0.5, 1);
     if (def.nose) this.part(def.nose, 0, bh * 0.02, 0.5, 0.5, 1, 0.9);
+    if (def.accessory === 'bandage' || def.accessory === 'mask') this.drawAccessory(def.accessory, bw, bh);
 
     // face
     const eyeY = -bh * 0.1;
@@ -69,13 +73,14 @@ export class MonsterView {
     const eyeSpread = Math.min(bw * 0.22, 46);
     const eyeXs = def.eyes === 1 ? [0] : [-eyeSpread, eyeSpread];
     eyeXs.forEach((ex) => this.eyes.push(this.part(def.eyeFrame, ex, eyeY, 0.5, 0.5, 1, eyeScale)));
-    this.mouth = this.part(MOUTH.happy, 0, bh * 0.16, 0.5, 0.5, 1, 0.95);
+    this.mouth = this.part(this.mouths.happy, 0, bh * 0.16, 0.5, 0.5, 1, 0.95);
     // eyebrows only show when angry
     eyeXs.forEach((ex, i) => {
       const side = def.eyes === 1 ? 1 : i === 0 ? -1 : 1;
       const brow = this.part('eyebrowA', ex, eyeY - 34 * eyeScale, 0.5, 0.5, side, 1.0).setVisible(false);
       this.brows.push(brow);
     });
+    if (def.accessory === 'cap') this.drawAccessory('cap', bw, bh);
 
     if (def.alpha !== undefined) this.root.setAlpha(def.alpha);
 
@@ -100,7 +105,7 @@ export class MonsterView {
   setMood(mood: Mood): void {
     if (mood === this.mood || this.gone) return;
     this.mood = mood;
-    this.mouth.setFrame(`${MOUTH[mood]}.png`);
+    this.mouth.setFrame(`${this.mouths[mood]}.png`);
     const angry = mood === 'angry';
     this.brows.forEach((b) => b.setVisible(angry));
     // calm eye frame, or the angry eye (single-color variants exist for red)
@@ -130,6 +135,16 @@ export class MonsterView {
   /** Short wiggle (wrong order, bitten, etc). */
   shake(): void {
     this.scene.tweens.add({ targets: this.root, x: `+=8`, duration: 50, yoyo: true, repeat: 3 });
+  }
+
+  /** A little jump (used while running). */
+  hop(height = 14, ms = 130): void {
+    this.scene.tweens.add({ targets: this.inner, y: `-=${height}`, duration: ms, yoyo: true, ease: 'Quad.easeOut' });
+  }
+
+  /** Flip to face the other way. */
+  face(dir: 1 | -1): void {
+    this.root.setScale(dir, 1);
   }
 
   /** Leave happily (hop away) or angrily (stomp and sink). Calls done() when finished. */
@@ -181,5 +196,51 @@ export class MonsterView {
     const img = this.scene.add.image(x, y, MONSTER_ATLAS, `${name}.png`).setOrigin(ox, oy).setScale(scale * flip, scale);
     this.inner.add(img);
     return img;
+  }
+
+  /** Pieces that are not in the Kenney pack, drawn with shapes in the body's own units. */
+  private drawAccessory(kind: Accessory, bw: number, bh: number): void {
+    const g = this.scene.add.graphics();
+    this.inner.add(g);
+    switch (kind) {
+      case 'cape': {
+        // dark cape with a red lining, wider at the bottom, visible on both sides of the body
+        g.fillStyle(0x3f1a5e, 1);
+        g.fillTriangle(-bw * 0.5, -bh * 0.32, bw * 0.5, -bh * 0.32, bw * 0.82, bh * 0.56);
+        g.fillTriangle(-bw * 0.5, -bh * 0.32, bw * 0.82, bh * 0.56, -bw * 0.82, bh * 0.56);
+        g.fillStyle(0xd1325a, 1);
+        g.fillTriangle(-bw * 0.42, -bh * 0.24, bw * 0.42, -bh * 0.24, bw * 0.7, bh * 0.5);
+        g.fillTriangle(-bw * 0.42, -bh * 0.24, bw * 0.7, bh * 0.5, -bw * 0.7, bh * 0.5);
+        break;
+      }
+      case 'bandage': {
+        // light bands wrapped across the body
+        g.lineStyle(bh * 0.06, 0xe9e2cf, 0.95);
+        for (const t of [-0.3, -0.06, 0.18, 0.4]) {
+          g.lineBetween(-bw * 0.46, bh * t - bh * 0.05, bw * 0.46, bh * t + bh * 0.05);
+        }
+        g.lineStyle(bh * 0.02, 0xb8b09a, 0.8);
+        for (const t of [-0.3, -0.06, 0.18, 0.4]) {
+          g.lineBetween(-bw * 0.46, bh * t - bh * 0.02, bw * 0.46, bh * t + bh * 0.08);
+        }
+        break;
+      }
+      case 'mask': {
+        // a robber's mask across the eyes
+        g.fillStyle(0x12101f, 1);
+        g.fillRoundedRect(-bw * 0.46, -bh * 0.26, bw * 0.92, bh * 0.3, bh * 0.1);
+        break;
+      }
+      case 'cap': {
+        // a guard's cap with a visor and a golden badge
+        g.fillStyle(0x1f2f6e, 1);
+        g.fillRoundedRect(-bw * 0.42, -bh * 0.5 - bh * 0.1, bw * 0.84, bh * 0.2, bh * 0.08);
+        g.fillStyle(0x131f4c, 1);
+        g.fillRoundedRect(-bw * 0.52, -bh * 0.5 + bh * 0.07, bw * 1.04, bh * 0.06, bh * 0.03);
+        g.fillStyle(0xffc83d, 1);
+        g.fillCircle(0, -bh * 0.5 - bh * 0.01, bh * 0.045);
+        break;
+      }
+    }
   }
 }

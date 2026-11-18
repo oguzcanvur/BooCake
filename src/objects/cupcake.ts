@@ -1,10 +1,13 @@
 import type Phaser from 'phaser';
-import { frostingInfo, type FrostingId, type ToppingId } from '../data/recipes';
+import { doughInfo, frostingInfo, type DoughId, type FrostingId, type Order, type ToppingId } from '../data/recipes';
 
 export type BakeState = 'raw' | 'ready' | 'burnt';
 
 export interface CupcakeData {
+  dough: DoughId;
   bake: BakeState;
+  /** 0 = just cooked (golden), 1 = about to burn (dark brown). Only used while bake === 'ready'. */
+  tone: number;
   frosting?: FrostingId;
   topping?: ToppingId;
 }
@@ -20,19 +23,24 @@ export function shade(color: number, amount: number): number {
   return (mix(r) << 16) | (mix(g) << 8) | mix(b);
 }
 
+/** Blend two colors. t = 0 gives a, t = 1 gives b. */
+export function blend(a: number, b: number, t: number): number {
+  const ch = (shift: number) => Math.round(((a >> shift) & 0xff) * (1 - t) + ((b >> shift) & 0xff) * t);
+  return (ch(16) << 16) | (ch(8) << 8) | ch(0);
+}
+
+/** A cupcake is finished when it is baked (not burnt), frosted and topped. */
+export function isFinished(c: CupcakeData): boolean {
+  return c.bake === 'ready' && !!c.frosting && !!c.topping;
+}
+
+export function matchesOrder(c: CupcakeData, order: Order): boolean {
+  return c.dough === order.dough && c.frosting === order.frosting && c.topping === order.topping;
+}
+
 /** Draws a topping centered at (x, y). */
 export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): void {
   switch (id) {
-    case 'cherry':
-      g.lineStyle(2.5 * s, 0x3b7a2a, 1);
-      g.lineBetween(x, y - 6 * s, x + 7 * s, y - 15 * s);
-      g.fillStyle(0xc1121f, 1);
-      g.fillCircle(x, y, 8 * s);
-      g.fillStyle(0xe63946, 1);
-      g.fillCircle(x - 1 * s, y - 1 * s, 7 * s);
-      g.fillStyle(0xffffff, 0.75);
-      g.fillCircle(x - 3 * s, y - 3 * s, 2.2 * s);
-      break;
     case 'sprinkles': {
       const bits: [number, number, number][] = [
         [-10, 6, 0xffd166],
@@ -49,7 +57,7 @@ export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): v
       }
       break;
     }
-    case 'eyeball':
+    case 'eye':
       g.fillStyle(0xd9d9d9, 1);
       g.fillCircle(x, y + 1 * s, 10 * s);
       g.fillStyle(0xffffff, 1);
@@ -64,6 +72,25 @@ export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): v
       g.fillStyle(0xffffff, 0.9);
       g.fillCircle(x - 1 * s, y - 2 * s, 1.5 * s);
       break;
+    case 'spider': {
+      // a chocolate spider candy: round body, small head, eight legs, two red eyes
+      g.lineStyle(1.8 * s, 0x2a1a3a, 1);
+      for (const side of [-1, 1]) {
+        g.lineBetween(x + side * 4 * s, y - 2 * s, x + side * 12 * s, y - 8 * s);
+        g.lineBetween(x + side * 5 * s, y, x + side * 14 * s, y - 2 * s);
+        g.lineBetween(x + side * 5 * s, y + 2 * s, x + side * 14 * s, y + 6 * s);
+        g.lineBetween(x + side * 4 * s, y + 4 * s, x + side * 11 * s, y + 11 * s);
+      }
+      g.fillStyle(0x2a1a3a, 1);
+      g.fillCircle(x, y + 1 * s, 7 * s);
+      g.fillCircle(x, y - 6 * s, 4.5 * s);
+      g.fillStyle(0x4a3166, 1);
+      g.fillCircle(x - 2 * s, y - 1 * s, 2.4 * s);
+      g.fillStyle(0xff4d6d, 1);
+      g.fillCircle(x - 1.8 * s, y - 7 * s, 1.2 * s);
+      g.fillCircle(x + 1.8 * s, y - 7 * s, 1.2 * s);
+      break;
+    }
   }
 }
 
@@ -72,12 +99,9 @@ export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): v
  * Layers: soft shadow, cake dome with highlight, pleated wrapper, 3-layer frosting swirl, topping.
  */
 export function drawCupcake(g: G, x: number, y: number, c: CupcakeData, s = 1): void {
-  const cake =
-    c.bake === 'raw'
-      ? { base: 0xf3e3b0, light: 0xfff3cf }
-      : c.bake === 'ready'
-        ? { base: 0xd9964f, light: 0xf0b872 }
-        : { base: 0x2b2522, light: 0x4a403a };
+  const dough = doughInfo(c.dough);
+  const base = c.bake === 'raw' ? dough.raw : c.bake === 'ready' ? blend(dough.baked, dough.over, c.tone) : 0x2b2522;
+  const cake = { base, light: shade(base, c.bake === 'burnt' ? 0.15 : 0.3) };
   const wrap = c.bake === 'burnt' ? { base: 0x3a3a3a, dark: 0x262626, rim: 0x555555 } : { base: 0x8f6be0, dark: 0x6a49b8, rim: 0xb59cf5 };
 
   // shadow
