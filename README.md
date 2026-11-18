@@ -1,10 +1,18 @@
 # BooCake
 
-CENG361 dersi için geliştirilen oyun projesi.
+CENG361 dersi oyun projesi: canavarlara cupcake satan bir dükkân (tarayıcıda, sadece fare ile).
 
-Proje kararları ve ortak notlar için bkz. [CLAUDE.md](CLAUDE.md).
+- Tasarım: [docs/game-design-v2.md](docs/game-design-v2.md) · Ortak notlar: [CLAUDE.md](CLAUDE.md) · Lisanslar: [CREDITS.md](CREDITS.md)
 
-## Başlangıç
+## Oynamak (sunum için)
+`npm run build` sonrası oluşan **`dist/BooCake.html`** dosyasını çift tıklayın; internet ve sunucu gerekmez.
+
+## Geliştirmek
+Node.js gerekir:
+
 ```
-git clone <repo-url>
+npm install
+npm run dev
 ```
+
+Sonra tarayıcıda http://localhost:5173 adresini açın. Tüm sayılar (süreler, fiyatlar, hedefler) `src/data/gameConfig.ts` içindedir.
