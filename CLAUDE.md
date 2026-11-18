@@ -8,7 +8,7 @@ Bu dosya projenin ortak hafızasıdır. Repoda durur, böylece ekipteki herkes (
 - **Ders:** CENG361
 - **Ekip:** 3 kişi — Oğuzcan Vur (@oguzcanvur, repo sahibi), Ceren Candemir (@CerenCandemir), Karya Altundal (@KaryaAltundal)
 - **Repo:** https://github.com/oguzcanvur/BooCake
-- **Durum:** Hazırlık aşaması (Hafta 0). Motor seçildi (Phaser + TypeScript), üretim planı yazıldı — henüz kod yazılmadı.
+- **Durum:** Hafta 1 — gray-box prototip yazıldı (`feature/prototype-core-loop` dalı): menü, mutfak döngüsü, müşteriler, gece saati, para/yıldız, sonuç ekranı, 3 gece. Canavar türleri, upgrade dükkânı, ses ve gerçek görseller henüz yok.
 - **Çalışma modeli:** Ekip **kod yazmaz**; prompt verir. Kurulum, indirme, kod, test ve git işlerini Claude yapar. Ekip tasarım kararı verir, test eder, asset seçer, PR'ları oynayarak onaylar.
 - **Tasarım belgesi (GDD):** [docs/game-design.md](docs/game-design.md) — oyun konseptinin asıl kaynağı.
 - **Üretim planı:** [docs/production-plan.md](docs/production-plan.md) — aşamalar, takvim, roller, kapsam, mimari, çalışma şekli.
@@ -43,12 +43,27 @@ Canavarlara cupcake satan bir dükkân işleten fırıncı olarak oynanan, fare 
 | Gece süresi | ~2.5 dakika | 2026-11-18 |
 | Çalışma modeli | Ekip prompt verir; Claude kurar, kodlar, test eder, git işlerini yapar | 2026-11-18 |
 | Oyun motoru / dil | Phaser + TypeScript + Vite. (Önce Godot 4 seçilmişti; Claude editörü kullanamadığı ve Phaser'ı tarayıcıda kendisi test edebildiği için değiştirildi.) | 2026-11-18 |
-| Phaser sürümü | Proje kurulurken güncel kararlı sürüm seçilip buraya yazılacak | — |
+| Sürümler | Phaser 4.2.1, Vite 8.3.8, TypeScript 7.0.2 (Node v24 ile) | 2026-11-18 |
 | Yayın | itch.io web build (geliştirmede gizli sayfa) | 2026-11-18 |
 | Asset'ler | Hazır ücretsiz asset'ler; lisanslar CREDITS.md'de | 2026-11-18 |
 | Takvim | 4–8 hafta; plan ≈7 hafta + 1 hafta yedek | 2026-11-18 |
 | Roller | Alan sahipliği: A) Mutfak, B) Müşteriler, C) Oyun akışı + UI + asset — kişiler henüz atanmadı | 2026-11-18 |
 | Ekip deneyimi | Daha önce kimse oyun motoru kullanmadı; ekip kod yazmayacak | 2026-11-18 |
+
+## Prototipte şu an kodlanmış davranış (GEÇİCİ değerler)
+Bütün sayılar `src/data/nights.ts` ve `src/data/recipes.ts` içinde; tasarım aşamasında ayarlanacak.
+- **Akış:** Fırın slotuna tıkla → pişer (6 sn hazır, 12 sn yanar) → hazır cupcake'e tıkla (elinde taşırsın, fareyi takip eder) → krema → topping (krema önce) → siparişi veren müşteriye tıkla. Çöp kutusu elindekini atar. Elde bir seferde tek cupcake.
+- **Servis kuralları:** Yanık veya eksik (krema/topping yok) cupcake müşteriye verilemez (uyarı çıkar, harcanmaz). Tam ama yanlış cupcake → yarım ücret, bahşiş yok, müşteri gider. Doğru cupcake → taban ücret + hıza bağlı bahşiş (müşterinin kalan sabrı oranında).
+- **Düzen:** 2 fırın slotu, 3 müşteri koltuğu. Müşteri sıklığı gece sonuna doğru %40'a kadar artar.
+- **Geceler:** 3 gece (hedef $60 / $90 / $120, 150 sn). 1/2/3 yıldız = hedefin 1x / 1.5x / 2x'i. Gece 2: 3. krema (Lilac). Gece 3: Eyeball topping + daha hızlı kalabalık.
+- **Görsel:** Hepsi basit şekillerle çizilmiş (placeholder); müşterinin yüzü sabır azaldıkça gülen → nötr → kızgın olur.
+- **Henüz yok:** vampir/hayalet/hırsız, upgrade dükkânı, ses, kayıt (save), gerçek asset'ler, 4–7. geceler.
+
+## Kod yapısı ve çalıştırma
+- Çalıştır: `npm install` (bir kez), `npm run dev` → http://localhost:5173. Kontrol: `npm run typecheck`. Yayın build'i: `npm run build` (`dist/`).
+- `src/scenes/` Menu, Night (asıl oyun), Result · `src/objects/` OvenSlot, Customer, cupcake çizimi · `src/data/` gece ve tarif verisi · `src/systems/GameState.ts` global ilerleme · `src/ui/button.ts`.
+- Sahne olay dinleyicileri (`this.events.on`) sahne yeniden başlayınca birikir; mutlaka `SHUTDOWN`'da kaldırılmalı (bu hata bulundu ve düzeltildi).
+- **Claude için test notu:** `npm run dev` + `.claude/launch.json` (`boocake-dev`) ile tarayıcı panelinde açılır. Dev modda `window.__game` ile oyuna erişilir (örn. `__game.scene.getScene('Night')`). Panel gizliyken oyun çok yavaş (≈3 fps) çalışır; zamanı beklemek yerine `scene.update(0, 100)` döngüsüyle mantığı ilerlet.
 
 ## Açık sorular
 - Alan sahipleri kim? (A Mutfak / B Müşteriler / C Oyun akışı + UI + asset)
