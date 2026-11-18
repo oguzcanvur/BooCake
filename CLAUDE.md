@@ -23,6 +23,7 @@ Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
 - **Akış:** hamur kâsesine tık → boş fırına girer (5 sn'de pişer, 10 sn'de yanar) → pişen/yanan keke tık → tabağa geçer → krema → topping (krema önce) → müşteriye tık ya da hazır tepsiye koy (2 slot; tepsideki keke tık seçer, sonra müşteriye tık). Çöp kutusu seçili şeyi (tabak/tepsi/fırındaki yanık kek) atar. Yanık kek süslenemez ve verilemez.
 - **Ödeme:** doğru cupcake $5 + ruh haline göre bahşiş (mutlu +5, huzursuz +2, sinirli 0). Yanlış cupcake yok olur, müşterinin sabrı %20 düşer.
 - **Gün:** 150 sn, 3 koltuk. 4 gün: hedef $60/90/120/150, müşteri aralığı 12/10/8/7 sn, sabır 30/27/24/22 sn. Yıldız: hedefin %100/130/160'ı. Para sadece hedefi geçilen günlerde cüzdana eklenir; başarısız gün tekrarlanır.
+- **Karakterler:** normal müşteriler zombi, zombi kız, mumya, kurt adam, balçık. Vampirin 3 görünümü (pelerinli, vampir kız, vampir çocuk) rastgele gelir (`SPECIAL_VARIANTS`). Yeni karakter = `src/data/monsters.ts`'e bir kayıt (ekibin referans çizimlerine göre).
 - **Özel canavarlar** (her gün her açık olan en az bir kez gelir): vampir (gün 2+, ısırınca 5 sn tıklama kilidi + kırmızı ekran, fırın çalışır), hayalet (gün 2+, keki düşürür ama tam öder, sabrı yavaş azalır), hırsız (gün 3+, koltuk almaz, tepsideki tüm kekleri çalar).
 - **Dükkân** (günler arası, kalıcı): Sarımsak $40 (vampir ısırmaz), Güvenlik $60 (hırsız yakalanır, +$5), 3. fırın $50.
 - **Ekranlar:** Menü, Nasıl Oynanır, Gün (yeni canavar kartları), Gün özeti, Dükkân, Final.

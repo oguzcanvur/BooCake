@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { sfx } from '../audio';
 import { DEPTH, FONT, H, LAYOUT, STATION_X, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
-import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal } from '../data/monsters';
+import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
@@ -580,7 +580,7 @@ export class NightScene extends Phaser.Scene {
       const pool = this.day.specials.filter((s) => s !== 'thief');
       if (pool.length > 0 && Math.random() < CONFIG.extraSpecialChance) kind = Phaser.Utils.Array.GetRandom(pool);
     }
-    const def = kind ? SPECIAL_MONSTERS[kind] : pickNormal();
+    const def = kind ? pickSpecial(kind) : pickNormal();
     const slot = Phaser.Utils.Array.GetRandom(free);
     sfx(this, 'customer_arrive', 0.35);
     const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(), (cust) => this.onCustomer(cust));

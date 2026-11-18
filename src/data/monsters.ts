@@ -6,12 +6,24 @@ import type { SpecialId } from './gameConfig';
 
 export type Mood = 'happy' | 'neutral' | 'angry';
 export type MonsterKind = 'normal' | SpecialId | 'guard';
-export type HairStyle = 'messy' | 'slick' | 'beanie' | 'fur' | 'none';
-/** What the monster wears (sheet = ghost body, blob = slime body). */
-export type Outfit = 'hoodie' | 'sweater' | 'cape' | 'stripes' | 'uniform' | 'wraps' | 'sheet' | 'blob';
-export type EyeStyle = 'sleepy' | 'round' | 'bead';
-export type Nose = 'skull' | 'dot' | 'snout' | 'none';
-export type Extra = 'sprout' | 'stitch' | 'fangs' | 'mask' | 'cap' | 'bandage' | 'wolfEars';
+export type HairStyle = 'messy' | 'slick' | 'beanie' | 'fur' | 'bob' | 'spiky' | 'long' | 'none';
+/** What the monster wears (sheet = ghost body, blob = slime body, tee = short sleeves and bare arms). */
+export type Outfit = 'hoodie' | 'sweater' | 'tee' | 'cape' | 'stripes' | 'uniform' | 'wraps' | 'sheet' | 'blob';
+export type EyeStyle = 'sleepy' | 'round' | 'cute' | 'bead';
+export type Nose = 'skull' | 'dot' | 'snout' | 'line' | 'pink' | 'none';
+export type Extra =
+  | 'sprout'
+  | 'stitch'
+  | 'fangs'
+  | 'mask'
+  | 'cap'
+  | 'bandage'
+  | 'wolfEars'
+  | 'pointyEars'
+  | 'lashes'
+  | 'batClip'
+  | 'scarf'
+  | 'collar';
 
 export interface MonsterDef {
   id: string;
@@ -20,7 +32,8 @@ export interface MonsterDef {
   skin: number;
   hair?: { style: HairStyle; color: number };
   outfit: { type: Outfit; color: number };
-  eyes: { style: EyeStyle; color?: number };
+  /** color = iris, white = the white of the eye (sleepy zombies have yellowish ones). */
+  eyes: { style: EyeStyle; color?: number; white?: number };
   nose: Nose;
   extras?: Extra[];
   /** 'counter' = leans on the counter (hands on it); 'standing' = full body with legs (thief, guard). */
@@ -41,6 +54,16 @@ export const NORMAL_MONSTERS: MonsterDef[] = [
     eyes: { style: 'sleepy' },
     nose: 'skull',
     extras: ['sprout', 'stitch'],
+  },
+  {
+    id: 'zombieGirl',
+    kind: 'normal',
+    skin: 0xa9d4a6,
+    hair: { style: 'long', color: 0xa6d2b8 },
+    outfit: { type: 'sweater', color: 0xf5b8c4 },
+    eyes: { style: 'sleepy', white: 0xfff0b8 },
+    nose: 'skull',
+    extras: ['sprout', 'stitch', 'lashes'],
   },
   {
     id: 'mummy',
@@ -106,6 +129,40 @@ export const SPECIAL_MONSTERS: Record<SpecialId, MonsterDef> = {
     pose: 'standing',
   },
 };
+
+/** Extra looks for the special monsters (same rules, different character). One is picked at random. */
+export const SPECIAL_VARIANTS: Record<SpecialId, MonsterDef[]> = {
+  vampire: [
+    SPECIAL_MONSTERS.vampire,
+    {
+      id: 'vampireGirl',
+      kind: 'vampire',
+      skin: 0xe2dcf4,
+      hair: { style: 'bob', color: 0x6e5570 },
+      outfit: { type: 'sweater', color: 0xfbe8c8 },
+      eyes: { style: 'cute' },
+      nose: 'pink',
+      extras: ['pointyEars', 'fangs', 'lashes', 'batClip', 'scarf'],
+    },
+    {
+      id: 'vampireBoy',
+      kind: 'vampire',
+      skin: 0xd6d6f2,
+      hair: { style: 'spiky', color: 0x3e3f63 },
+      outfit: { type: 'tee', color: 0x7a5c6b },
+      eyes: { style: 'sleepy', white: 0xfff0b0 },
+      nose: 'line',
+      extras: ['pointyEars', 'fangs', 'collar'],
+    },
+  ],
+  ghost: [SPECIAL_MONSTERS.ghost],
+  thief: [SPECIAL_MONSTERS.thief],
+};
+
+export function pickSpecial(id: SpecialId, rand: () => number = Math.random): MonsterDef {
+  const list = SPECIAL_VARIANTS[id];
+  return list[Math.floor(rand() * list.length)];
+}
 
 /** The security guard you can buy in the shop. */
 export const GUARD_MONSTER: MonsterDef = {

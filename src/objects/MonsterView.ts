@@ -216,8 +216,15 @@ export class MonsterView {
 
     if (type === 'cape') this.drawCapeCollar(g, 'back');
     if (standing) this.drawLegs(g);
+    const longHair = d.hair?.style === 'long';
+    // long hair hangs behind the body; a bob sits over the shoulders
+    if (longHair) this.drawBackHair(g);
     this.drawTorso(g, standing);
     if (standing) this.drawArms(g);
+    const extras = d.extras ?? [];
+    if (longHair) this.drawFrontLocks(g);
+    else this.drawBackHair(g);
+    if (extras.includes('collar')) this.drawHighCollar(g);
 
     // neck
     g.fillStyle(shade(d.skin, -0.12), 1);
@@ -227,12 +234,19 @@ export class MonsterView {
     g.lineBetween(13, 34, 13, 54);
     this.drawNeckline(g);
     if (type === 'cape') this.drawCapeCollar(g, 'front');
+    if (extras.includes('scarf')) this.drawScarf(g);
 
-    // ears
+    // ears: pointy (vampires) or round
     for (const s of [-1, 1]) {
-      ellipse(g, s * 44, 6, 18, 24, d.skin);
-      g.lineStyle(2, shade(d.skin, -0.25), 1);
-      g.lineBetween(s * 46, 0, s * 46, 12);
+      if (extras.includes('pointyEars')) {
+        poly(g, [[s * 38, -8], [s * 66, -26], [s * 42, 20]], d.skin);
+        g.fillStyle(shade(d.skin, -0.12), 1);
+        g.fillTriangle(s * 44, -4, s * 58, -18, s * 46, 10);
+      } else {
+        ellipse(g, s * 44, 6, 18, 24, d.skin);
+        g.lineStyle(2, shade(d.skin, -0.25), 1);
+        g.lineBetween(s * 46, 0, s * 46, 12);
+      }
     }
     // head
     ellipse(g, 0, 0, RX * 2, RY * 2, d.skin);
@@ -262,6 +276,16 @@ export class MonsterView {
         g.lineStyle(2, shade(c, -0.25), 0.6);
         g.lineBetween(-44, 70, -38, 100);
         g.lineBetween(30, 96, 46, 84);
+        break;
+      }
+      case 'tee': {
+        // short sleeves; the arms are bare
+        ellipse(g, 0, 50, 92, 30, shade(c, -0.12));
+        rrect(g, -half - 10, 52, 34, 40, 14, c);
+        rrect(g, half - 24, 52, 34, 40, 14, c);
+        g.lineStyle(2, shade(c, -0.3), 0.6);
+        g.lineBetween(-40, 96, -34, 120);
+        g.lineBetween(40, 96, 34, 120);
         break;
       }
       case 'sweater': {
@@ -316,7 +340,7 @@ export class MonsterView {
 
   private drawNeckline(g: G): void {
     const d = this.def;
-    if (d.outfit.type === 'hoodie') {
+    if (d.outfit.type === 'hoodie' || d.outfit.type === 'tee') {
       g.fillStyle(shade(d.skin, -0.12), 1);
       g.fillTriangle(-15, 46, 15, 46, 0, 72);
       g.lineStyle(LINE, OUT, 1);
@@ -364,7 +388,8 @@ export class MonsterView {
       ellipse(g, 30, y + 2, 34, 22, d.skin);
       return;
     }
-    const sleeve = d.outfit.type === 'cape' ? 0x3d3552 : d.outfit.color;
+    // short sleeves -> bare forearms
+    const sleeve = d.outfit.type === 'cape' ? 0x3d3552 : d.outfit.type === 'tee' ? d.skin : d.outfit.color;
     rrect(g, -86, y - 14, 62, 28, 13, sleeve);
     rrect(g, 24, y - 14, 62, 28, 13, sleeve);
     // hands folded on the counter
@@ -375,10 +400,99 @@ export class MonsterView {
     g.lineBetween(4, y - 1, 6, y + 9);
   }
 
+  /** Hair that hangs behind the face and over the shoulders (bob, long). Drawn before the neck and head. */
+  private drawBackHair(g: G): void {
+    const h = this.def.hair;
+    if (!h) return;
+    const back = shade(h.color, -0.08);
+    if (h.style === 'bob') {
+      poly(g, [[-56, -12], [-62, 20], [-64, 44], [-54, 58], [-42, 50], [-30, 58], [30, 58], [42, 50], [54, 58], [64, 44], [62, 20], [56, -12]], back);
+    } else if (h.style === 'long') {
+      // long messy hair with jagged ends below the shoulders
+      const pts: P[] = [[-56, -18], [-62, 24], [-68, 70]];
+      const ends = [-68, -54, -44, -30, 30, 44, 54, 68];
+      ends.forEach((x, i) => pts.push([x, i % 2 === 0 ? 98 : 84]));
+      pts.push([68, 70], [62, 24], [56, -18]);
+      poly(g, pts, back);
+    }
+  }
+
+  /** Two strands of long hair falling in front of the shoulders. */
+  private drawFrontLocks(g: G): void {
+    const h = this.def.hair;
+    if (!h) return;
+    const c = shade(h.color, -0.04);
+    for (const s of [-1, 1]) {
+      poly(g, [[s * 38, -10], [s * 58, -8], [s * 64, 36], [s * 62, 80], [s * 54, 70], [s * 48, 86], [s * 42, 64], [s * 38, 28]], c);
+    }
+  }
+
+  /** Tall vampire collar standing up behind the neck. */
+  private drawHighCollar(g: G): void {
+    const c = shade(this.def.outfit.color, -0.05);
+    poly(g, [[-12, 50], [-62, 8], [-58, 62], [-30, 66]], c);
+    poly(g, [[12, 50], [62, 8], [58, 62], [30, 66]], c);
+    g.fillStyle(shade(c, -0.18), 1);
+    g.fillTriangle(-16, 50, -52, 18, -48, 56);
+    g.fillTriangle(16, 50, 52, 18, 48, 56);
+  }
+
+  /** A cosy scarf around the neck with two hanging ends. */
+  private drawScarf(g: G): void {
+    const c = 0xb35f74;
+    rrect(g, -18, 66, 18, 74, 7, shade(c, -0.08));
+    rrect(g, 2, 64, 18, 66, 7, c);
+    rrect(g, -32, 40, 64, 28, 13, c);
+    g.lineStyle(2, shade(c, -0.25), 0.7);
+    g.lineBetween(-20, 46, -14, 62);
+    g.lineBetween(4, 46, 10, 62);
+  }
+
   private drawHair(g: G): void {
     const h = this.def.hair;
     if (!h) return;
     switch (h.style) {
+      case 'bob':
+        // side-swept bangs framing the face
+        poly(
+          g,
+          [
+            [-50, 30], [-54, 0], [-50, -26], [-38, -46], [-18, -56], [4, -58], [26, -54], [44, -42], [52, -22], [54, 4],
+            [50, 30], [44, 32], [42, 6], [38, -14], [28, -26], [14, -32], [-2, -28], [-14, -18], [-24, -6], [-34, 6],
+            [-40, 20], [-42, 32],
+          ],
+          h.color,
+        );
+        g.lineStyle(2, shade(h.color, 0.25), 0.6);
+        g.lineBetween(-30, -40, -14, -46);
+        break;
+      case 'spiky':
+        // spiky hair with a widow's peak
+        poly(
+          g,
+          [
+            [-48, 8], [-52, -14], [-64, -24], [-50, -36], [-58, -56], [-36, -56], [-30, -76], [-12, -62], [0, -82], [12, -64],
+            [28, -76], [36, -56], [60, -58], [50, -36], [64, -22], [52, -12], [48, 8], [40, -14], [24, -22], [8, -24], [0, -6],
+            [-8, -24], [-24, -22], [-40, -14],
+          ],
+          h.color,
+        );
+        break;
+      case 'long':
+        // messy fringe on top; the long part is drawn behind (drawBackHair)
+        poly(
+          g,
+          [
+            [-50, 36], [-54, 0], [-50, -30], [-36, -50], [-16, -60], [0, -64], [8, -76], [16, -60], [36, -50], [50, -30],
+            [54, 0], [50, 36], [44, 20], [42, -6], [32, -14], [26, 0], [18, -18], [8, -2], [0, -18], [-10, -4], [-18, -20],
+            [-28, -4], [-34, -14], [-42, -2], [-44, 20],
+          ],
+          h.color,
+        );
+        g.lineStyle(2, shade(h.color, -0.25), 0.7);
+        g.lineBetween(-22, -46, -14, -30);
+        g.lineBetween(14, -48, 22, -32);
+        break;
       case 'messy':
         poly(
           g,
@@ -441,6 +555,10 @@ export class MonsterView {
       g.fillStyle(0xf2b8c6, 1);
       g.fillTriangle(-38, -36, -36, -62, -20, -46);
       g.fillTriangle(38, -36, 36, -62, 20, -46);
+    }
+    if (extras.includes('batClip')) {
+      // a little bat hair clip
+      poly(g, [[22, -38], [30, -46], [34, -40], [40, -48], [46, -40], [52, -46], [56, -36], [44, -32], [39, -36], [34, -32]], 0xd6c4ee);
     }
     if (extras.includes('cap')) {
       ellipse(g, 0, -38, 98, 52, d.outfit.color);
@@ -535,6 +653,15 @@ export class MonsterView {
         g.fillStyle(OUT, 1);
         g.fillEllipse(0, 13, 14, 9);
         break;
+      case 'line':
+        g.lineStyle(2.5, OUT, 0.9);
+        g.beginPath();
+        g.arc(1, 14, 5, -0.4 * Math.PI, 0.55 * Math.PI, false);
+        g.strokePath();
+        break;
+      case 'pink':
+        ellipse(g, 1, 15, 9, 7, 0xf0a3ae);
+        break;
       case 'none':
         break;
     }
@@ -593,13 +720,21 @@ export class MonsterView {
       g.fillCircle(x - 2, y - 3, 2.2);
       return;
     }
-    ellipse(g, x, y, 21, style === 'sleepy' ? 22 : 24, 0xfff6dc);
+    ellipse(g, x, y, 21, style === 'sleepy' ? 22 : 24, d.eyes.white ?? 0xfff6dc);
     g.fillStyle(d.eyes.color ?? OUT, 1);
-    g.fillCircle(x + side * 0.5, y + (style === 'sleepy' ? 3 : 1), style === 'sleepy' ? 4.5 : 6);
+    const pupil = style === 'sleepy' ? 4.5 : style === 'cute' ? 8 : 6;
+    g.fillCircle(x + side * 0.5, y + (style === 'sleepy' ? 3 : 1), pupil);
     g.fillStyle(OUT, 1);
     if (d.eyes.color !== undefined && d.eyes.color !== OUT) g.fillCircle(x + side * 0.5, y + 1, 2.8);
     g.fillStyle(0xffffff, 0.95);
-    g.fillCircle(x - 2, y - 2, 2);
+    g.fillCircle(x - 2, y - 2, style === 'cute' ? 2.6 : 2);
+    if (style === 'cute') g.fillCircle(x + 2.5, y + 4, 1.3);
+    if ((d.extras ?? []).includes('lashes')) {
+      // two little lashes at the outer corner
+      g.lineStyle(2.2, OUT, 1);
+      g.lineBetween(x + side * 9, y - 7, x + side * 14, y - 11);
+      g.lineBetween(x + side * 10, y - 3, x + side * 15, y - 5);
+    }
     if (style === 'sleepy' || this.mood === 'angry') {
       // heavy upper eyelid
       g.fillStyle(this.def.skin, 1);

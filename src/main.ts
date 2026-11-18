@@ -5,7 +5,7 @@ import '@fontsource/fredoka/latin-ext-600.css';
 import '@fontsource/fredoka/latin-ext-700.css';
 import Phaser from 'phaser';
 import { H, W } from './config';
-import { GUARD_MONSTER, NORMAL_MONSTERS, SPECIAL_MONSTERS } from './data/monsters';
+import { GUARD_MONSTER, NORMAL_MONSTERS, SPECIAL_VARIANTS } from './data/monsters';
 import { FinalScene } from './scenes/FinalScene';
 import { HowToScene } from './scenes/HowToScene';
 import { MenuScene } from './scenes/MenuScene';
@@ -31,5 +31,5 @@ const game = new Phaser.Game({
 if (import.meta.env.DEV) {
   const dev = window as unknown as { __game: Phaser.Game; __monsters: unknown[] };
   dev.__game = game;
-  dev.__monsters = [...NORMAL_MONSTERS, ...Object.values(SPECIAL_MONSTERS), GUARD_MONSTER];
+  dev.__monsters = [...NORMAL_MONSTERS, ...Object.values(SPECIAL_VARIANTS).flat(), GUARD_MONSTER];
 }
