@@ -8,7 +8,9 @@ Bu dosya projenin ortak hafızasıdır. Repoda durur, böylece ekipteki herkes (
 - **Ders:** CENG361
 - **Ekip:** 3 kişi — Oğuzcan Vur (@oguzcanvur, repo sahibi), Ceren Candemir (@CerenCandemir), Karya Altundal (@KaryaAltundal)
 - **Repo:** https://github.com/oguzcanvur/BooCake
-- **Durum:** Hafta 1 — gray-box prototip yazıldı (`feature/prototype-core-loop` dalı): menü, mutfak döngüsü, müşteriler, gece saati, para/yıldız, sonuç ekranı, 3 gece. Canavar türleri, upgrade dükkânı, ses ve gerçek görseller henüz yok.
+- **Durum:** Hafta 1–2 — oynanabilir prototip + görsel yükseltme yapıldı (`feature/visual-upgrade` dalı): menü, mutfak döngüsü, 6 canavar tipi, modern dükkân görünümü, ses efektleri, parçacıklar, sonuç ekranı, 3 gece. Eksik: vampir/hayalet/hırsız mekanikleri, upgrade dükkânı, müzik, kayıt (save), 4–7. geceler.
+- **Görsel yükseltme planı:** [docs/visual-upgrade-plan.md](docs/visual-upgrade-plan.md) — aşamalar A–G; A–E ve G bitti, F (yeni oynanış içeriği) bekliyor.
+- **Asset kaynakları ve lisanslar:** [CREDITS.md](CREDITS.md).
 - **Çalışma modeli:** Ekip **kod yazmaz**; prompt verir. Kurulum, indirme, kod, test ve git işlerini Claude yapar. Ekip tasarım kararı verir, test eder, asset seçer, PR'ları oynayarak onaylar.
 - **Tasarım belgesi (GDD):** [docs/game-design.md](docs/game-design.md) — oyun konseptinin asıl kaynağı.
 - **Üretim planı:** [docs/production-plan.md](docs/production-plan.md) — aşamalar, takvim, roller, kapsam, mimari, çalışma şekli.
@@ -45,7 +47,7 @@ Canavarlara cupcake satan bir dükkân işleten fırıncı olarak oynanan, fare 
 | Oyun motoru / dil | Phaser + TypeScript + Vite. (Önce Godot 4 seçilmişti; Claude editörü kullanamadığı ve Phaser'ı tarayıcıda kendisi test edebildiği için değiştirildi.) | 2026-11-18 |
 | Sürümler | Phaser 4.2.1, Vite 8.3.8, TypeScript 7.0.2 (Node v24 ile) | 2026-11-18 |
 | Yayın | itch.io web build (geliştirmede gizli sayfa) | 2026-11-18 |
-| Asset'ler | Hazır ücretsiz asset'ler; lisanslar CREDITS.md'de | 2026-11-18 |
+| Asset'ler | Kenney CC0 paketleri: Monster Builder (canavarlar), UI Pack, Particle Pack, Interface + Impact Sounds. Yazı tipi Fredoka (OFL). Cupcake'ler, fırın, istasyonlar ve dekorlar kodla çizilir. Lisanslar CREDITS.md'de | 2026-11-18 |
 | Takvim | 4–8 hafta; plan ≈7 hafta + 1 hafta yedek | 2026-11-18 |
 | Roller | Alan sahipliği: A) Mutfak, B) Müşteriler, C) Oyun akışı + UI + asset — kişiler henüz atanmadı | 2026-11-18 |
 | Ekip deneyimi | Daha önce kimse oyun motoru kullanmadı; ekip kod yazmayacak | 2026-11-18 |
@@ -56,19 +58,24 @@ Bütün sayılar `src/data/nights.ts` ve `src/data/recipes.ts` içinde; tasarım
 - **Servis kuralları:** Yanık veya eksik (krema/topping yok) cupcake müşteriye verilemez (uyarı çıkar, harcanmaz). Tam ama yanlış cupcake → yarım ücret, bahşiş yok, müşteri gider. Doğru cupcake → taban ücret + hıza bağlı bahşiş (müşterinin kalan sabrı oranında).
 - **Düzen:** 2 fırın slotu, 3 müşteri koltuğu. Müşteri sıklığı gece sonuna doğru %40'a kadar artar.
 - **Geceler:** 3 gece (hedef $60 / $90 / $120, 150 sn). 1/2/3 yıldız = hedefin 1x / 1.5x / 2x'i. Gece 2: 3. krema (Lilac). Gece 3: Eyeball topping + daha hızlı kalabalık.
-- **Görsel:** Hepsi basit şekillerle çizilmiş (placeholder); müşterinin yüzü sabır azaldıkça gülen → nötr → kızgın olur.
-- **Henüz yok:** vampir/hayalet/hırsız, upgrade dükkânı, ses, kayıt (save), gerçek asset'ler, 4–7. geceler.
+- **Görsel:** Modern düz vektör stil. 6 canavar tipi (cyclops, bear, square, imp, ghost, furry) Kenney parçalarından birleştirilir (`src/data/monsters.ts`); yüzü sabır azaldıkça gülen → nötr → kızgın olur. Dükkân: pencereler + ay, uçan yarasalar, bayraklar, örümcek ağları, duvar saati, neon "OPEN" tabelası, kabak, titreyen mumlar, bahşiş kavanozu (para kazandıkça dolar). Fırın penceresi pişerken turuncu, hazırken yeşil parlar, yanınca duman çıkar. Elde taşınan cupcake beyaz eldivenin üstünde durur.
+- **Ses/efekt:** Her eylemde ses efekti (SFX düğmesi sağ üstte, ayar saklanır); servis/hazır/yanma/yıldız parçacıkları; uçan paralar; sahne geçişlerinde kararma.
+- **Gece başına yeni canavar:** `monsterPool` (`nights.ts`): gece 1 = ilk 3 tip, gece 2 = 4, gece 3 = 6.
+- **Henüz yok:** vampir/hayalet/hırsız MEKANİKLERİ (görselleri var ama hepsi sıradan müşteri gibi davranır), upgrade dükkânı, müzik, kayıt (save), 4–7. geceler.
 
 ## Kod yapısı ve çalıştırma
 - Çalıştır: `npm install` (bir kez), `npm run dev` → http://localhost:5173. Kontrol: `npm run typecheck`. Yayın build'i: `npm run build` (`dist/`).
-- `src/scenes/` Menu, Night (asıl oyun), Result · `src/objects/` OvenSlot, Customer, cupcake çizimi · `src/data/` gece ve tarif verisi · `src/systems/GameState.ts` global ilerleme · `src/ui/button.ts`.
+- `src/scenes/` Preload (varlık yükleme), Menu, Night (asıl oyun), Result · `src/objects/` Shop (dükkân dekoru), MonsterView + Customer (müşteri), OvenSlot, stations (krema torbası/topping kavanozu/çöp), cupcake (çizim) · `src/data/` geceler, tarifler, canavar tanımları · `src/systems/GameState.ts` global ilerleme · `src/ui/` button (9-slice), Hud · `src/assets.ts` yüklenen dosya listesi · `src/audio.ts` ses · `src/fx.ts` parçacık/yüzen yazı/geçiş yardımcıları.
+- Yeni canavar eklemek: `src/data/monsters.ts`'e bir kayıt ekle (kod değişmez). Yeni ses/görsel: `public/assets/` + `src/assets.ts` listesi + `CREDITS.md`.
+- Çizim sırası (`DEPTH` in `config.ts`): canavarlar tezgâhın arkasında durur; zemin canavarlardan sonra çizildiği için bacakları görünmez.
 - Sahne olay dinleyicileri (`this.events.on`) sahne yeniden başlayınca birikir; mutlaka `SHUTDOWN`'da kaldırılmalı (bu hata bulundu ve düzeltildi).
-- **Claude için test notu:** `npm run dev` + `.claude/launch.json` (`boocake-dev`) ile tarayıcı panelinde açılır. Dev modda `window.__game` ile oyuna erişilir (örn. `__game.scene.getScene('Night')`). Panel gizliyken oyun çok yavaş (≈3 fps) çalışır; zamanı beklemek yerine `scene.update(0, 100)` döngüsüyle mantığı ilerlet.
+- **Claude için test notu:** `npm run dev` + `.claude/launch.json` (`boocake-dev`) ile tarayıcı panelinde açılır. Dev modda `window.__game` (oyun) ve `window.__monsters` (canavar listesi) erişilebilir. Panel gizliyken veya sekme arka plandayken oyun çok yavaş (≈3 fps) çalışır: sekmeyi `tabs_select` ile öne al; zamanı beklemek yerine `scene.update(0, 100)` döngüsüyle mantığı ilerlet. Dikkat: `game.scene.start('Night')` açık olan başka sahneyi KAPATMAZ (sonuç ekranı üstte kalıp tıklamaları yutar); sahne değiştirirken `scene.scene.start(...)` kullan. Canavar vitrini için: `const {Customer} = await import('/src/objects/Customer.ts')` ile istediğin tipleri 3 koltuğa yerleştir.
+- Test edilen: menü → gece → fırın → krema → topping → servis, yanma, yanlış cupcake, sabır bitişi, gece sonu, sonuç ekranı, sonraki gece, ses düğmesi, üretim build'i (`vite preview`).
 
 ## Açık sorular
 - Alan sahipleri kim? (A Mutfak / B Müşteriler / C Oyun akışı + UI + asset)
-- Hangi ana asset paketi?
 - itch.io hesabını kim açacak?
+- Vampir/hayalet/hırsız tam olarak nasıl çalışacak ve upgrade dükkânı (aşama F): sorular [docs/visual-upgrade-plan.md](docs/visual-upgrade-plan.md) sonunda.
 - Her gecenin para hedefi ve 1/2/3 yıldız eşikleri ne olacak?
 - Her gece hangi yeni şeyi ekliyor? (7 gecelik zorluk/içerik tablosu)
 - Kaç çeşit cupcake / krema / topping var? Sipariş nasıl gösteriliyor?

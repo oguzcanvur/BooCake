@@ -1,23 +1,26 @@
 import Phaser from 'phaser';
-import { COLORS, FONT, H, MONSTER_COLORS, W } from '../config';
-import { FROSTINGS, TOPPINGS } from '../data/recipes';
+import { sfx } from '../audio';
+import { COLORS, DEPTH, FONT, H, LAYOUT, W } from '../config';
 import { NIGHTS, type NightConfig } from '../data/nights';
-import { gameState } from '../systems/GameState';
-import { drawCupcake, drawTopping, type CupcakeData } from '../objects/cupcake';
-import { OvenSlot } from '../objects/OvenSlot';
+import { pickMonster } from '../data/monsters';
+import { FROSTINGS, TOPPINGS, frostingInfo, type FrostingId, type ToppingId } from '../data/recipes';
+import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
+import { drawCupcake, type CupcakeData } from '../objects/cupcake';
+import { OvenSlot } from '../objects/OvenSlot';
+import { Shop } from '../objects/Shop';
+import { createPipingBag, createToppingJar, createTrash, drawShelf } from '../objects/stations';
+import { gameState } from '../systems/GameState';
 import { makeButton } from '../ui/button';
+import { Hud } from '../ui/Hud';
 
 type Phase = 'intro' | 'playing' | 'ended';
 
-const SLOT_X = [200, 480, 760];
-const SLOT_Y = 205;
-const STATION_Y = 480;
-const OVEN_X = [105, 235];
-const FROSTING_X = 380;
-const TOPPING_X = 650;
-const BUTTON_GAP = 80;
-const TRASH_X = 905;
+const OVEN_X = [95, 225];
+const FROSTING_CENTER = 430;
+const TOPPING_CENTER = 690;
+const ITEM_GAP = 76;
+const TRASH_X = 880;
 
 export interface NightStats {
   served: number;
@@ -37,15 +40,15 @@ export class NightScene extends Phaser.Scene {
   private elapsed = 0;
   private money = 0;
   private spawnIn = 1;
+  private lastTick = -1;
   private hand: CupcakeData | null = null;
   private customers: (Customer | null)[] = [];
   private ovens: OvenSlot[] = [];
   private stats: NightStats = { served: 0, wrong: 0, left: 0, burnt: 0 };
 
+  private shop!: Shop;
+  private hud!: Hud;
   private handGfx!: Phaser.GameObjects.Graphics;
-  private clockText!: Phaser.GameObjects.Text;
-  private moneyText!: Phaser.GameObjects.Text;
-  private barGfx!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('Night');
@@ -57,26 +60,37 @@ export class NightScene extends Phaser.Scene {
     this.elapsed = 0;
     this.money = 0;
     this.spawnIn = 1;
+    this.lastTick = -1;
     this.hand = null;
-    this.customers = SLOT_X.map(() => null);
+    this.customers = LAYOUT.customerSlotsX.map(() => null);
     this.ovens = [];
     this.stats = { served: 0, wrong: 0, left: 0, burnt: 0 };
   }
 
   create(): void {
-    this.drawBackground();
-    this.createHud();
+    fadeIn(this);
+    this.shop = new Shop(this);
+    this.hud = new Hud(this, this.cfg, this.cfg.name);
+    this.hud.onStar = (_i, x, y) => {
+      sfx(this, 'star', 0.5);
+      burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
+    };
     this.createStations();
 
-    this.handGfx = this.add.graphics().setDepth(100);
+    this.handGfx = this.add.graphics().setDepth(DEPTH.hand);
 
     // Scene event listeners survive scene restarts, so they must be removed on shutdown
     // (otherwise "Try again" / "Next night" would add a duplicate listener every time).
-    const onReady = (x: number, y: number) => this.float(x, y - 80, 'Ready!', '#7dffb0');
+    const onReady = (x: number, y: number) => {
+      sfx(this, 'oven_ready', 0.5);
+      floatText(this, x, y - 92, 'Ready!', '#7dffb0');
+      burst(this, x, y - 10, 'star_04', { count: 8, tint: 0xb6ffd0, gravity: 40, speed: [60, 160] });
+    };
     const onBurned = (x: number, y: number) => {
       this.stats.burnt++;
-      this.float(x, y - 80, 'Burnt!', '#ff6b6b');
-      this.cameras.main.shake(120, 0.003);
+      sfx(this, 'burnt', 0.45);
+      floatText(this, x, y - 92, 'Burnt!', '#ff6b6b');
+      this.cameras.main.shake(140, 0.004);
     };
     this.events.on('cupcake-ready', onReady);
     this.events.on('cupcake-burned', onBurned);
@@ -112,146 +126,102 @@ export class NightScene extends Phaser.Scene {
       c.update(dt);
       if (c.expired) {
         this.stats.left++;
-        this.float(c.x, c.y - 10, 'Left without paying!', '#ff6b6b');
-        c.leave(this);
+        sfx(this, 'customer_left', 0.4);
+        floatText(this, c.x, c.y - 10, 'Left without paying!', '#ff6b6b');
+        c.leave('angry');
         this.customers[i] = null;
       }
     });
 
-    this.updateHud();
+    const t = Math.min(this.elapsed / this.cfg.durationSec, 1);
+    this.shop.update(t);
+    this.hud.update(t, this.money);
+    this.shop.setJar(this.money / (this.cfg.goal * this.cfg.starMultipliers[2]));
+
+    // clock ticks in the last 10 seconds
+    const left = Math.ceil(this.cfg.durationSec - this.elapsed);
+    if (left <= 10 && left > 0 && left !== this.lastTick) {
+      this.lastTick = left;
+      sfx(this, 'tick', 0.35);
+    }
     if (this.elapsed >= this.cfg.durationSec) this.endNight();
   }
 
   // ---------------------------------------------------------------- setup
 
-  private drawBackground(): void {
-    const g = this.add.graphics();
-    g.fillStyle(COLORS.wall, 1);
-    g.fillRect(0, 0, W, 300);
-    // simple decorations: candles (gray-box)
-    for (const cx of [60, 900]) {
-      g.fillStyle(0xf1e3c6, 1);
-      g.fillRect(cx - 6, 110, 12, 40);
-      g.fillStyle(0xffb703, 1);
-      g.fillCircle(cx, 102, 7);
-    }
-    g.fillStyle(COLORS.counterTop, 1);
-    g.fillRect(0, 300, W, 14);
-    g.fillStyle(COLORS.counter, 1);
-    g.fillRect(0, 314, W, 28);
-    g.fillStyle(COLORS.floor, 1);
-    g.fillRect(0, 342, W, H - 342);
-  }
-
-  private createHud(): void {
-    const g = this.add.graphics().setDepth(10);
-    g.fillStyle(COLORS.bg, 1);
-    g.fillRect(0, 0, W, 50);
-
-    const style = { fontFamily: FONT, color: '#ffffff', fontStyle: 'bold' };
-    this.clockText = this.add.text(20, 25, '18:00', { ...style, fontSize: '24px' }).setOrigin(0, 0.5).setDepth(11);
-    this.moneyText = this.add.text(300, 25, '', { ...style, fontSize: '22px' }).setOrigin(0.5).setDepth(11);
-    this.add
-      .text(W - 20, 25, this.cfg.name, { ...style, fontSize: '22px' })
-      .setOrigin(1, 0.5)
-      .setDepth(11);
-    this.barGfx = this.add.graphics().setDepth(11);
-    this.updateHud();
-  }
-
   private createStations(): void {
-    const label = (x: number, text: string) =>
-      this.add
-        .text(x, STATION_Y - 84, text, { fontFamily: FONT, fontSize: '14px', color: '#b9a8e8', fontStyle: 'bold' })
-        .setOrigin(0.5);
+    const y = LAYOUT.stationY;
+    const fn = this.cfg.frostingCount;
+    const tn = this.cfg.toppingCount;
 
-    label((OVEN_X[0] + OVEN_X[1]) / 2, 'OVEN');
-    this.ovens = OVEN_X.map(
-      (x) => new OvenSlot(this, x, STATION_Y, this.cfg.bakeSec, this.cfg.burnSec, (slot) => this.onOvenClick(slot)),
-    );
+    drawShelf(this, 160, y, 272, 'OVEN');
+    this.ovens = OVEN_X.map((x) => new OvenSlot(this, x, y, this.cfg.bakeSec, this.cfg.burnSec, (slot) => this.onOvenClick(slot)));
 
-    label(FROSTING_X + BUTTON_GAP * ((this.cfg.frostingCount - 1) / 2), 'FROSTING');
-    FROSTINGS.slice(0, this.cfg.frostingCount).forEach((f, i) => {
-      const x = FROSTING_X + i * BUTTON_GAP;
-      this.stationButton(x, f.name, (g) => {
-        g.fillStyle(f.color, 1);
-        g.fillCircle(x, STATION_Y - 8, 18);
-        g.fillCircle(x, STATION_Y - 22, 11);
-      }, () => this.onFrostingClick(f.id));
+    drawShelf(this, FROSTING_CENTER, y, fn * ITEM_GAP + 24, 'FROSTING');
+    FROSTINGS.slice(0, fn).forEach((f, i) => {
+      const x = FROSTING_CENTER - ((fn - 1) * ITEM_GAP) / 2 + i * ITEM_GAP;
+      createPipingBag(this, x, y, f.id, () => this.onFrostingClick(f.id, x, y));
     });
 
-    label(TOPPING_X + BUTTON_GAP * ((this.cfg.toppingCount - 1) / 2), 'TOPPING');
-    TOPPINGS.slice(0, this.cfg.toppingCount).forEach((t, i) => {
-      const x = TOPPING_X + i * BUTTON_GAP;
-      this.stationButton(x, t.name, (g) => drawTopping(g, x, STATION_Y - 14, t.id, 1.4), () => this.onToppingClick(t.id));
+    drawShelf(this, TOPPING_CENTER, y, tn * ITEM_GAP + 24, 'TOPPING');
+    TOPPINGS.slice(0, tn).forEach((t, i) => {
+      const x = TOPPING_CENTER - ((tn - 1) * ITEM_GAP) / 2 + i * ITEM_GAP;
+      createToppingJar(this, x, y, t.id, () => this.onToppingClick(t.id, x, y));
     });
 
-    label(TRASH_X, 'TRASH');
-    this.stationButton(TRASH_X, 'Throw away', (g) => {
-      g.fillStyle(0x9aa0a6, 1);
-      g.fillRect(TRASH_X - 14, STATION_Y - 28, 28, 34);
-      g.fillStyle(0x6c7177, 1);
-      g.fillRect(TRASH_X - 18, STATION_Y - 34, 36, 6);
-    }, () => this.onTrashClick());
+    drawShelf(this, TRASH_X, y, 88, 'TRASH');
+    createTrash(this, TRASH_X, y, () => this.onTrashClick());
 
     this.add
-      .text(W / 2, H - 22, 'Click oven to bake  >  click READY cupcake  >  frosting  >  topping  >  click the customer', {
+      .text(W / 2, H - 20, 'Click oven to bake  >  take the READY cupcake  >  frosting  >  topping  >  click the customer', {
         fontFamily: FONT,
-        fontSize: '14px',
-        color: '#8e7fc0',
+        fontSize: '15px',
+        color: '#9d8fd0',
       })
-      .setOrigin(0.5);
-  }
-
-  private stationButton(
-    x: number,
-    name: string,
-    drawIcon: (g: Phaser.GameObjects.Graphics) => void,
-    onClick: () => void,
-  ): void {
-    const bg = this.add
-      .rectangle(x, STATION_Y, 70, 92, COLORS.panel)
-      .setStrokeStyle(2, COLORS.panelEdge)
-      .setInteractive({ useHandCursor: true });
-    const icon = this.add.graphics();
-    drawIcon(icon);
-    this.add
-      .text(x, STATION_Y + 34, name, { fontFamily: FONT, fontSize: '11px', color: '#ffffff' })
-      .setOrigin(0.5);
-    bg.on('pointerover', () => bg.setStrokeStyle(3, 0xffffff));
-    bg.on('pointerout', () => bg.setStrokeStyle(2, COLORS.panelEdge));
-    bg.on('pointerdown', onClick);
+      .setOrigin(0.5)
+      .setDepth(DEPTH.station);
   }
 
   private showIntro(): void {
-    const parts: Phaser.GameObjects.GameObject[] = [];
-    const cover = this.add.rectangle(W / 2, H / 2, W, H, 0x000000, 0.75).setDepth(200).setInteractive();
-    parts.push(cover);
-    parts.push(
-      this.add
-        .text(
-          W / 2,
-          230,
-          `${this.cfg.name}\n\nGoal: $${this.cfg.goal} by midnight\n${this.cfg.newThing}`,
-          { fontFamily: FONT, fontSize: '30px', color: '#ffffff', align: 'center', fontStyle: 'bold', lineSpacing: 8 },
-        )
-        .setOrigin(0.5)
-        .setDepth(201),
-    );
+    const cx = W / 2;
+    const cy = H / 2;
+    const cover = this.add.rectangle(cx, cy, W, H, 0x0a0618, 0.72).setDepth(DEPTH.overlay).setInteractive();
+    const panel = this.add.container(cx, cy).setDepth(DEPTH.overlay + 1);
+    const g = this.add.graphics();
+    g.fillStyle(0x000000, 0.3);
+    g.fillRoundedRect(-250, -116, 500, 216, 26);
+    g.fillStyle(COLORS.panel, 1);
+    g.fillRoundedRect(-250, -126, 500, 216, 26);
+    g.fillStyle(0xffffff, 0.08);
+    g.fillRoundedRect(-250, -126, 500, 70, { tl: 26, tr: 26, bl: 0, br: 0 });
+    const title = this.add
+      .text(0, -84, this.cfg.name, { fontFamily: FONT, fontSize: '44px', color: '#ffb4d9', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 6 })
+      .setOrigin(0.5);
+    const goal = this.add
+      .text(0, -20, `Goal: $${this.cfg.goal} by midnight`, { fontFamily: FONT, fontSize: '30px', color: '#ffffff', fontStyle: 'bold' })
+      .setOrigin(0.5);
+    const note = this.add
+      .text(0, 30, this.cfg.newThing, { fontFamily: FONT, fontSize: '20px', color: '#c9bdf0', align: 'center', wordWrap: { width: 440 } })
+      .setOrigin(0.5);
+    panel.add([g, title, goal, note]);
+    panel.setScale(0.8).setAlpha(0);
+    this.tweens.add({ targets: panel, scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut' });
+
     const btn = makeButton(
       this,
-      W / 2,
-      400,
-      220,
-      64,
+      cx,
+      cy + 140,
+      260,
+      66,
       'Open the shop',
       () => {
-        parts.forEach((p) => p.destroy());
+        sfx(this, 'night_start', 0.6);
+        cover.destroy();
+        panel.destroy();
         btn.destroy();
         this.phase = 'playing';
       },
-      0x7e57c2,
-      202,
+      { color: 'green', depth: DEPTH.overlay + 2 },
     );
   }
 
@@ -259,38 +229,58 @@ export class NightScene extends Phaser.Scene {
 
   private setHand(c: CupcakeData | null): void {
     this.hand = c;
-    this.handGfx.clear();
-    if (c) drawCupcake(this.handGfx, 0, -18, c, 1);
+    const g = this.handGfx;
+    g.clear();
+    if (!c) return;
+    // a white baker's glove holds the cupcake from below
+    g.fillStyle(0x000000, 0.18);
+    g.fillEllipse(0, 44, 46, 8);
+    g.fillStyle(0xff8fc7, 1);
+    g.fillRoundedRect(-14, 28, 28, 12, 4);
+    g.fillStyle(0xffffff, 1);
+    g.fillRoundedRect(-18, 6, 36, 28, 11);
+    g.fillEllipse(-19, 18, 12, 18);
+    g.lineStyle(1.5, 0xc9c4dd, 1);
+    for (const fx of [-8, 0, 8]) g.lineBetween(fx, 8, fx, 16);
+    drawCupcake(g, 0, -14, c, 0.95);
+    g.fillStyle(0xffffff, 1);
+    for (const fx of [-12, -4, 4, 12]) g.fillCircle(fx, 12, 4.6);
   }
 
   private onOvenClick(slot: OvenSlot): void {
     if (this.phase !== 'playing') return;
     if (!slot.cupcake) {
+      sfx(this, 'bake_start', 0.5);
       slot.start();
       return;
     }
     if (slot.cupcake.bake === 'raw') {
-      this.float(slot.x, slot.y - 80, 'Still baking...', '#ffd166');
+      sfx(this, 'nope', 0.3);
+      floatText(this, slot.x, slot.y - 92, 'Still baking...', '#ffd166');
       return;
     }
     if (this.hand) {
-      this.float(slot.x, slot.y - 80, 'Hands full!', '#ffd166');
+      sfx(this, 'nope', 0.3);
+      floatText(this, slot.x, slot.y - 92, 'Hands full!', '#ffd166');
       return;
     }
+    sfx(this, 'pickup', 0.5);
     this.setHand(slot.take());
   }
 
-  private onFrostingClick(id: (typeof FROSTINGS)[number]['id']): void {
+  private onFrostingClick(id: FrostingId, bx: number, by: number): void {
     if (this.phase !== 'playing') return;
     const h = this.hand;
     if (!h) return this.hint('Pick up a baked cupcake first');
     if (h.bake === 'burnt') return this.hint('It is burnt! Throw it away');
     if (h.frosting) return this.hint('Already has frosting');
     h.frosting = id;
+    sfx(this, 'place', 0.45);
+    burst(this, bx, by + 40, 'circle_05', { count: 7, tint: frostingInfo(id).color, gravity: 260, speed: [40, 120], scale: [0.18, 0.04], additive: false });
     this.setHand(h);
   }
 
-  private onToppingClick(id: (typeof TOPPINGS)[number]['id']): void {
+  private onToppingClick(id: ToppingId, bx: number, by: number): void {
     if (this.phase !== 'playing') return;
     const h = this.hand;
     if (!h) return this.hint('Pick up a baked cupcake first');
@@ -298,13 +288,17 @@ export class NightScene extends Phaser.Scene {
     if (!h.frosting) return this.hint('Frosting first!');
     if (h.topping) return this.hint('Already has a topping');
     h.topping = id;
+    sfx(this, 'place', 0.45, 1.25);
+    burst(this, bx, by - 10, 'spark_05', { count: 8, tint: 0xfff0a8, gravity: 120, speed: [50, 140], scale: [0.2, 0.04] });
     this.setHand(h);
   }
 
   private onTrashClick(): void {
     if (this.phase !== 'playing' || !this.hand) return;
     this.setHand(null);
-    this.float(TRASH_X, STATION_Y - 70, 'Trashed', '#b9a8e8');
+    sfx(this, 'trash', 0.5);
+    burst(this, TRASH_X, LAYOUT.stationY - 30, 'smoke_05', { count: 5, tint: 0x9aa0b4, gravity: -30, speed: [20, 70], scale: [0.2, 0.5], additive: false });
+    floatText(this, TRASH_X, LAYOUT.stationY - 92, 'Trashed', '#b9a8e8');
   }
 
   private serve(c: Customer): void {
@@ -317,18 +311,29 @@ export class NightScene extends Phaser.Scene {
     const correct = h.frosting === c.order.frosting && h.topping === c.order.topping;
     if (correct) {
       const tip = Math.round(this.cfg.maxTip * c.fraction);
-      this.money += this.cfg.basePay + tip;
+      const pay = this.cfg.basePay + tip;
+      this.money += pay;
       this.stats.served++;
-      this.float(c.x, c.y - 10, `+$${this.cfg.basePay + tip}  (tip $${tip})`, '#7dffb0');
+      sfx(this, 'serve_ok', 0.55);
+      floatText(this, c.x, c.y - 16, `+$${pay}${tip > 0 ? `  (tip $${tip})` : ''}`, '#7dffb0', 24);
+      burst(this, c.x, c.y - 30, 'star_01', { count: 12, tint: [0xffe066, 0xff8fc7, 0x8fffd0], gravity: 160 });
+      coinFlight(this, { x: c.x, y: c.y + 20 }, this.shop.jarPos, Math.min(6, 2 + Math.ceil(pay / 4)), () => {
+        sfx(this, 'coin', 0.22, Phaser.Math.FloatBetween(0.9, 1.3));
+        this.shop.jarBump();
+      });
+      c.leave('happy');
     } else {
       // wrong cupcake: half pay, no tip, and the customer is not happy about it
       const pay = Math.floor(this.cfg.basePay / 2);
       this.money += pay;
       this.stats.wrong++;
-      this.float(c.x, c.y - 10, `Wrong cupcake! +$${pay}, no tip`, '#ff6b6b');
+      sfx(this, 'serve_wrong', 0.5);
+      floatText(this, c.x, c.y - 16, `Wrong cupcake! +$${pay}, no tip`, '#ff6b6b');
+      burst(this, c.x, c.y - 40, 'smoke_05', { count: 8, tint: 0xff4d6d, gravity: -40, speed: [30, 110], scale: [0.25, 0.6], additive: false });
+      c.shake();
+      c.leave('angry');
     }
     this.setHand(null);
-    c.leave(this);
     this.customers[c.slot] = null;
   }
 
@@ -340,68 +345,43 @@ export class NightScene extends Phaser.Scene {
     const slot = Phaser.Utils.Array.GetRandom(free);
     const frosting = FROSTINGS[Phaser.Math.Between(0, this.cfg.frostingCount - 1)].id;
     const topping = TOPPINGS[Phaser.Math.Between(0, this.cfg.toppingCount - 1)].id;
-    const color = Phaser.Utils.Array.GetRandom(MONSTER_COLORS);
+    sfx(this, 'customer_arrive', 0.35);
     this.customers[slot] = new Customer(
       this,
       slot,
-      SLOT_X[slot],
-      SLOT_Y,
+      LAYOUT.customerSlotsX[slot],
+      pickMonster(this.cfg.monsterPool),
       this.cfg.patienceSec,
       { frosting, topping },
-      color,
       (cust) => this.serve(cust),
     );
     return true;
   }
 
-  private hint(msg: string, x = W / 2, y = 380): void {
-    this.float(x, y, msg, '#ffd166');
-  }
-
-  private float(x: number, y: number, msg: string, color = '#ffffff'): void {
-    const t = this.add
-      .text(x, y, msg, { fontFamily: FONT, fontSize: '20px', color, fontStyle: 'bold', stroke: '#140d24', strokeThickness: 4 })
-      .setOrigin(0.5)
-      .setDepth(50);
-    this.tweens.add({ targets: t, y: y - 40, alpha: 0, duration: 1200, ease: 'Cubic.easeOut', onComplete: () => t.destroy() });
-  }
-
-  private updateHud(): void {
-    const t = Math.min(this.elapsed / this.cfg.durationSec, 1);
-    const minutes = Math.floor(t * 360);
-    const hh = (18 + Math.floor(minutes / 60)) % 24;
-    const mm = minutes % 60;
-    this.clockText.setText(`${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`);
-    this.moneyText.setText(`$${this.money} / $${this.cfg.goal}`);
-
-    // money bar: full bar = 3-star amount; ticks at 1, 2 and 3 stars
-    const x = 400;
-    const w = 340;
-    const max = this.cfg.goal * this.cfg.starMultipliers[2];
-    const g = this.barGfx;
-    g.clear();
-    g.fillStyle(0x3a2a63, 1);
-    g.fillRect(x, 18, w, 14);
-    g.fillStyle(this.money >= this.cfg.goal ? COLORS.good : COLORS.warn, 1);
-    g.fillRect(x, 18, w * Math.min(this.money / max, 1), 14);
-    g.fillStyle(0xffffff, 1);
-    for (const m of this.cfg.starMultipliers) g.fillRect(x + (w * m * this.cfg.goal) / max - 1, 14, 2, 22);
+  private hint(msg: string, x = W / 2, y = 372): void {
+    sfx(this, 'nope', 0.3);
+    floatText(this, x, y, msg, '#ffd166');
   }
 
   private endNight(): void {
     this.phase = 'ended';
     this.setHand(null);
-    this.add
-      .text(W / 2, H / 2 - 40, 'MIDNIGHT!', {
+    sfx(this, 'win', 0.4);
+    const t = this.add
+      .text(W / 2, H / 2 - 30, 'MIDNIGHT!', {
         fontFamily: FONT,
-        fontSize: '72px',
+        fontSize: '84px',
         color: '#ffffff',
         fontStyle: 'bold',
         stroke: '#140d24',
-        strokeThickness: 10,
+        strokeThickness: 12,
       })
       .setOrigin(0.5)
-      .setDepth(150);
-    this.time.delayedCall(1600, () => this.scene.start('Result', { money: this.money, stats: this.stats }));
+      .setDepth(DEPTH.overlay)
+      .setScale(0.3);
+    this.tweens.add({ targets: t, scale: 1, duration: 450, ease: 'Back.easeOut' });
+    this.time.delayedCall(1500, () =>
+      fadeOutThen(this, () => this.scene.start('Result', { money: this.money, stats: this.stats })),
+    );
   }
 }

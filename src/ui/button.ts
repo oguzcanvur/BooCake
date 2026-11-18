@@ -1,7 +1,18 @@
 import Phaser from 'phaser';
-import { FONT } from '../config';
+import { DEPTH, FONT } from '../config';
+import { sfx } from '../audio';
 
-/** A simple mouse button (rectangle + label). */
+export type ButtonColor = 'blue' | 'green' | 'red' | 'yellow' | 'grey';
+
+export interface ButtonOptions {
+  color?: ButtonColor;
+  /** Multiply-tint, handy on the grey button to get any color. */
+  tint?: number;
+  fontSize?: number;
+  depth?: number;
+}
+
+/** A modern 9-slice button (Kenney UI Pack) with hover / press feedback and a click sound. */
 export function makeButton(
   scene: Phaser.Scene,
   x: number,
@@ -10,25 +21,46 @@ export function makeButton(
   h: number,
   label: string,
   onClick: () => void,
-  color = 0x7e57c2,
-  depth = 0,
-): { destroy: () => void } {
+  opts: ButtonOptions = {},
+): { destroy: () => void; setPosition: (x: number, y: number) => void } {
+  const { color = 'blue', tint, fontSize = 26, depth = 0 } = opts;
   const bg = scene.add
-    .rectangle(x, y, w, h, color)
-    .setStrokeStyle(3, 0xffffff, 0.85)
+    .nineslice(x, y, `btn_${color}`, undefined, w, h, 14, 14, 14, 18)
     .setDepth(depth)
     .setInteractive({ useHandCursor: true });
+  if (tint !== undefined) bg.setTint(tint);
+  const colorText = color === 'grey' && tint === undefined ? '#3a2a63' : '#ffffff';
   const txt = scene.add
-    .text(x, y, label, { fontFamily: FONT, fontSize: '22px', color: '#ffffff', fontStyle: 'bold' })
+    .text(x, y - 3, label, {
+      fontFamily: FONT,
+      fontSize: `${fontSize}px`,
+      color: colorText,
+      fontStyle: 'bold',
+      stroke: colorText === '#ffffff' ? '#00000055' : undefined,
+      strokeThickness: colorText === '#ffffff' ? 4 : 0,
+    })
     .setOrigin(0.5)
-    .setDepth(depth);
-  bg.on('pointerover', () => bg.setScale(1.05));
-  bg.on('pointerout', () => bg.setScale(1));
-  bg.on('pointerdown', onClick);
+    .setDepth(depth + 1);
+
+  const parts = [bg, txt];
+  bg.on('pointerover', () => scene.tweens.add({ targets: parts, scale: 1.05, duration: 90 }));
+  bg.on('pointerout', () => scene.tweens.add({ targets: parts, scale: 1, duration: 90 }));
+  bg.on('pointerdown', () => {
+    sfx(scene, 'ui_click', 0.5);
+    scene.tweens.add({ targets: parts, scale: 0.95, duration: 60, yoyo: true });
+    onClick();
+  });
+
   return {
     destroy: () => {
-      bg.destroy();
-      txt.destroy();
+      scene.tweens.killTweensOf(parts);
+      parts.forEach((p) => p.destroy());
+    },
+    setPosition: (nx, ny) => {
+      bg.setPosition(nx, ny);
+      txt.setPosition(nx, ny - 3);
     },
   };
 }
+
+export { DEPTH };

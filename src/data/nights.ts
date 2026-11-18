@@ -15,6 +15,8 @@ export interface NightConfig {
   spawnMax: number;
   /** How long a customer waits before leaving. */
   patienceSec: number;
+  /** How many monster types (first N of MONSTERS) can show up as customers. */
+  monsterPool: number;
   /** How many frosting / topping kinds can appear in orders. */
   frostingCount: number;
   toppingCount: number;
@@ -37,6 +39,7 @@ export const NIGHTS: NightConfig[] = [
     spawnMin: 7,
     spawnMax: 11,
     patienceSec: 30,
+    monsterPool: 3,
     frostingCount: 2,
     toppingCount: 2,
     basePay: 8,
@@ -53,13 +56,14 @@ export const NIGHTS: NightConfig[] = [
     spawnMin: 6,
     spawnMax: 9,
     patienceSec: 27,
+    monsterPool: 4,
     frostingCount: 3,
     toppingCount: 2,
     basePay: 8,
     maxTip: 5,
     bakeSec: 6,
     burnSec: 12,
-    newThing: 'New: a third frosting (Lilac).',
+    newThing: 'New: Lilac frosting and a horned imp.',
   },
   {
     name: 'Night 3',
@@ -69,12 +73,13 @@ export const NIGHTS: NightConfig[] = [
     spawnMin: 5,
     spawnMax: 8,
     patienceSec: 24,
+    monsterPool: 6,
     frostingCount: 3,
     toppingCount: 3,
     basePay: 9,
     maxTip: 6,
     bakeSec: 6,
     burnSec: 12,
-    newThing: 'New: Eyeball topping and a faster crowd.',
+    newThing: 'New: Eyeball topping, ghosts, furballs and a faster crowd.',
   },
 ];
