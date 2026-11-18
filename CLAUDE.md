@@ -6,7 +6,8 @@ Bu dosya projenin ortak hafızasıdır. Repoda durur, böylece ekipteki herkes (
 ## Proje
 - **Ad:** BooCake
 - **Ders:** CENG361
-- **Ekip:** 3 kişi (repo sahibi + 2 arkadaş)
+- **Ekip:** 3 kişi — Oğuzcan Vur (@oguzcanvur, repo sahibi), Ceren Candemir (@CerenCandemir), Karya Altundal (@KaryaAltundal)
+- **Repo:** https://github.com/oguzcanvur/BooCake
 - **Durum:** Planlama aşaması — henüz kod yazılmadı.
 
 ## Kararlar
