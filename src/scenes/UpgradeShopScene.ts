@@ -80,8 +80,8 @@ export class UpgradeShopScene extends Phaser.Scene {
     if (item.key === 'garlic') this.drawGarlicIcon(icon, x, y - 90);
     else if (item.key === 'oven3') this.drawOvenIcon(icon, x, y - 90);
     else {
-      const guard = new MonsterView(this, x, y - 106, GUARD_MONSTER);
-      guard.root.setDepth(d + 1).setScale(0.68);
+      const guard = new MonsterView(this, x, y - 118, GUARD_MONSTER);
+      guard.root.setDepth(d + 1).setScale(0.5);
     }
 
     this.add.text(x, y - 6, item.name, { fontFamily: FONT, fontSize: '25px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: 270 } }).setOrigin(0.5).setDepth(d + 1);

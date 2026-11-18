@@ -15,7 +15,7 @@ Bu dosya projenin ortak hafızasıdır (ekip + Claude). Önemli kararlar buraya 
 - **Teslim:** `npm run build` → `dist/BooCake.html` **tek dosya**, çift tıklayınca açılır (asset'ler base64 olarak kodun içinde; `tools/make-single.mjs` JS/CSS'i HTML'e gömer). `file://` ile doğrulandı.
 - Geliştirme: `npm install`, `npm run dev` → http://localhost:5173. Kontrol: `npm run typecheck`.
 - Arayüz dili Türkçe; tüm metinler `src/text.ts`'te (çeviri için sadece orası değişir). Yazı tipi Fredoka (latin + latin-ext).
-- Asset'ler: Kenney CC0 paketleri (Monster Builder, UI Pack, Particle Pack, Interface/Impact Sounds). Lisanslar [CREDITS.md](CREDITS.md). Cupcake, fırın, istasyon ve dekorlar kodla çizilir. Dosyalar `src/assets/` altında.
+- Asset'ler: Kenney CC0 paketleri (UI Pack, Particle Pack, Interface/Impact Sounds). Canavarlar ekibin verdiği örnek çizime göre (ince koyu-mor kontur, pastel düz renk, allık, tezgâha yaslanan eller) `src/objects/MonsterView.ts` içinde kodla çizilir; tarifleri `src/data/monsters.ts`. Cupcake, fırın, istasyon ve dekorlar da kodla çizilir. Dosyalar `src/assets/` altında. Lisanslar [CREDITS.md](CREDITS.md).
 - Görsel referans notu: Doküman 16. bölüm var olan bir oyunun görsellerinin kopyalanmasını yasaklıyor; "Good Pizza, Great Pizza"dan sadece tür ortakları (tezgâh + sipariş balonu + istasyonlar) alındı.
 
 ## Oyun kuralları (kodda olan)

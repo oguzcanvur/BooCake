@@ -15,9 +15,10 @@ export class Thief {
   private done = false;
 
   constructor(private readonly scene: Phaser.Scene) {
-    const y = LAYOUT.trayY - 6;
+    // a small full-body figure running on the table, in front of the tray row
+    const y = LAYOUT.trayY - 44;
     this.view = new MonsterView(scene, W + 90, y, SPECIAL_MONSTERS.thief);
-    this.view.root.setDepth(DEPTH.thief);
+    this.view.root.setDepth(DEPTH.thief).setScale(0.6);
     this.view.face(-1);
     this.view.setMood('angry');
   }

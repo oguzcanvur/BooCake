@@ -69,8 +69,8 @@ export class HowToScene extends Phaser.Scene {
         const vamp = new MonsterView(this, 0, 0, SPECIAL_MONSTERS.vampire);
         const thief = new MonsterView(this, 0, 0, SPECIAL_MONSTERS.thief);
         panel.add([vamp.root, thief.root]);
-        vamp.root.setPosition(px, y + 8).setScale(0.34);
-        thief.root.setPosition(px + 70, y + 12).setScale(0.4);
+        vamp.root.setPosition(px, y - 12).setScale(0.36);
+        thief.root.setPosition(px + 72, y - 18).setScale(0.3);
       }
 
       panel.add(

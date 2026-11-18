@@ -232,8 +232,8 @@ export class NightScene extends Phaser.Scene {
 
     // the security guard stands next to the tray
     if (gameState.upgrades.guard) {
-      this.guard = new MonsterView(this, STATION_X.guard, ty - 14, GUARD_MONSTER);
-      this.guard.root.setDepth(DEPTH.thief - 1);
+      this.guard = new MonsterView(this, STATION_X.guard, ty - 44, GUARD_MONSTER);
+      this.guard.root.setDepth(DEPTH.thief - 1).setScale(0.6);
     }
   }
 
@@ -269,7 +269,7 @@ export class NightScene extends Phaser.Scene {
       panel.add(rowBg);
       const view = new MonsterView(this, 0, 0, def);
       panel.add(view.root);
-      view.root.setPosition(-panelW / 2 + 110, rowY + 4).setScale(0.62);
+      view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
       const card = MONSTER_CARDS[id];
       panel.add(
         this.add

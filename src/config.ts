@@ -50,10 +50,14 @@ export const LAYOUT = {
   /** Top edge of the counter. Customers stand behind it, stations are below it. */
   counterTop: 338,
   customerSlotsX: [260, 640, 1020],
-  /** Center of a customer's body. */
-  customerY: 262,
-  /** Center of the order bubble. */
-  bubbleY: 128,
+  /** Size of the customers (the art is drawn at scale 1). */
+  customerScale: 1.2,
+  /** Center of a customer's head: the hands rest on the counter (100 px * customerScale lower). */
+  customerY: 218,
+  /** Center of the order bubble (it sits to the right of the customer's head). */
+  bubbleY: 158,
+  /** How far right of the customer the bubble's center is. */
+  bubbleDX: 154,
   /** Center of the row with the ready tray and the trash can. */
   trayY: 416,
   /** Center of the row with the dough bowls, ovens, plate, frosting and toppings. */

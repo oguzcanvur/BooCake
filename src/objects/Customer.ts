@@ -8,7 +8,7 @@ import { MonsterView } from './MonsterView';
 
 export type CustomerMood = 'happy' | 'uneasy' | 'angry';
 
-const BUBBLE = { w: 204, h: 120 };
+const BUBBLE = { w: 198, h: 120 };
 
 /**
  * A monster customer waiting at the counter: a monster, an order bubble (the cupcake they want, with the
@@ -36,23 +36,24 @@ export class Customer {
     onClick: (c: Customer) => void,
   ) {
     this.patience = maxPatience;
-    this.monster = new MonsterView(scene, x, this.y, def);
+    this.monster = new MonsterView(scene, x, this.y, def, { counter: true, scale: LAYOUT.customerScale });
     this.monster.root.setDepth(DEPTH.monster);
     this.monster.enter();
 
     const cy = LAYOUT.bubbleY;
+    const bx = x + LAYOUT.bubbleDX;
     this.bubble = scene.add.graphics().setDepth(DEPTH.bubble);
     const names = [doughInfo(order.dough).name, frostingInfo(order.frosting).name, toppingInfo(order.topping).name];
     names.forEach((name, i) => {
       this.lines.push(
         scene.add
-          .text(x + 14, cy - 26 + i * 22, name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
+          .text(bx + 14, cy - 26 + i * 22, name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
           .setOrigin(0, 0.5)
           .setDepth(DEPTH.bubble + 1),
       );
     });
 
-    this.zone = scene.add.zone(x, 250, 170, 180).setInteractive({ useHandCursor: true });
+    this.zone = scene.add.zone(x, 250, 200, 230).setInteractive({ useHandCursor: true });
     this.zone.on('pointerdown', () => onClick(this));
 
     // the bubble fades in just after the monster pops up
@@ -141,7 +142,7 @@ export class Customer {
   private redraw(): void {
     const g = this.bubble;
     const f = this.fraction;
-    const cx = this.x;
+    const cx = this.x + LAYOUT.bubbleDX;
     const cy = LAYOUT.bubbleY;
     const left = cx - BUBBLE.w / 2;
     const top = cy - BUBBLE.h / 2 + 2;
@@ -151,7 +152,8 @@ export class Customer {
     g.fillRoundedRect(left, top + 4, BUBBLE.w, BUBBLE.h, 18);
     g.fillStyle(0xffffff, 0.97);
     g.fillRoundedRect(left, top, BUBBLE.w, BUBBLE.h, 18);
-    g.fillTriangle(cx - 11, top + BUBBLE.h - 1, cx + 11, top + BUBBLE.h - 1, cx, top + BUBBLE.h + 14);
+    // tail pointing left, toward the customer's face
+    g.fillTriangle(left + 1, cy - 14, left + 1, cy + 8, left - 18, cy + 4);
     const mood = this.mood;
     if (mood === 'angry') {
       g.lineStyle(3, COLORS.bad, 1);

@@ -20,8 +20,8 @@ export class MenuScene extends Phaser.Scene {
     new Shop(this).update(0.12);
 
     // two customers waiting at the counter
-    const left = new MonsterView(this, LAYOUT.customerSlotsX[0], LAYOUT.customerY, NORMAL_MONSTERS[2]);
-    const right = new MonsterView(this, LAYOUT.customerSlotsX[2], LAYOUT.customerY, NORMAL_MONSTERS[0]);
+    const left = new MonsterView(this, LAYOUT.customerSlotsX[0], LAYOUT.customerY, NORMAL_MONSTERS[2], { counter: true, scale: LAYOUT.customerScale });
+    const right = new MonsterView(this, LAYOUT.customerSlotsX[2], LAYOUT.customerY, NORMAL_MONSTERS[0], { counter: true, scale: LAYOUT.customerScale });
     for (const m of [left, right]) {
       m.root.setDepth(DEPTH.monster);
       m.enter();
