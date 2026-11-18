@@ -29,8 +29,8 @@ export class MenuScene extends Phaser.Scene {
 
     // hero cupcake on the counter
     const hero = this.add.graphics().setDepth(DEPTH.counterDeco + 2);
-    drawCupcake(hero, 0, 0, { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 2);
-    hero.setPosition(W / 2, LAYOUT.counterTop - 24);
+    drawCupcake(hero, 0, 0, { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 1.45);
+    hero.setPosition(W / 2, LAYOUT.counterTop - 14);
     this.tweens.add({ targets: hero, y: hero.y - 10, duration: 1100, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
 
     // soft dark band behind the title

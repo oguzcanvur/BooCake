@@ -232,7 +232,7 @@ export class NightScene extends Phaser.Scene {
 
     // the security guard stands next to the tray
     if (gameState.upgrades.guard) {
-      this.guard = new MonsterView(this, STATION_X.guard, ty + 4, GUARD_MONSTER);
+      this.guard = new MonsterView(this, STATION_X.guard, ty - 14, GUARD_MONSTER);
       this.guard.root.setDepth(DEPTH.thief - 1);
     }
   }

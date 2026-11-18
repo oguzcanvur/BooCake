@@ -69,5 +69,5 @@ export const STATION_X = {
   topping: [1062, 1134, 1206],
   tray: [150, 270],
   trash: 1196,
-  guard: 430,
+  guard: 580,
 };

@@ -139,7 +139,7 @@ export const GUARD_MONSTER: MonsterDef = {
   eyes: 2,
   eyeFrame: 'eye_human',
   accessory: 'cap',
-  targetH: 104,
+  targetH: 84,
 };
 
 export function pickNormal(rand: () => number = Math.random): MonsterDef {
