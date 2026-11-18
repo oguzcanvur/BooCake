@@ -1,3 +1,13 @@
+# Node / Vite
+node_modules/
+dist/
+.vite/
+npm-debug.log*
+
+# Exported builds / itch.io zips
+build/
+*.zip
+
 # OS
 .DS_Store
 Thumbs.db
@@ -8,13 +18,11 @@ desktop.ini
 .idea/
 *.swp
 
-# Build / temp
-build/
-dist/
+# Temp / logs
 *.log
 *.tmp
 
-# Claude local settings
+# Local env / Claude local settings
+.env
+.env.local
 .claude/settings.local.json
-
-# NOTE: Motor seçilince bu dosya o motora göre güncellenecek.

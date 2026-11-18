@@ -8,8 +8,10 @@ Bu dosya projenin ortak hafızasıdır. Repoda durur, böylece ekipteki herkes (
 - **Ders:** CENG361
 - **Ekip:** 3 kişi — Oğuzcan Vur (@oguzcanvur, repo sahibi), Ceren Candemir (@CerenCandemir), Karya Altundal (@KaryaAltundal)
 - **Repo:** https://github.com/oguzcanvur/BooCake
-- **Durum:** Tasarım belgesi yazıldı, motor seçimi bekleniyor — henüz kod yazılmadı.
+- **Durum:** Hazırlık aşaması (Hafta 0). Motor seçildi (Phaser + TypeScript), üretim planı yazıldı — henüz kod yazılmadı.
+- **Çalışma modeli:** Ekip **kod yazmaz**; prompt verir. Kurulum, indirme, kod, test ve git işlerini Claude yapar. Ekip tasarım kararı verir, test eder, asset seçer, PR'ları oynayarak onaylar.
 - **Tasarım belgesi (GDD):** [docs/game-design.md](docs/game-design.md) — oyun konseptinin asıl kaynağı.
+- **Üretim planı:** [docs/production-plan.md](docs/production-plan.md) — aşamalar, takvim, roller, kapsam, mimari, çalışma şekli.
 
 ## Oyun özeti
 Canavarlara cupcake satan bir dükkân işleten fırıncı olarak oynanan, fare ile oynanan bir zaman yönetimi (cooking) oyunu.
@@ -39,21 +41,35 @@ Canavarlara cupcake satan bir dükkân işleten fırıncı olarak oynanan, fare 
 | Konsept | Canavarlara cupcake dükkânı, 7 gece, zaman yönetimi (GDD'ye bkz.) | 2026-11-18 |
 | Platform | Web tarayıcı, sadece fare | 2026-11-18 |
 | Gece süresi | ~2.5 dakika | 2026-11-18 |
-| Oyun motoru / dil | Henüz belli değil (tarayıcıda çalışabilmeli) | — |
+| Çalışma modeli | Ekip prompt verir; Claude kurar, kodlar, test eder, git işlerini yapar | 2026-11-18 |
+| Oyun motoru / dil | Phaser + TypeScript + Vite. (Önce Godot 4 seçilmişti; Claude editörü kullanamadığı ve Phaser'ı tarayıcıda kendisi test edebildiği için değiştirildi.) | 2026-11-18 |
+| Phaser sürümü | Proje kurulurken güncel kararlı sürüm seçilip buraya yazılacak | — |
+| Yayın | itch.io web build (geliştirmede gizli sayfa) | 2026-11-18 |
+| Asset'ler | Hazır ücretsiz asset'ler; lisanslar CREDITS.md'de | 2026-11-18 |
+| Takvim | 4–8 hafta; plan ≈7 hafta + 1 hafta yedek | 2026-11-18 |
+| Roller | Alan sahipliği: A) Mutfak, B) Müşteriler, C) Oyun akışı + UI + asset — kişiler henüz atanmadı | 2026-11-18 |
+| Ekip deneyimi | Daha önce kimse oyun motoru kullanmadı; ekip kod yazmayacak | 2026-11-18 |
 
 ## Açık sorular
-- **Motor/dil:** Tarayıcıda çalışması gerektiği için adaylar: Phaser (JS/TS), Godot (Web export), Unity (WebGL).
+- Alan sahipleri kim? (A Mutfak / B Müşteriler / C Oyun akışı + UI + asset)
+- Hangi ana asset paketi?
+- itch.io hesabını kim açacak?
 - Her gecenin para hedefi ve 1/2/3 yıldız eşikleri ne olacak?
 - Her gece hangi yeni şeyi ekliyor? (7 gecelik zorluk/içerik tablosu)
 - Kaç çeşit cupcake / krema / topping var? Sipariş nasıl gösteriliyor?
 - Bahşiş hesabı: hız ve doğruluk nasıl paraya dönüşüyor?
 - Upgrade listesi ve fiyatları (sarımsak, görevli dışında neler var?)
 - Hırsız ve vampir tam olarak nasıl tetikleniyor, nasıl engelleniyor?
-- Sanat varlıkları (art/ses) kim tarafından, nasıl üretilecek?
-- Görev dağılımı ve teslim tarihleri
+- Kesin teslim tarihi ve dersin ara teslimleri
 
 ## Çalışma kuralları
-- Kod yazmaya, motor kararı netleşmeden başlanmaz.
-- `main` dalına doğrudan büyük değişiklik pushlanmaz; özellik dalı + Pull Request kullanılır.
-- Motor seçilince `.gitignore` o motora göre güncellenir.
+- Kod yazmaya, ekip "başlayalım" demeden başlanmaz. Sıra: hazırlık → prototip için minimum tasarım → gray-box prototip.
+- **Claude için:** Ekip üyeleri programcı değil. Açıklamaları sade Türkçe yap, onlardan komut çalıştırmalarını isteme; kurulumları kendin yap. İndirme/kurulumdan ve push'tan önce onay al. Her değişiklikten sonra oyunu tarayıcıda test et ve neyi test ettiğini yaz.
+- **Claude için:** Her işe başlamadan `main`'i çek. Sohbette alınan her kararı bu dosyaya veya GDD'ye yaz; diğer ekip üyelerinin Claude oturumları bağlamı sadece buradan alır.
+- `main` her zaman çalışır durumda; her iş kendi dalında (`feature/...`) + Pull Request + başka bir ekip üyesinin oynayarak onayı.
+- Herkes kendi alanının dosyalarında çalışır; iki kişi aynı anda aynı sisteme prompt vermez.
+- Oyun içeriği (geceler, tarifler, upgrade'ler) mantık kodundan ayrı veri dosyalarında (`src/data/`) tutulur.
+- Sistemler arası iletişim olaylarla (event) yapılır.
+- Satır sonları LF (`.gitattributes`); `node_modules/`, `dist/` ve build'ler commit'lenmez.
+- Her asset'in kaynağı ve lisansı `CREDITS.md`'ye yazılır.
 - Tasarım değişince önce [docs/game-design.md](docs/game-design.md), sonra bu dosyadaki özet güncellenir.
