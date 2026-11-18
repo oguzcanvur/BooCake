@@ -36,6 +36,8 @@ export interface MonsterDef {
   eyes: { style: EyeStyle; color?: number; white?: number };
   nose: Nose;
   extras?: Extra[];
+  /** Skin seen through a gap in the bandages (mummy). The head itself uses `skin` (the bandage color). */
+  faceColor?: number;
   /** 'counter' = leans on the counter (hands on it); 'standing' = full body with legs (thief, guard). */
   pose?: 'counter' | 'standing';
   /** Floats up and down more (ghost). */
@@ -68,10 +70,11 @@ export const NORMAL_MONSTERS: MonsterDef[] = [
   {
     id: 'mummy',
     kind: 'normal',
-    skin: 0xf2e8d2,
-    outfit: { type: 'wraps', color: 0xf2e8d2 },
-    eyes: { style: 'round', color: 0x4a3340 },
-    nose: 'dot',
+    skin: 0xebe0c4,
+    faceColor: 0xb7d68c,
+    outfit: { type: 'wraps', color: 0xebe0c4 },
+    eyes: { style: 'round', color: 0xf0a020 },
+    nose: 'none',
     extras: ['bandage'],
   },
   {

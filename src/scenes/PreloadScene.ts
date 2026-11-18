@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, FONT, H, W } from '../config';
 import { queueAssets } from '../assets';
 import { applySavedMute } from '../audio';
+import { setupCamera } from '../fx';
 
 /** Loads every asset behind a small progress bar, then opens the menu. */
 export class PreloadScene extends Phaser.Scene {
@@ -10,6 +11,7 @@ export class PreloadScene extends Phaser.Scene {
   }
 
   preload(): void {
+    setupCamera(this);
     this.add.rectangle(W / 2, H / 2, W, H, COLORS.bg);
     this.add
       .text(W / 2, H / 2 - 40, 'BooCake', { fontFamily: FONT, fontSize: '56px', color: '#ffb4d9', fontStyle: 'bold' })

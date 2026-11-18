@@ -4,7 +4,7 @@ import '@fontsource/fredoka/latin-700.css';
 import '@fontsource/fredoka/latin-ext-600.css';
 import '@fontsource/fredoka/latin-ext-700.css';
 import Phaser from 'phaser';
-import { H, W } from './config';
+import { H, RES, W } from './config';
 import { GUARD_MONSTER, NORMAL_MONSTERS, SPECIAL_VARIANTS } from './data/monsters';
 import { FinalScene } from './scenes/FinalScene';
 import { HowToScene } from './scenes/HowToScene';
@@ -14,11 +14,21 @@ import { PreloadScene } from './scenes/PreloadScene';
 import { SummaryScene } from './scenes/SummaryScene';
 import { UpgradeShopScene } from './scenes/UpgradeShopScene';
 
+// Every text is rendered at RES x resolution so it stays sharp after the camera zoom (see config.RES).
+const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as {
+  text: (...args: unknown[]) => Phaser.GameObjects.Text;
+};
+const makeText = factory.text;
+factory.text = function (this: unknown, ...args: unknown[]) {
+  return makeText.apply(this, args).setResolution(RES);
+};
+
 const game = new Phaser.Game({
   type: Phaser.AUTO,
   parent: 'game',
-  width: W,
-  height: H,
+  // the canvas is RES times larger than the 1280x720 world; each scene's camera zooms by RES
+  width: W * RES,
+  height: H * RES,
   backgroundColor: '#140d24',
   scale: {
     mode: Phaser.Scale.FIT,

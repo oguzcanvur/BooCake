@@ -14,6 +14,9 @@ export interface CupcakeData {
 
 type G = Phaser.GameObjects.Graphics;
 
+/** Outline ink (same as config.INK; repeated here to keep this drawing module standalone). */
+const INK = 0x2a1a3a;
+
 /** Make a color lighter (amount > 0) or darker (amount < 0). amount is in -1..1. */
 export function shade(color: number, amount: number): number {
   const r = (color >> 16) & 0xff;
@@ -38,57 +41,76 @@ export function matchesOrder(c: CupcakeData, order: Order): boolean {
   return c.dough === order.dough && c.frosting === order.frosting && c.topping === order.topping;
 }
 
+/** Filled ellipse with an ink outline. */
+function blob(g: G, x: number, y: number, w: number, h: number, fill: number, lw: number): void {
+  g.fillStyle(fill, 1);
+  g.fillEllipse(x, y, w, h);
+  g.lineStyle(lw, INK, 1);
+  g.strokeEllipse(x, y, w, h);
+}
+
 /** Draws a topping centered at (x, y). */
 export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): void {
+  const lw = 2 * s;
   switch (id) {
     case 'sprinkles': {
-      const bits: [number, number, number][] = [
-        [-10, 6, 0xffd166],
-        [0, -4, 0x66d9ff],
-        [10, 5, 0xff6b6b],
-        [-4, 13, 0xffffff],
-        [6, -2, 0xb5e48c],
-        [-12, -3, 0xff9ff3],
-        [13, 14, 0x66d9ff],
+      // colorful sugar rods scattered on the frosting
+      const rods: [number, number, number, number, number][] = [
+        [-12, 4, -6, 1, 0xffd166],
+        [-4, -6, 2, -9, 0x66d9ff],
+        [6, 2, 12, 6, 0xff6b8b],
+        [-8, 12, -2, 14, 0xffffff],
+        [3, 10, 8, 6, 0xb5e48c],
+        [-14, -4, -9, -8, 0xff9ff3],
+        [10, -6, 15, -3, 0x9b7bff],
       ];
-      for (const [dx, dy, color] of bits) {
-        g.fillStyle(color, 1);
-        g.fillRoundedRect(x + (dx - 3) * s, y + (dy - 1.5) * s, 6 * s, 3 * s, 1.5 * s);
+      for (const [x1, y1, x2, y2, c] of rods) {
+        g.lineStyle(3.4 * s, c, 1);
+        g.lineBetween(x + x1 * s, y + y1 * s, x + x2 * s, y + y2 * s);
       }
       break;
     }
-    case 'eye':
-      g.fillStyle(0xd9d9d9, 1);
-      g.fillCircle(x, y + 1 * s, 10 * s);
-      g.fillStyle(0xffffff, 1);
-      g.fillCircle(x, y, 10 * s);
+    case 'eye': {
+      // candy eyeball: white ball, orange iris, red veins
+      blob(g, x, y, 22 * s, 22 * s, 0xfffaf0, lw);
       g.lineStyle(1.2 * s, 0xe05a6d, 0.8);
       g.lineBetween(x - 9 * s, y + 3 * s, x - 5 * s, y + 1 * s);
-      g.lineBetween(x + 9 * s, y - 3 * s, x + 5 * s, y - 1 * s);
-      g.fillStyle(0x2a6fdb, 1);
-      g.fillCircle(x + 1 * s, y, 5.5 * s);
-      g.fillStyle(0x111111, 1);
-      g.fillCircle(x + 1 * s, y, 2.8 * s);
-      g.fillStyle(0xffffff, 0.9);
-      g.fillCircle(x - 1 * s, y - 2 * s, 1.5 * s);
+      g.lineBetween(x + 9 * s, y + 4 * s, x + 6 * s, y + 2 * s);
+      g.fillStyle(0xf28a1e, 1);
+      g.fillCircle(x + 1 * s, y + 1 * s, 6 * s);
+      g.fillStyle(0xffc14d, 1);
+      g.fillCircle(x + 0.5 * s, y + 0.5 * s, 4 * s);
+      g.fillStyle(INK, 1);
+      g.fillCircle(x + 1 * s, y + 1 * s, 2.6 * s);
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(x - 1.5 * s, y - 2 * s, 1.6 * s);
       break;
+    }
     case 'spider': {
-      // a chocolate spider candy: round body, small head, eight legs, two red eyes
-      g.lineStyle(1.8 * s, 0x2a1a3a, 1);
+      // a little chocolate spider with big cute eyes
+      g.lineStyle(1.8 * s, INK, 1);
       for (const side of [-1, 1]) {
-        g.lineBetween(x + side * 4 * s, y - 2 * s, x + side * 12 * s, y - 8 * s);
-        g.lineBetween(x + side * 5 * s, y, x + side * 14 * s, y - 2 * s);
-        g.lineBetween(x + side * 5 * s, y + 2 * s, x + side * 14 * s, y + 6 * s);
-        g.lineBetween(x + side * 4 * s, y + 4 * s, x + side * 11 * s, y + 11 * s);
+        for (const [ax, ay, bx, by, cx, cy] of [
+          [4, -2, 10, -8, 14, -4],
+          [5, 0, 12, -3, 16, 1],
+          [5, 2, 12, 4, 15, 9],
+          [4, 4, 9, 9, 11, 14],
+        ]) {
+          g.lineBetween(x + side * ax * s, y + ay * s, x + side * bx * s, y + by * s);
+          g.lineBetween(x + side * bx * s, y + by * s, x + side * cx * s, y + cy * s);
+        }
       }
-      g.fillStyle(0x2a1a3a, 1);
-      g.fillCircle(x, y + 1 * s, 7 * s);
-      g.fillCircle(x, y - 6 * s, 4.5 * s);
-      g.fillStyle(0x4a3166, 1);
-      g.fillCircle(x - 2 * s, y - 1 * s, 2.4 * s);
-      g.fillStyle(0xff4d6d, 1);
-      g.fillCircle(x - 1.8 * s, y - 7 * s, 1.2 * s);
-      g.fillCircle(x + 1.8 * s, y - 7 * s, 1.2 * s);
+      g.fillStyle(0x2a1d33, 1);
+      g.fillCircle(x, y + 2 * s, 7.5 * s);
+      g.fillCircle(x, y - 6 * s, 5 * s);
+      g.fillStyle(0x5a4570, 1);
+      g.fillCircle(x - 2.5 * s, y, 2.4 * s);
+      g.fillStyle(0xffffff, 1);
+      g.fillCircle(x - 2 * s, y - 6.5 * s, 2.2 * s);
+      g.fillCircle(x + 2 * s, y - 6.5 * s, 2.2 * s);
+      g.fillStyle(INK, 1);
+      g.fillCircle(x - 1.7 * s, y - 6.2 * s, 1.1 * s);
+      g.fillCircle(x + 2.3 * s, y - 6.2 * s, 1.1 * s);
       break;
     }
   }
@@ -96,51 +118,97 @@ export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): v
 
 /**
  * Draws a cupcake. (x, y) is the middle of the paper wrapper.
- * Layers: soft shadow, cake dome with highlight, pleated wrapper, 3-layer frosting swirl, topping.
+ * Style: dark pleated wrapper, outlined cake dome, a glossy 3-tier frosting swirl with sugar dots, topping on top.
  */
 export function drawCupcake(g: G, x: number, y: number, c: CupcakeData, s = 1): void {
+  const lw = 2.4 * s;
   const dough = doughInfo(c.dough);
-  const base = c.bake === 'raw' ? dough.raw : c.bake === 'ready' ? blend(dough.baked, dough.over, c.tone) : 0x2b2522;
-  const cake = { base, light: shade(base, c.bake === 'burnt' ? 0.15 : 0.3) };
-  const wrap = c.bake === 'burnt' ? { base: 0x3a3a3a, dark: 0x262626, rim: 0x555555 } : { base: 0x8f6be0, dark: 0x6a49b8, rim: 0xb59cf5 };
+  const cakeBase = c.bake === 'raw' ? dough.raw : c.bake === 'ready' ? blend(dough.baked, dough.over, c.tone) : 0x2b2522;
+  const burnt = c.bake === 'burnt';
+  const wrap = burnt ? 0x2f2f33 : 0x3b2560;
 
-  // shadow
-  g.fillStyle(0x000000, 0.18);
-  g.fillEllipse(x, y + 22 * s, 44 * s, 9 * s);
+  // soft shadow, then the wrapper (the cake and frosting spill over its rim)
+  g.fillStyle(0x000000, 0.22);
+  g.fillEllipse(x, y + 22 * s, 50 * s, 10 * s);
+  drawWrapper(g, x, y, wrap, s, lw);
 
-  // cake dome
-  g.fillStyle(cake.base, 1);
-  g.fillCircle(x, y - 8 * s, 21 * s);
-  g.fillStyle(cake.light, 0.55);
-  g.fillCircle(x - 7 * s, y - 15 * s, 7 * s);
+  // cake dome (visible above the wrapper; a bigger mound when there is no frosting)
+  if (!c.frosting) {
+    blob(g, x, y - 10 * s, 50 * s, 40 * s, cakeBase, lw);
+    g.fillStyle(shade(cakeBase, burnt ? 0.12 : 0.3), 0.7);
+    g.fillEllipse(x - 9 * s, y - 18 * s, 16 * s, 9 * s);
+    if (burnt) {
+      g.fillStyle(0x111111, 0.8);
+      g.fillCircle(x + 8 * s, y - 14 * s, 3 * s);
+      g.fillCircle(x - 6 * s, y - 6 * s, 2.5 * s);
+    }
+  } else {
+    blob(g, x, y - 6 * s, 52 * s, 22 * s, cakeBase, lw);
+  }
 
-  // frosting swirl (3 layers) sits on the dome
+  // frosting swirl: three outlined tiers + a tip, each with a highlight
   if (c.frosting) {
     const f = frostingInfo(c.frosting).color;
-    g.fillStyle(shade(f, -0.18), 1);
-    g.fillEllipse(x, y - 17 * s, 46 * s, 22 * s);
-    g.fillStyle(f, 1);
-    g.fillEllipse(x, y - 27 * s, 36 * s, 20 * s);
-    g.fillStyle(shade(f, 0.18), 1);
-    g.fillEllipse(x, y - 36 * s, 24 * s, 16 * s);
-    g.fillStyle(shade(f, 0.3), 1);
-    g.fillCircle(x, y - 44 * s, 5 * s);
+    blob(g, x, y - 13 * s, 56 * s, 24 * s, shade(f, -0.12), lw);
+    blob(g, x - 1 * s, y - 25 * s, 44 * s, 22 * s, f, lw);
+    blob(g, x + 1 * s, y - 37 * s, 30 * s, 18 * s, shade(f, 0.1), lw);
+    blob(g, x + 4 * s, y - 46 * s, 14 * s, 11 * s, shade(f, 0.2), lw);
     g.fillStyle(0xffffff, 0.45);
-    g.fillEllipse(x - 8 * s, y - 29 * s, 8 * s, 4 * s);
+    g.fillEllipse(x - 14 * s, y - 16 * s, 12 * s, 5 * s);
+    g.fillEllipse(x - 10 * s, y - 28 * s, 10 * s, 4 * s);
+    g.fillEllipse(x - 5 * s, y - 39 * s, 7 * s, 3 * s);
+    // sugar dots
+    const dots: [number, number, number][] = [
+      [-18, -12, 0],
+      [12, -16, 1],
+      [-6, -22, 0],
+      [14, -28, 1],
+      [-12, -32, 1],
+      [6, -38, 0],
+    ];
+    for (const [dx, dy, white] of dots) {
+      g.fillStyle(white ? 0xffffff : shade(f, -0.5), white ? 0.85 : 0.8);
+      g.fillCircle(x + dx * s, y + dy * s, 1.6 * s);
+    }
   }
-
-  // paper wrapper (trapezoid from two triangles) with pleats
-  g.fillStyle(wrap.base, 1);
-  g.fillTriangle(x - 23 * s, y - 4 * s, x + 23 * s, y - 4 * s, x + 16 * s, y + 20 * s);
-  g.fillTriangle(x - 23 * s, y - 4 * s, x + 16 * s, y + 20 * s, x - 16 * s, y + 20 * s);
-  g.lineStyle(1.6 * s, wrap.dark, 0.9);
-  for (const t of [-0.6, -0.2, 0.2, 0.6]) {
-    g.lineBetween(x + t * 22 * s, y - 3 * s, x + t * 14 * s, y + 19 * s);
-  }
-  g.lineStyle(3 * s, wrap.rim, 1);
-  g.lineBetween(x - 23 * s, y - 4 * s, x + 23 * s, y - 4 * s);
 
   if (c.topping) {
-    drawTopping(g, x, y - (c.frosting ? 48 : 30) * s, c.topping, s);
+    // sprinkles lie on the swirl; candy toppings sit on its tip
+    const ty = !c.frosting ? 30 : c.topping === 'sprinkles' ? 30 : 54;
+    drawTopping(g, x + (c.frosting ? 2 : 0) * s, y - ty * s, c.topping, s);
   }
+}
+
+/** Pleated paper wrapper (trapezoid) with alternating stripes and a rim. */
+function drawWrapper(g: G, x: number, y: number, wrap: number, s: number, lw: number): void {
+  const top = y - 6 * s;
+  const bot = y + 21 * s;
+  const tl = x - 24 * s;
+  const tr = x + 24 * s;
+  const bl = x - 17 * s;
+  const br = x + 17 * s;
+  g.fillStyle(wrap, 1);
+  g.fillTriangle(tl, top, tr, top, br, bot);
+  g.fillTriangle(tl, top, br, bot, bl, bot);
+  g.fillStyle(shade(wrap, -0.3), 1);
+  for (let i = 0; i < 6; i += 2) {
+    const a = i / 6;
+    const b = (i + 1) / 6;
+    const x1 = tl + (tr - tl) * a;
+    const x2 = tl + (tr - tl) * b;
+    const x3 = bl + (br - bl) * b;
+    const x4 = bl + (br - bl) * a;
+    g.fillTriangle(x1, top, x2, top, x3, bot);
+    g.fillTriangle(x1, top, x3, bot, x4, bot);
+  }
+  g.fillStyle(0xffffff, 0.12);
+  g.fillTriangle(tl + 3 * s, top, tl + 9 * s, top, bl + 5 * s, bot);
+  g.lineStyle(lw, INK, 1);
+  g.strokeTriangle(tl, top, tr, top, br, bot);
+  g.lineBetween(tl, top, bl, bot);
+  g.lineBetween(bl, bot, br, bot);
+  g.fillStyle(shade(wrap, 0.25), 1);
+  g.fillRoundedRect(tl - 1 * s, top - 2 * s, 50 * s, 4 * s, 2 * s);
+  g.lineStyle(lw * 0.8, INK, 1);
+  g.strokeRoundedRect(tl - 1 * s, top - 2 * s, 50 * s, 4 * s, 2 * s);
 }

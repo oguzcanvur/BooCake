@@ -225,7 +225,7 @@ export class NightScene extends Phaser.Scene {
     // ready tray and trash can
     createTray(this, STATION_X.tray, ty, (i) => this.onTray(i));
     this.add
-      .text(STATION_X.tray[1] + 84, ty - 6, T.tray, { fontFamily: FONT, fontSize: '15px', color: '#c9bdf0', fontStyle: 'bold' })
+      .text(STATION_X.tray[1] + 108, ty - 6, T.tray, { fontFamily: FONT, fontSize: '15px', color: '#c9bdf0', fontStyle: 'bold' })
       .setOrigin(0, 0.5)
       .setDepth(DEPTH.station);
     createTrash(this, STATION_X.trash, ty, () => this.onTrash());
@@ -359,7 +359,7 @@ export class NightScene extends Phaser.Scene {
     if (this.plate) {
       const x = STATION_X.plate;
       const y = LAYOUT.stationY;
-      if (this.isSelected({ kind: 'plate' })) ring(x, y - 16, 108, 132);
+      if (this.isSelected({ kind: 'plate' })) ring(x, y - 10, 98, 112);
       drawCupcake(g, x, y + 8, this.plate, 1.2);
     }
     this.tray.forEach((c, i) => {

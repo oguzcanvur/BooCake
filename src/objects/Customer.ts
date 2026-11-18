@@ -1,9 +1,9 @@
 import Phaser from 'phaser';
-import { COLORS, DEPTH, FONT, LAYOUT } from '../config';
+import { DEPTH, FONT, INK, LAYOUT } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import type { MonsterDef, MonsterKind } from '../data/monsters';
 import { doughInfo, frostingInfo, toppingInfo, type Order } from '../data/recipes';
-import { drawCupcake } from './cupcake';
+import { drawCupcake, drawTopping } from './cupcake';
 import { MonsterView } from './MonsterView';
 
 export type CustomerMood = 'happy' | 'uneasy' | 'angry';
@@ -25,6 +25,8 @@ export class Customer {
   private readonly zone: Phaser.GameObjects.Zone;
   private disgustUntil = 0;
   private gone = false;
+  /** What the ticket showed last time (it is only redrawn when this changes). */
+  private lastKey = '';
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -139,40 +141,82 @@ export class Customer {
     this.monster.destroy();
   }
 
+  /** The order ticket: cream paper, the cupcake on a doily, an icon + name per part, and the patience bar. */
   private redraw(): void {
-    const g = this.bubble;
     const f = this.fraction;
+    const mood = this.mood;
+    // only rebuild the drawing when the bar moved a visible step or the mood changed
+    const key = `${Math.round(f * 100)}|${mood}`;
+    if (key === this.lastKey) return;
+    this.lastKey = key;
+
+    const g = this.bubble;
     const cx = this.x + LAYOUT.bubbleDX;
     const cy = LAYOUT.bubbleY;
     const left = cx - BUBBLE.w / 2;
     const top = cy - BUBBLE.h / 2 + 2;
+    const r = 16;
     g.clear();
 
-    g.fillStyle(0x000000, 0.18);
-    g.fillRoundedRect(left, top + 4, BUBBLE.w, BUBBLE.h, 18);
-    g.fillStyle(0xffffff, 0.97);
-    g.fillRoundedRect(left, top, BUBBLE.w, BUBBLE.h, 18);
+    g.fillStyle(0x000000, 0.25);
+    g.fillRoundedRect(left + 2, top + 6, BUBBLE.w, BUBBLE.h, r);
     // tail pointing left, toward the customer's face
-    g.fillTriangle(left + 1, cy - 14, left + 1, cy + 8, left - 18, cy + 4);
-    const mood = this.mood;
-    if (mood === 'angry') {
-      g.lineStyle(3, COLORS.bad, 1);
-      g.strokeRoundedRect(left, top, BUBBLE.w, BUBBLE.h, 18);
+    g.fillStyle(0xfff8ea, 1);
+    g.fillTriangle(left + 2, cy - 14, left + 2, cy + 8, left - 18, cy + 4);
+    g.lineStyle(2.5, INK, 1);
+    g.lineBetween(left, cy - 14, left - 18, cy + 4);
+    g.lineBetween(left - 18, cy + 4, left, cy + 8);
+    g.fillStyle(0xfff8ea, 1);
+    g.fillRoundedRect(left, top, BUBBLE.w, BUBBLE.h, r);
+    // pink ribbon at the top
+    g.fillStyle(0xff9ec9, 1);
+    g.fillRoundedRect(left, top, BUBBLE.w, 10, { tl: r, tr: r, bl: 0, br: 0 });
+    g.lineStyle(mood === 'angry' ? 3.5 : 2.5, mood === 'angry' ? 0xd83a52 : INK, 1);
+    g.strokeRoundedRect(left, top, BUBBLE.w, BUBBLE.h, r);
+    g.fillStyle(0xfff8ea, 1);
+    g.fillRect(left - 1, cy - 12, 4, 18);
+
+    // the cupcake on a lace doily
+    const px = left + 50;
+    g.fillStyle(0xece4fb, 1);
+    g.fillCircle(px, cy + 8, 34);
+    g.lineStyle(1.5, 0xd6caf0, 1);
+    g.strokeCircle(px, cy + 8, 28);
+    const o = this.order;
+    drawCupcake(g, px, cy + 14, { dough: o.dough, bake: 'ready', tone: 0.25, frosting: o.frosting, topping: o.topping }, 0.82);
+
+    // an icon for each part (the names are text objects next to them)
+    const ix = cx + 2;
+    const rows = [cy - 26, cy - 4, cy + 18];
+    // dough: a little round of batter
+    g.fillStyle(doughInfo(o.dough).baked, 1);
+    g.fillCircle(ix, rows[0], 7);
+    g.lineStyle(2, INK, 1);
+    g.strokeCircle(ix, rows[0], 7);
+    // frosting: a mini swirl
+    const fc = frostingInfo(o.frosting).color;
+    g.fillStyle(fc, 1);
+    g.fillEllipse(ix, rows[1] + 3, 15, 8);
+    g.fillEllipse(ix, rows[1] - 2, 10, 7);
+    g.lineStyle(1.8, INK, 1);
+    g.strokeEllipse(ix, rows[1] + 3, 15, 8);
+    g.strokeEllipse(ix, rows[1] - 2, 10, 7);
+    // topping: the topping itself, small
+    drawTopping(g, ix, rows[2], o.topping, 0.52);
+
+    // patience bar with an outline
+    const bx = left + 14;
+    const by = top + BUBBLE.h - 20;
+    const bw = BUBBLE.w - 28;
+    g.fillStyle(0x2b1d4f, 0.2);
+    g.fillRoundedRect(bx, by, bw, 10, 5);
+    if (f > 0.02) {
+      g.fillStyle(mood === 'happy' ? 0x3fbf74 : mood === 'uneasy' ? 0xe6a22e : 0xd83a52, 1);
+      g.fillRoundedRect(bx, by, Math.max(10, bw * f), 10, 5);
+      g.fillStyle(0xffffff, 0.35);
+      g.fillRoundedRect(bx + 3, by + 2, Math.max(4, bw * f - 6), 3, 1.5);
     }
-
-    // the order: the cupcake itself ...
-    drawCupcake(g, cx - 54, cy + 4, { dough: this.order.dough, bake: 'ready', tone: 0.25, frosting: this.order.frosting, topping: this.order.topping }, 0.95);
-    // ... and its three parts, each with a colored dot
-    const dots = [doughInfo(this.order.dough).baked, frostingInfo(this.order.frosting).color, 0xffd166];
-    dots.forEach((color, i) => {
-      g.fillStyle(color, 1);
-      g.fillCircle(cx + 2, cy - 26 + i * 22, 5.5);
-    });
-
-    // patience bar
-    g.fillStyle(0x2b1d4f, 0.25);
-    g.fillRoundedRect(left + 16, top + BUBBLE.h - 22, BUBBLE.w - 32, 10, 5);
-    g.fillStyle(mood === 'happy' ? COLORS.good : mood === 'uneasy' ? COLORS.warn : COLORS.bad, 1);
-    if (f > 0.02) g.fillRoundedRect(left + 16, top + BUBBLE.h - 22, Math.max(10, (BUBBLE.w - 32) * f), 10, 5);
+    g.lineStyle(2, INK, 1);
+    g.strokeRoundedRect(bx, by, bw, 10, 5);
   }
 }
