@@ -15,8 +15,11 @@ Bu dosya projenin ortak hafızasıdır (ekip + Claude). Önemli kararlar buraya 
 - **Teslim:** `npm run build` → `dist/BooCake.html` **tek dosya**, çift tıklayınca açılır (asset'ler base64 olarak kodun içinde; `tools/make-single.mjs` JS/CSS'i HTML'e gömer). `file://` ile doğrulandı.
 - Geliştirme: `npm install`, `npm run dev` → http://localhost:5173. Kontrol: `npm run typecheck`.
 - Arayüz dili Türkçe; tüm metinler `src/text.ts`'te (çeviri için sadece orası değişir). Yazı tipi Fredoka (latin + latin-ext).
-- Asset'ler: Kenney CC0 paketleri (UI Pack, Particle Pack, Interface/Impact Sounds). Canavarlar ekibin verdiği örnek çizime göre (ince koyu-mor kontur, pastel düz renk, allık, tezgâha yaslanan eller) `src/objects/MonsterView.ts` içinde kodla çizilir; tarifleri `src/data/monsters.ts`. Cupcake, fırın, istasyon ve dekorlar da kodla çizilir. Dosyalar `src/assets/` altında. Lisanslar [CREDITS.md](CREDITS.md).
-- Görsel referans notu: Doküman 16. bölüm var olan bir oyunun görsellerinin kopyalanmasını yasaklıyor; "Good Pizza, Great Pizza"dan sadece tür ortakları (tezgâh + sipariş balonu + istasyonlar) alındı.
+- **Sanat yönetimi (art direction):** Tüm görseller vektör olarak kodla çizilir (parçacık dokuları ve sesler hariç). Kurallar: koyu mor kontur (`INK` = 0x2a1a3a, 2–3 px), ışık sol üstten (parlama sol üstte, gölge sağ altta), pastel düz renkler; duvar mor, ahşap sıcak kahve, kumaşlar mor + altın şerit. Ortak ikon/buton/panel çizimleri `src/ui/icons.ts`, `button.ts`, `panel.ts`. Ortam `src/objects/Shop.ts` (katmanlar: duvar → pencereler/ay ışığı → kiriş/ışıklar/fenerler → tezgâh → çalışma tezgâhı → vinyet).
+- **Netlik (HiDPI):** `config.RES = 2`: tuval 2560x1440, her sahnenin kamerası 2 kat yakınlaştırır (`fx.setupCamera`, `fadeIn` içinde çağrılır), tüm metinler 2 kat çözünürlükte (`main.ts`'teki fabrika yaması). Dünya koordinatları hâlâ 1280x720. Performans: fırın, sipariş fişi ve para çubuğu yalnızca değiştiğinde yeniden çizilir; gerçek ekran kartıyla ~58 fps.
+- Ortalamayı sadece Phaser yapar (`index.html`'de flex yok); 4:3 projektörde tıklamalar doğru yere gider.
+- Asset'ler: Kenney CC0 paketleri (Particle Pack, Interface/Impact Sounds). Canavarlar ekibin verdiği örnek çizime göre (ince koyu-mor kontur, pastel düz renk, allık, tezgâha yaslanan eller) `src/objects/MonsterView.ts` içinde kodla çizilir; tarifleri `src/data/monsters.ts`. Cupcake, fırın, istasyon ve dekorlar da kodla çizilir. Dosyalar `src/assets/` altında. Lisanslar [CREDITS.md](CREDITS.md).
+- Görsel referans notu: Doküman 16. bölüm var olan bir oyunun görsellerinin kopyalanmasını yasaklıyor; "Good Pizza, Great Pizza"dan sadece tür ortakları (tezgâh + sipariş balonu + istasyonlar) alındı. Ekibin verdiği ticari oyun ekran görüntüsü (ahşap/mor dükkân) ve mumya/cupcake görselleri sadece atmosfer ve stil ilhamı olarak kullanıldı, kopyalanmadı.
 
 ## Oyun kuralları (kodda olan)
 Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
@@ -38,7 +41,7 @@ Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
 - Sahne olay dinleyicileri (`this.events.on`) yeniden başlatmada birikir; `SHUTDOWN`'da kaldır.
 
 ## Claude için test notları
-- Test aracı repoda yok: headless Edge + CDP (uzaktan hata ayıklama) betiği ile gerçek zamanlı tık/JS/ekran görüntüsü testi yapıldı. Dev modda `window.__game` ve `window.__monsters` var; `await import('/src/systems/GameState.ts')` ile aynı modül örneğine erişilir.
+- Test aracı repoda yok: headless Edge + CDP (uzaktan hata ayıklama) betiği ile gerçek zamanlı tık/JS/ekran görüntüsü testi yapıldı. GPU için `--use-angle=d3d11` kullan (swiftshader 2x çözünürlükte ~11 fps verir ve zamanlı testler şaşar). Dev modda `window.__game` ve `window.__monsters` var; `await import('/src/systems/GameState.ts')` ile aynı modül örneğine erişilir.
 - Tarayıcı panelinde (gizliyken) oyun ~3 fps çalışır; zamanlı testlerde başsız Edge kullan. `game.scene.start()` açık sahneyi kapatmaz, `scene.scene.start()` kullan.
 - Test edilen: pişirme/yanma, çöp, tepsi, yanlış sipariş, bahşiş, vampir ısırığı/sarımsak, hayalet, hırsız/güvenlik, özet → dükkân → sonraki gün, 3. fırın, final, tek dosya build'in gerçek tıklamayla oynanması.
 - Test edilmeyen: tam 150 sn'lik bir günün elle baştan sona oynanması ve denge (hedefler/sürelerin hissi); sesler (dinlenmedi).

@@ -1,6 +1,11 @@
 import Phaser from 'phaser';
 import { fxKey, type FxName } from './assets';
-import { COLORS, DEPTH, FONT } from './config';
+import { COLORS, DEPTH, FONT, H, RES, W } from './config';
+
+/** Show the 1280x720 world on the RES-times-larger canvas (crisp on HiDPI screens). */
+export function setupCamera(scene: Phaser.Scene): void {
+  scene.cameras.main.setZoom(RES).centerOn(W / 2, H / 2);
+}
 
 interface BurstOptions {
   count?: number;
@@ -71,6 +76,7 @@ export function coinFlight(
 
 /** Fade the whole camera in when a scene starts. */
 export function fadeIn(scene: Phaser.Scene, ms = 350): void {
+  setupCamera(scene);
   scene.cameras.main.fadeIn(ms, 20, 13, 36);
 }
 

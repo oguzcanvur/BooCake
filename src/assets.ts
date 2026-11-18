@@ -12,18 +12,6 @@ function binaryUrl(path: string): string {
   return url;
 }
 
-export const UI_IMAGES = [
-  'btn_blue',
-  'btn_green',
-  'btn_grey',
-  'btn_red',
-  'btn_yellow',
-  'btn_round_grey',
-  'btn_square_grey',
-  'star',
-  'star_empty',
-] as const;
-
 export const FX_NAMES = [
   'star_01',
   'star_04',
@@ -57,7 +45,6 @@ export const SFX_NAMES = [
   'coin',
 ] as const;
 
-export type UiImage = (typeof UI_IMAGES)[number];
 export type FxName = (typeof FX_NAMES)[number];
 export type SfxName = (typeof SFX_NAMES)[number];
 
@@ -66,7 +53,6 @@ export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 
 /** Queue every asset the game uses. Call from a scene's preload(). */
 export function queueAssets(scene: Phaser.Scene): void {
-  for (const n of UI_IMAGES) scene.load.image(n, binaryUrl(`ui/${n}.png`));
   for (const n of FX_NAMES) scene.load.image(fxKey(n), binaryUrl(`fx/${n}.png`));
   for (const n of SFX_NAMES) scene.load.audio(sfxKey(n), binaryUrl(`audio/${n}.ogg`));
 }

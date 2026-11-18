@@ -6,6 +6,7 @@ import { Shop } from '../objects/Shop';
 import { currentDay, gameState, isLastDay, starsFor } from '../systems/GameState';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
+import { drawStar } from '../ui/icons';
 import { drawPanel } from '../ui/panel';
 import type { DayStats } from './NightScene';
 
@@ -67,17 +68,19 @@ export class SummaryScene extends Phaser.Scene {
     );
 
     // stars pop in one after another
-    const starImgs: Phaser.GameObjects.Image[] = [];
+    const starImgs: Phaser.GameObjects.Graphics[] = [];
     for (let i = 0; i < 3; i++) {
-      const s = this.add.image((i - 1) * 100, -panelH / 2 + 142 + (i === 1 ? -12 : 0), 'star_empty').setScale(1.4);
+      const s = this.add.graphics().setPosition((i - 1) * 100, -panelH / 2 + 142 + (i === 1 ? -12 : 0));
+      drawStar(s, 0, 0, 40, false, 4);
       panel.add(s);
       starImgs.push(s);
     }
     for (let i = 0; i < stars; i++) {
       this.time.delayedCall(450 + i * 420, () => {
         const s = starImgs[i];
-        s.setTexture('star');
-        this.tweens.add({ targets: s, scale: { from: 2.6, to: 1.4 }, angle: { from: -25, to: 0 }, duration: 420, ease: 'Back.easeOut' });
+        s.clear();
+        drawStar(s, 0, 0, 40, true, 4);
+        this.tweens.add({ targets: s, scale: { from: 1.8, to: 1 }, angle: { from: -25, to: 0 }, duration: 420, ease: 'Back.easeOut' });
         sfx(this, 'star', 0.55, 1 + i * 0.18);
         burst(this, cx + s.x, cy + s.y, 'star_04', { count: 10, tint: 0xffe066, gravity: 80 });
       });

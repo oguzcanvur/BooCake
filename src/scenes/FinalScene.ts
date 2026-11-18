@@ -7,6 +7,7 @@ import { Shop } from '../objects/Shop';
 import { gameState, resetGame } from '../systems/GameState';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
+import { drawStar } from '../ui/icons';
 import { drawPanel } from '../ui/panel';
 
 /** Shown after day 4: "Kazandın! BooCake şehrin en iyi canavar pastanesi!" */
@@ -42,10 +43,12 @@ export class FinalScene extends Phaser.Scene {
     const row = this.add.container(0, 80);
     panel.add(row);
     for (let d = 0; d < DAY_COUNT; d++) {
-      const s = this.add.image((d - (DAY_COUNT - 1) / 2) * 90, 0, 'star').setScale(0.9);
+      // one star per day: gold if the day was completed
+      const s = this.add.graphics().setPosition((d - (DAY_COUNT - 1) / 2) * 90, 0);
+      drawStar(s, 0, 0, 26, (gameState.stars[d] ?? 0) > 0, 3);
       s.setAlpha(0);
       row.add(s);
-      this.tweens.add({ targets: s, alpha: 1, scale: { from: 1.8, to: 0.9 }, delay: 500 + d * 250, duration: 350, ease: 'Back.easeOut' });
+      this.tweens.add({ targets: s, alpha: 1, scale: { from: 1.8, to: 1 }, delay: 500 + d * 250, duration: 350, ease: 'Back.easeOut' });
       row.add(this.add.text((d - (DAY_COUNT - 1) / 2) * 90, 36, `${gameState.stars[d] ?? 0}/3`, { fontFamily: FONT, fontSize: '18px', color: '#c9bdf0', fontStyle: 'bold' }).setOrigin(0.5));
     }
     panel.add(this.add.text(0, 150, `${total}/${DAY_COUNT * 3}`, { fontFamily: FONT, fontSize: '26px', color: '#ffd166', fontStyle: 'bold' }).setOrigin(0.5));

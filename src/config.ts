@@ -3,6 +3,14 @@
 
 export const W = 1280;
 export const H = 720;
+/**
+ * Internal render scale. The game world is laid out in 1280x720 units, but the canvas is RES times bigger
+ * and every camera zooms by RES, so vector art and text stay crisp on Full HD, 2K and 4K screens.
+ */
+export const RES = 2;
+
+/** Ink color of all outlines (art style: dark plum lines, light from the top-left). */
+export const INK = 0x2a1a3a;
 
 export const FONT = 'Fredoka, "Trebuchet MS", Verdana, sans-serif';
 

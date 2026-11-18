@@ -127,6 +127,19 @@ export class MonsterView {
       loop: true,
       callback: () => this.blink(),
     });
+    // gentle breathing (starts after the pop-in animation)
+    scene.time.delayedCall(650, () => {
+      if (this.gone || !this.inner.active) return;
+      scene.tweens.add({
+        targets: this.inner,
+        scaleY: 1.022,
+        scaleX: 0.994,
+        duration: Phaser.Math.Between(1500, 1900),
+        yoyo: true,
+        repeat: -1,
+        ease: 'Sine.easeInOut',
+      });
+    });
   }
 
   setMood(mood: Mood): void {
@@ -248,8 +261,16 @@ export class MonsterView {
         g.lineBetween(s * 46, 0, s * 46, 12);
       }
     }
-    // head
-    ellipse(g, 0, 0, RX * 2, RY * 2, d.skin);
+    // head with soft volume: a darker base, the lit skin shifted up-left, a highlight, then the outline
+    g.fillStyle(shade(d.skin, -0.1), 1);
+    g.fillEllipse(0, 0, RX * 2, RY * 2);
+    g.fillStyle(d.skin, 1);
+    g.fillEllipse(-3, -3, RX * 2 - 8, RY * 2 - 8);
+    g.fillStyle(0xffffff, 0.16);
+    g.fillEllipse(-16, -24, 30, 16);
+    if (d.faceColor !== undefined) this.drawFaceGap(g, d.faceColor);
+    g.lineStyle(LINE, OUT, 1);
+    g.strokeEllipse(0, 0, RX * 2, RY * 2);
     this.drawHair(g);
     this.drawHeadExtras(g);
   }
@@ -329,10 +350,19 @@ export class MonsterView {
         break;
       }
       case 'wraps': {
-        g.lineStyle(7, OUT, 1);
-        for (const y of [64, 86]) g.lineBetween(-half + 4, y - 6, half - 4, y + 6);
-        g.lineStyle(4, shade(c, -0.08), 1);
-        for (const y of [64, 86]) g.lineBetween(-half + 4, y - 6, half - 4, y + 6);
+        // overlapping bandage strips with old stains
+        const strips = [56, 74, 92, 110, 128];
+        strips.forEach((y, i) => {
+          const tilt = i % 2 === 0 ? 7 : -6;
+          g.lineStyle(13, OUT, 1);
+          g.lineBetween(-half + 3, y - tilt, half - 3, y + tilt);
+          g.lineStyle(9, i % 2 === 0 ? c : shade(c, -0.07), 1);
+          g.lineBetween(-half + 3, y - tilt, half - 3, y + tilt);
+        });
+        g.fillStyle(0xb9a77e, 0.45);
+        g.fillEllipse(-30, 70, 16, 9);
+        g.fillEllipse(26, 98, 20, 10);
+        g.fillEllipse(-12, 120, 12, 7);
         break;
       }
     }
@@ -753,17 +783,48 @@ export class MonsterView {
     }
   }
 
+  /** Mummy: the skin shows through a gap in the bandages around the eyes and mouth. */
+  private drawFaceGap(g: G, color: number): void {
+    g.fillStyle(color, 1);
+    g.fillPoints(
+      [
+        { x: -34, y: -14 },
+        { x: 36, y: -18 },
+        { x: 40, y: 8 },
+        { x: 26, y: 34 },
+        { x: -20, y: 36 },
+        { x: -38, y: 12 },
+      ] as Phaser.Math.Vector2[],
+      true,
+    );
+    g.fillStyle(shade(color, -0.12), 1);
+    g.fillEllipse(18, 26, 30, 12);
+  }
+
+  /** Mummy bandages: curved strips over the forehead and chin, one strip between the eyes, and stains. */
   private drawBandages(g: G): void {
-    const band = shade(this.def.skin, -0.06);
-    for (const y of [-36, -22, 18, 32]) {
-      const hw = headHalfWidth(y) - 1;
-      g.lineStyle(9, OUT, 1);
-      g.lineBetween(-hw, y - 3, hw, y + 3);
-      g.lineStyle(6, band, 1);
-      g.lineBetween(-hw, y - 3, hw, y + 3);
+    const band = this.def.skin;
+    const strip = (x1: number, y1: number, x2: number, y2: number, alt: boolean) => {
+      g.lineStyle(12, OUT, 1);
+      g.lineBetween(x1, y1, x2, y2);
+      g.lineStyle(8, alt ? shade(band, -0.07) : band, 1);
+      g.lineBetween(x1, y1, x2, y2);
+    };
+    for (const [y, tilt, alt] of [
+      [-38, -4, false],
+      [-26, 5, true],
+      [40, -4, false],
+    ] as const) {
+      const hw = headHalfWidth(y) - 2;
+      strip(-hw, y - tilt, hw, y + tilt, alt);
     }
-    // a loose end
-    g.lineStyle(6, band, 1);
-    g.lineBetween(40, -22, 54, -12);
+    // a strip crossing the face between the eyes and a loose end
+    strip(-4, -16, 4, 14, true);
+    g.lineStyle(7, band, 1);
+    g.lineBetween(38, -28, 54, -16);
+    // old stains
+    g.fillStyle(0xb9a77e, 0.45);
+    g.fillEllipse(-24, -38, 14, 7);
+    g.fillEllipse(20, -26, 10, 6);
   }
 }
