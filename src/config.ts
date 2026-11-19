@@ -74,7 +74,7 @@ export const LAYOUT = {
 
 /** Horizontal centers of everything on the table. */
 export const STATION_X = {
-  dough: [72, 144, 216],
+  dough: [64, 149, 227],
   oven: [328, 452, 576],
   plate: 717,
   frosting: [832, 904, 976],

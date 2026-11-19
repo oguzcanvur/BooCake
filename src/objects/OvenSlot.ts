@@ -1,19 +1,21 @@
 import Phaser from 'phaser';
-import { fxKey } from '../assets';
+import { fxKey, stationKey } from '../assets';
 import { COLORS, DEPTH, FONT, INK } from '../config';
 import type { DoughId } from '../data/recipes';
 import { T } from '../text';
-import { drawCupcake, shade, type CupcakeData } from './cupcake';
+import { drawCupcake, type CupcakeData } from './cupcake';
 
-/** Window (porthole) of the oven, relative to the oven center. */
-const WIN = { dy: 4, r: 33 };
-/** Progress ring around the porthole. */
-const RING_R = 42;
+/** Displayed size of the oven picture (src/assets/stations/oven.png); its center is the slot's x, y. */
+const OVEN_H = 172;
+/** Glass window of the oven door, relative to the oven center (measured on the picture). */
+const WIN = { dy: 19, w: 85, h: 50 };
+/** Progress bar just under the window. */
+const BAR = { dy: 53, w: 85, h: 8 };
 
 /**
  * One oven slot. A dough goes in and bakes: raw until `cookSec`, cooked (and slowly browning) until `burnSec`,
  * then burnt. Click a cooked or burnt cupcake to take it out.
- * Look: a cute cast-iron oven with a round glowing porthole and a progress ring around it
+ * Look: the team's oven drawing; the cupcake shows in the door window, with a progress bar under it
  * (yellow while baking, green when cooked, red when burnt; a white tick marks "cooked").
  * Emits scene events: 'cupcake-ready' and 'cupcake-burned' (x, y).
  */
@@ -25,7 +27,7 @@ export class OvenSlot {
   /** What was drawn last time, so the drawing is only rebuilt when it changes. */
   private lastKey = '';
 
-  private readonly body: Phaser.GameObjects.Graphics;
+  private readonly body: Phaser.GameObjects.Image;
   private readonly dyn: Phaser.GameObjects.Graphics;
   private readonly label: Phaser.GameObjects.Text;
   private readonly glow: Phaser.GameObjects.Image;
@@ -40,13 +42,13 @@ export class OvenSlot {
     private readonly burnSec: number,
     onClick: (slot: OvenSlot) => void,
   ) {
-    this.body = scene.add.graphics().setDepth(DEPTH.station);
-    this.drawBody();
+    this.body = scene.add.image(x, y, stationKey('oven')).setDepth(DEPTH.station);
+    this.body.setScale(OVEN_H / this.body.height);
 
     this.glow = scene.add
       .image(x, y + WIN.dy, fxKey('light_01'))
       .setDepth(DEPTH.station + 1)
-      .setScale(0.9)
+      .setScale(0.7)
       .setAlpha(0)
       .setBlendMode(Phaser.BlendModes.ADD);
     this.dyn = scene.add.graphics().setDepth(DEPTH.station + 2);
@@ -57,7 +59,7 @@ export class OvenSlot {
 
     // smoke and steam rise from the top of the oven
     this.smoke = scene.add
-      .particles(x + 16, y - 66, fxKey('smoke_05'), {
+      .particles(x, y - 50, fxKey('smoke_05'), {
         speedY: { min: -70, max: -40 },
         speedX: { min: -14, max: 14 },
         lifespan: 1300,
@@ -69,7 +71,7 @@ export class OvenSlot {
       })
       .setDepth(DEPTH.fx);
     this.steam = scene.add
-      .particles(x + 16, y - 66, fxKey('smoke_01'), {
+      .particles(x, y - 50, fxKey('smoke_01'), {
         speedY: { min: -36, max: -22 },
         speedX: { min: -8, max: 8 },
         lifespan: 1100,
@@ -81,7 +83,7 @@ export class OvenSlot {
       })
       .setDepth(DEPTH.fx);
 
-    const zone = scene.add.zone(x, y + 6, 116, 166).setInteractive({ useHandCursor: true });
+    const zone = scene.add.zone(x, y, 110, OVEN_H).setInteractive({ useHandCursor: true });
     zone.on('pointerdown', () => onClick(this));
     this.redraw();
   }
@@ -136,50 +138,6 @@ export class OvenSlot {
     this.redraw();
   }
 
-  /** Static oven: arched cast-iron body, feet, brass trim around the porthole. */
-  private drawBody(): void {
-    const { x, y } = this;
-    const g = this.body;
-    const iron = 0x6a6fa8;
-    g.fillStyle(0x000000, 0.3);
-    g.fillEllipse(x, y + 80, 124, 16);
-    // feet
-    for (const fx of [-38, 38]) {
-      g.fillStyle(0x3a3560, 1);
-      g.fillRoundedRect(x + fx - 9, y + 66, 18, 14, 4);
-      g.lineStyle(2.5, INK, 1);
-      g.strokeRoundedRect(x + fx - 9, y + 66, 18, 14, 4);
-    }
-    // body (arched top)
-    g.fillStyle(shade(iron, -0.2), 1);
-    g.fillRoundedRect(x - 56, y - 68, 112, 140, { tl: 44, tr: 44, bl: 16, br: 16 });
-    g.fillStyle(iron, 1);
-    g.fillRoundedRect(x - 56, y - 68, 104, 134, { tl: 44, tr: 40, bl: 16, br: 12 });
-    g.fillStyle(0xffffff, 0.16);
-    g.fillRoundedRect(x - 46, y - 60, 30, 70, 14);
-    g.lineStyle(3, INK, 1);
-    g.strokeRoundedRect(x - 56, y - 68, 112, 140, { tl: 44, tr: 44, bl: 16, br: 16 });
-    // rivets
-    g.fillStyle(0x9aa0d0, 1);
-    for (const [rx, ry] of [[-44, 50], [44, 50], [-48, -20], [48, -20]]) g.fillCircle(x + rx, y + ry, 3);
-    // brass trim ring and porthole
-    g.fillStyle(0xc99a4a, 1);
-    g.fillCircle(x, y + WIN.dy, RING_R + 6);
-    g.fillStyle(0xe6bd6c, 1);
-    g.fillCircle(x - 2, y + WIN.dy - 2, RING_R + 3);
-    g.lineStyle(2.5, INK, 1);
-    g.strokeCircle(x, y + WIN.dy, RING_R + 6);
-    g.fillStyle(0x2a1d3a, 1);
-    g.fillCircle(x, y + WIN.dy, RING_R);
-    g.lineStyle(2, INK, 1);
-    g.strokeCircle(x, y + WIN.dy, RING_R);
-    // handle under the porthole
-    g.fillStyle(0xd9dfef, 1);
-    g.fillRoundedRect(x - 26, y + 52, 52, 8, 4);
-    g.lineStyle(2, INK, 1);
-    g.strokeRoundedRect(x - 26, y + 52, 52, 8, 4);
-  }
-
   private redraw(): void {
     const { x, dyn } = this;
     const cy = this.y + WIN.dy;
@@ -198,46 +156,38 @@ export class OvenSlot {
     this.lastKey = key;
     dyn.clear();
 
-    // porthole glass: warm when baking, green when cooked, black when burnt
-    const glass = state === 'burnt' ? 0x0d0a0a : state === 'ready' ? 0x1f4a37 : state === 'raw' ? 0x5a2a12 : 0x1d1430;
-    dyn.fillStyle(glass, 1);
-    dyn.fillCircle(x, cy, WIN.r);
+    // window glass: warm when baking, green when cooked, dark when burnt (see-through over the drawing)
+    const wx = x - WIN.w / 2;
+    const wy = cy - WIN.h / 2;
+    if (state) {
+      const glass = state === 'burnt' ? 0x1a0f0f : state === 'ready' ? 0x2f6a4f : 0x8a3f18;
+      dyn.fillStyle(glass, state === 'burnt' ? 0.75 : 0.45);
+      dyn.fillRoundedRect(wx, wy, WIN.w, WIN.h, 5);
+    }
     if (state === 'raw') {
       dyn.fillStyle(0xff9a3c, 0.45);
-      dyn.fillEllipse(x, cy + 22, 52, 12);
+      dyn.fillEllipse(x, cy + 16, 56, 10);
     }
-    if (this.cupcake) drawCupcake(dyn, x, cy + 12, this.cupcake, 0.55);
-    // glass shine
-    dyn.fillStyle(0xffffff, 0.14);
-    dyn.fillEllipse(x - 12, cy - 14, 26, 14);
-
-    // progress ring with a tick where the cupcake becomes cooked
-    dyn.lineStyle(7, 0x221833, 1);
-    dyn.strokeCircle(x, cy, RING_R - 1);
-    if (this.cupcake) {
-      const color = state === 'raw' ? COLORS.warn : state === 'ready' ? COLORS.good : COLORS.bad;
-      dyn.lineStyle(6, color, 1);
-      dyn.beginPath();
-      dyn.arc(x, cy, RING_R - 1, -Math.PI / 2, -Math.PI / 2 + frac * Math.PI * 2, false);
-      dyn.strokePath();
-      const a = -Math.PI / 2 + (this.cookSec / this.burnSec) * Math.PI * 2;
-      dyn.lineStyle(3, 0xffffff, 1);
-      dyn.lineBetween(x + Math.cos(a) * (RING_R - 6), cy + Math.sin(a) * (RING_R - 6), x + Math.cos(a) * (RING_R + 4), cy + Math.sin(a) * (RING_R + 4));
-    }
+    if (this.cupcake) drawCupcake(dyn, x, cy + 12, this.cupcake, 0.48);
     if (this.selected) {
       dyn.lineStyle(4, 0xffffff, 0.95);
-      dyn.strokeCircle(x, cy, RING_R + 10);
+      dyn.strokeRoundedRect(wx - 6, wy - 6, WIN.w + 12, WIN.h + 12, 9);
     }
 
-    // indicator lamp on top
-    const lamp = state === 'ready' ? COLORS.good : state === 'raw' ? 0xff9f1c : state === 'burnt' ? COLORS.bad : 0x3a3560;
-    dyn.fillStyle(lamp, 1);
-    dyn.fillCircle(x - 20, this.y - 54, 6);
-    dyn.lineStyle(2, INK, 1);
-    dyn.strokeCircle(x - 20, this.y - 54, 6);
-    if (state) {
-      dyn.fillStyle(0xffffff, 0.6);
-      dyn.fillCircle(x - 22, this.y - 56, 2);
+    // progress bar with a tick where the cupcake becomes cooked
+    if (this.cupcake) {
+      const bx = x - BAR.w / 2;
+      const by = this.y + BAR.dy - BAR.h / 2;
+      dyn.fillStyle(0x3a2a33, 1);
+      dyn.fillRoundedRect(bx, by, BAR.w, BAR.h, 4);
+      const color = state === 'raw' ? COLORS.warn : state === 'ready' ? COLORS.good : COLORS.bad;
+      dyn.fillStyle(color, 1);
+      dyn.fillRoundedRect(bx, by, Math.max(BAR.h, BAR.w * frac), BAR.h, 4);
+      const tx = bx + BAR.w * (this.cookSec / this.burnSec);
+      dyn.lineStyle(2, 0xffffff, 1);
+      dyn.lineBetween(tx, by - 3, tx, by + BAR.h + 3);
+      dyn.lineStyle(2, INK, 1);
+      dyn.strokeRoundedRect(bx, by, BAR.w, BAR.h, 4);
     }
 
     if (!this.cupcake) this.label.setText('');

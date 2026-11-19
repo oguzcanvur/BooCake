@@ -12,13 +12,14 @@ import { OvenSlot } from '../objects/OvenSlot';
 import { Shop } from '../objects/Shop';
 import {
   createDoughBowl,
+  createDoughSet,
+  createFrostingSet,
   createLockedOven,
   createPipingBag,
   createPlate,
   createToppingJar,
   createTrash,
   createTray,
-  drawShelf,
 } from '../objects/stations';
 import { Thief, type ThiefOutcome } from '../objects/Thief';
 import { currentDay, gameState, ovenCount } from '../systems/GameState';
@@ -200,27 +201,24 @@ export class NightScene extends Phaser.Scene {
     const y = LAYOUT.stationY;
     const ty = LAYOUT.trayY;
 
-    // dough bowls
-    drawShelf(this, 144, y, 224, T.dough);
-    DOUGHS.forEach((d, i) => this.bowls.push(createDoughBowl(this, STATION_X.dough[i], y, d.id, () => this.onDough(d.id))));
+    // dough bowls (one picture, a click zone per bowl)
+    const doughSet = createDoughSet(this, 140);
+    DOUGHS.forEach((d, i) => this.bowls.push(createDoughBowl(this, doughSet, STATION_X.dough[i], () => this.onDough(d.id))));
 
     // ovens (the 3rd one is locked until it is bought in the shop)
-    drawShelf(this, 452, y, 376, T.oven);
     const owned = ovenCount();
     STATION_X.oven.forEach((x, i) => {
       if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOven(slot)));
-      else createLockedOven(this, x, y, CONFIG.shop.oven3);
+      else createLockedOven(this, x);
     });
 
     // plate (the preparation spot)
-    drawShelf(this, STATION_X.plate, y, 130, T.plate);
     createPlate(this, STATION_X.plate, y, () => this.onPlate());
 
     // frosting and toppings
-    drawShelf(this, 904, y, 220, T.frosting);
-    FROSTINGS.forEach((f, i) => createPipingBag(this, STATION_X.frosting[i], y, f.id, () => this.onFrosting(f.id, STATION_X.frosting[i], y)));
-    drawShelf(this, 1134, y, 220, T.topping);
-    TOPPINGS.forEach((t, i) => createToppingJar(this, STATION_X.topping[i], y, t.id, () => this.onTopping(t.id, STATION_X.topping[i], y)));
+    const frostingSet = createFrostingSet(this, 906);
+    FROSTINGS.forEach((f, i) => createPipingBag(this, frostingSet, STATION_X.frosting[i], () => this.onFrosting(f.id, STATION_X.frosting[i], y)));
+    TOPPINGS.forEach((t, i) => createToppingJar(this, STATION_X.topping[i], t.id, () => this.onTopping(t.id, STATION_X.topping[i], y)));
 
     // ready tray and trash can
     createTray(this, STATION_X.tray, ty, (i) => this.onTray(i));
