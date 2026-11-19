@@ -15,7 +15,7 @@ export interface CupcakeData {
 type G = Phaser.GameObjects.Graphics;
 
 /** Outline ink (same as config.INK; repeated here to keep this drawing module standalone). */
-const INK = 0x2a1a3a;
+const INK = 0x4a2a2e;
 
 /** Make a color lighter (amount > 0) or darker (amount < 0). amount is in -1..1. */
 export function shade(color: number, amount: number): number {

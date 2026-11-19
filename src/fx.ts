@@ -77,11 +77,11 @@ export function coinFlight(
 /** Fade the whole camera in when a scene starts. */
 export function fadeIn(scene: Phaser.Scene, ms = 350): void {
   setupCamera(scene);
-  scene.cameras.main.fadeIn(ms, 20, 13, 36);
+  scene.cameras.main.fadeIn(ms, 58, 44, 62);
 }
 
 /** Fade out, then run `then` (usually a scene change). */
 export function fadeOutThen(scene: Phaser.Scene, then: () => void, ms = 280): void {
-  scene.cameras.main.fadeOut(ms, 20, 13, 36);
+  scene.cameras.main.fadeOut(ms, 58, 44, 62);
   scene.cameras.main.once('camerafadeoutcomplete', then);
 }

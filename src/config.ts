@@ -9,8 +9,8 @@ export const H = 720;
  */
 export const RES = 2;
 
-/** Ink color of all outlines (art style: dark plum lines, light from the top-left). */
-export const INK = 0x2a1a3a;
+/** Ink color of all outlines (soft art style: warm brown-maroon lines, light from the top-left). */
+export const INK = 0x4a2a2e;
 
 export const FONT = 'Fredoka, "Trebuchet MS", Verdana, sans-serif';
 

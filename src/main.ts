@@ -13,6 +13,10 @@ import { NightScene } from './scenes/NightScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { SummaryScene } from './scenes/SummaryScene';
 import { UpgradeShopScene } from './scenes/UpgradeShopScene';
+import { addPaperGrain, installSoftStyle, softenTextStyle } from './softStyle';
+
+installSoftStyle();
+addPaperGrain();
 
 // Every text is rendered at RES x resolution so it stays sharp after the camera zoom (see config.RES).
 const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as {
@@ -20,6 +24,8 @@ const factory = Phaser.GameObjects.GameObjectFactory.prototype as unknown as {
 };
 const makeText = factory.text;
 factory.text = function (this: unknown, ...args: unknown[]) {
+  // args: x, y, text, style (style colors go through the soft art style)
+  if (args.length > 3) args[3] = softenTextStyle(args[3]);
   return makeText.apply(this, args).setResolution(RES);
 };
 
@@ -29,7 +35,7 @@ const game = new Phaser.Game({
   // the canvas is RES times larger than the 1280x720 world; each scene's camera zooms by RES
   width: W * RES,
   height: H * RES,
-  backgroundColor: '#140d24',
+  backgroundColor: '#2e2230',
   scale: {
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
