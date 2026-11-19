@@ -82,8 +82,8 @@ export const T = {
   garlicDesc: 'Vampir artık ısırmaz.',
   guardName: 'Güvenlik Görevlisi',
   guardDesc: 'Hırsız yakalanır ve +$5 bırakır.',
-  oven3Name: '3. Fırın Slotu',
-  oven3Desc: 'Fırına aynı anda 3 kek girer.',
+  ovenName: 'Ekstra Fırın',
+  ovenDesc: 'Aynı anda bir kek daha pişir (en fazla 3 fırın).',
 
   // final
   finalTitle: 'Kazandın!',

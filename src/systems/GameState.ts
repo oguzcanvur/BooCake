@@ -3,8 +3,12 @@ import { CONFIG, DAY_COUNT, type DayConfig } from '../data/gameConfig';
 export interface Upgrades {
   garlic: boolean;
   guard: boolean;
-  oven3: boolean;
+  /** Extra ovens bought in the shop (0..MAX_EXTRA_OVENS). */
+  ovens: number;
 }
+
+/** The shop sells this many extra ovens (1 at the start + 2 = 3 oven places on the workbench). */
+export const MAX_EXTRA_OVENS = 2;
 
 /** Progress that survives scene changes. Everything resets when the page is reloaded (no saving needed). */
 export const gameState = {
@@ -12,7 +16,7 @@ export const gameState = {
   day: 0,
   /** Money kept between days (earned on completed days, minus shop purchases). */
   wallet: 0,
-  upgrades: { garlic: false, guard: false, oven3: false } as Upgrades,
+  upgrades: { garlic: false, guard: false, ovens: 0 } as Upgrades,
   /** Best star count per day. */
   stars: [] as number[],
   /** Special monsters whose "new customer" card was already shown. */
@@ -22,7 +26,7 @@ export const gameState = {
 export function resetGame(): void {
   gameState.day = 0;
   gameState.wallet = 0;
-  gameState.upgrades = { garlic: false, guard: false, oven3: false };
+  gameState.upgrades = { garlic: false, guard: false, ovens: 0 };
   gameState.stars = [];
   gameState.seenCards = [];
 }
@@ -46,5 +50,5 @@ export function starsFor(earned: number, goal: number): number {
 
 /** How many oven slots the player has right now. */
 export function ovenCount(): number {
-  return CONFIG.oven.slots + (gameState.upgrades.oven3 ? 1 : 0);
+  return CONFIG.oven.slots + gameState.upgrades.ovens;
 }

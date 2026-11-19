@@ -12,8 +12,8 @@ import { OvenSlot } from '../objects/OvenSlot';
 import { Shop } from '../objects/Shop';
 import {
   createDoughBowl,
-  createDoughSet,
-  createFrostingSet,
+  createDoughTable,
+  createFrostingPocket,
   createLockedOven,
   createPipingBag,
   createPlate,
@@ -79,6 +79,9 @@ export class NightScene extends Phaser.Scene {
   private shop!: Shop;
   private hud!: Hud;
   private itemsGfx!: Phaser.GameObjects.Graphics;
+  /** Cupcake being dragged with the mouse (from the plate or the tray), and its picture under the pointer. */
+  private drag: { loc: Loc; item: CupcakeData; x: number; y: number; moving: boolean } | null = null;
+  private dragGfx!: Phaser.GameObjects.Graphics;
 
   constructor() {
     super('Night');
@@ -100,6 +103,7 @@ export class NightScene extends Phaser.Scene {
     this.bowls = [];
     this.thieves = [];
     this.guard = null;
+    this.drag = null;
     this.stats = { served: 0, wrong: 0, left: 0, burnt: 0, stolen: 0, bites: 0, caught: 0 };
     // every open special monster comes at least once, at a random time of the day
     this.plan = this.day.specials.map((id) => ({
@@ -120,6 +124,8 @@ export class NightScene extends Phaser.Scene {
     };
     this.createStations();
     this.itemsGfx = this.add.graphics().setDepth(DEPTH.items);
+    this.dragGfx = this.add.graphics().setDepth(DEPTH.hand).setVisible(false);
+    this.setupDrag();
 
     // Scene event listeners survive scene restarts, so they must be removed on shutdown
     // (otherwise "Tekrar dene" / the next day would add a duplicate listener every time).
@@ -201,9 +207,9 @@ export class NightScene extends Phaser.Scene {
     const y = LAYOUT.stationY;
     const ty = LAYOUT.trayY;
 
-    // dough bowls (one picture, a click zone per bowl)
-    const doughSet = createDoughSet(this, 140);
-    DOUGHS.forEach((d, i) => this.bowls.push(createDoughBowl(this, doughSet, STATION_X.dough[i], () => this.onDough(d.id))));
+    // dough bowls on their little table
+    const doughTable = createDoughTable(this, 140);
+    DOUGHS.forEach((d) => this.bowls.push(createDoughBowl(this, doughTable, d.id, () => this.onDough(d.id))));
 
     // ovens (the 3rd one is locked until it is bought in the shop)
     const owned = ovenCount();
@@ -216,8 +222,8 @@ export class NightScene extends Phaser.Scene {
     createPlate(this, STATION_X.plate, y, () => this.onPlate());
 
     // frosting and toppings
-    const frostingSet = createFrostingSet(this, 906);
-    FROSTINGS.forEach((f, i) => createPipingBag(this, frostingSet, STATION_X.frosting[i], () => this.onFrosting(f.id, STATION_X.frosting[i], y)));
+    const pocket = createFrostingPocket(this, 906);
+    FROSTINGS.forEach((f, i) => createPipingBag(this, pocket, f.id, () => this.onFrosting(f.id, STATION_X.frosting[i], y)));
     TOPPINGS.forEach((t, i) => createToppingJar(this, STATION_X.topping[i], t.id, () => this.onTopping(t.id, STATION_X.topping[i], y)));
 
     // ready tray and trash can
@@ -303,6 +309,78 @@ export class NightScene extends Phaser.Scene {
     );
   }
 
+  // ---------------------------------------------------------------- drag and drop
+
+  /**
+   * A finished cupcake can be dragged from the plate or the tray and dropped on a customer, on a free tray
+   * slot or on the trash can. A short press without moving is still a normal click (select, then click a target).
+   */
+  private setupDrag(): void {
+    this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
+      if (this.blocked()) return;
+      const loc = this.cupcakeAt(p.worldX, p.worldY);
+      const item = loc ? this.peek(loc) : null;
+      if (loc && item) this.drag = { loc, item, x: p.worldX, y: p.worldY, moving: false };
+    });
+    this.input.on('pointermove', (p: Phaser.Input.Pointer) => {
+      const d = this.drag;
+      if (!d || !p.isDown) return;
+      if (!d.moving && Phaser.Math.Distance.Between(d.x, d.y, p.worldX, p.worldY) < 10) return;
+      if (!d.moving) {
+        d.moving = true;
+        this.dragGfx.clear();
+        drawCupcake(this.dragGfx, 0, 0, d.item, 1.1);
+        this.dragGfx.setVisible(true);
+        this.refreshItems();
+      }
+      this.dragGfx.setPosition(p.worldX, p.worldY + 20);
+    });
+    this.input.on('pointerup', (p: Phaser.Input.Pointer) => {
+      const d = this.drag;
+      this.drag = null;
+      this.dragGfx.setVisible(false);
+      if (!d || !d.moving) return;
+      this.refreshItems();
+      if (this.blocked() || this.peek(d.loc) !== d.item) return;
+      this.dropAt(d.loc, p.worldX, p.worldY);
+    });
+  }
+
+  /** The plate or tray cupcake under a point, if any. */
+  private cupcakeAt(x: number, y: number): Loc | null {
+    if (this.plate && Math.abs(x - STATION_X.plate) < 70 && Math.abs(y - LAYOUT.stationY) < 75) return { kind: 'plate' };
+    for (let i = 0; i < this.tray.length; i++) {
+      if (this.tray[i] && Math.abs(x - STATION_X.tray[i]) < 50 && Math.abs(y - LAYOUT.trayY) < 48) return { kind: 'tray', i };
+    }
+    return null;
+  }
+
+  /** Drop a dragged cupcake: serve a customer, put it on a free tray slot, or throw it away. */
+  private dropAt(loc: Loc, x: number, y: number): void {
+    const customer = this.customers.find((c) => c && Math.abs(x - c.x) < 110 && y < LAYOUT.counterTop + 30);
+    if (customer) {
+      this.select(loc);
+      this.onCustomer(customer);
+      return;
+    }
+    const slot = STATION_X.tray.findIndex((tx, i) => !this.tray[i] && Math.abs(x - tx) < 60 && Math.abs(y - LAYOUT.trayY) < 60);
+    if (slot >= 0) {
+      if (loc.kind === 'tray') {
+        // move between tray slots
+        this.tray[slot] = this.removeFrom(loc);
+        this.select(null);
+        sfx(this, 'place', 0.45);
+        return;
+      }
+      this.onTray(slot);
+      return;
+    }
+    if (Math.abs(x - STATION_X.trash) < 50 && Math.abs(y - LAYOUT.trayY) < 60) {
+      this.select(loc);
+      this.onTrash();
+    }
+  }
+
   // ---------------------------------------------------------------- selection and drawing
 
   private peek(loc: Loc): CupcakeData | null {
@@ -354,14 +432,15 @@ export class NightScene extends Phaser.Scene {
       g.lineStyle(4, 0xffffff, 0.95);
       g.strokeEllipse(x, y, w, h);
     };
-    if (this.plate) {
+    const dragged = this.drag?.moving ? this.drag.loc : null;
+    if (this.plate && dragged?.kind !== 'plate') {
       const x = STATION_X.plate;
       const y = LAYOUT.stationY;
       if (this.isSelected({ kind: 'plate' })) ring(x, y - 10, 98, 112);
       drawCupcake(g, x, y + 8, this.plate, 1.2);
     }
     this.tray.forEach((c, i) => {
-      if (!c) return;
+      if (!c || (dragged?.kind === 'tray' && dragged.i === i)) return;
       const x = STATION_X.tray[i];
       const y = LAYOUT.trayY;
       if (this.isSelected({ kind: 'tray', i })) ring(x, y - 12, 84, 108);

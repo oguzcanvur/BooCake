@@ -53,11 +53,17 @@ export const BG_SHOP = 'bg_shop';
 
 /** Workbench station pictures (the team's drawings, cut out of one sheet). */
 export const STATION_SPRITES = [
-  'dough',
+  'dough_table',
+  'bowl_vanilla',
+  'bowl_chocolate',
+  'bowl_strawberry',
   'oven',
   'oven_locked',
   'plate',
-  'frosting',
+  'frosting_pocket',
+  'bag_pink',
+  'bag_mint',
+  'bag_lilac',
   'jar_sprinkles',
   'jar_eyes',
   'jar_spiders',

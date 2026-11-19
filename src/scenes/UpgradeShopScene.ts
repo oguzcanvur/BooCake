@@ -6,7 +6,7 @@ import { GUARD_MONSTER } from '../data/monsters';
 import { fadeIn, fadeOutThen, floatText } from '../fx';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
-import { gameState, type Upgrades } from '../systems/GameState';
+import { gameState, MAX_EXTRA_OVENS, type Upgrades } from '../systems/GameState';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawPanel } from '../ui/panel';
@@ -16,15 +16,23 @@ interface Item {
   name: string;
   desc: string;
   price: number;
+  /** How many times it can be bought (1 for garlic and the guard, more for ovens). */
+  max: number;
+}
+
+/** How many of an upgrade the player owns. */
+function ownedCount(key: keyof Upgrades): number {
+  const v = gameState.upgrades[key];
+  return typeof v === 'number' ? v : v ? 1 : 0;
 }
 
 const ITEMS: Item[] = [
-  { key: 'garlic', name: T.garlicName, desc: T.garlicDesc, price: CONFIG.shop.garlic },
-  { key: 'guard', name: T.guardName, desc: T.guardDesc, price: CONFIG.shop.guard },
-  { key: 'oven3', name: T.oven3Name, desc: T.oven3Desc, price: CONFIG.shop.oven3 },
+  { key: 'garlic', name: T.garlicName, desc: T.garlicDesc, price: CONFIG.shop.garlic, max: 1 },
+  { key: 'guard', name: T.guardName, desc: T.guardDesc, price: CONFIG.shop.guard, max: 1 },
+  { key: 'ovens', name: T.ovenName, desc: T.ovenDesc, price: CONFIG.shop.oven, max: MAX_EXTRA_OVENS },
 ];
 
-/** Between days: spend the wallet on permanent upgrades (garlic, security guard, 3rd oven slot). */
+/** Between days: spend the wallet on permanent upgrades (garlic, security guard, extra ovens). */
 export class UpgradeShopScene extends Phaser.Scene {
   private walletText!: Phaser.GameObjects.Text;
   /** Everything that must be rebuilt when the money or the owned items change (buy buttons / status texts). */
@@ -78,7 +86,7 @@ export class UpgradeShopScene extends Phaser.Scene {
 
     const icon = this.add.graphics().setDepth(d + 1);
     if (item.key === 'garlic') this.drawGarlicIcon(icon, x, y - 90);
-    else if (item.key === 'oven3') this.drawOvenIcon(icon, x, y - 90);
+    else if (item.key === 'ovens') this.drawOvenIcon(icon, x, y - 90);
     else {
       const guard = new MonsterView(this, x, y - 118, GUARD_MONSTER);
       guard.root.setDepth(d + 1).setScale(0.5);
@@ -99,13 +107,22 @@ export class UpgradeShopScene extends Phaser.Scene {
       const pos = this.cardPos[item.key];
       if (!pos) continue;
       const { x, y } = pos;
-      if (gameState.upgrades[item.key]) {
+      const owned = ownedCount(item.key);
+      if (owned >= item.max) {
         const t = this.add
           .text(x, y, `✓ ${T.owned}`, { fontFamily: FONT, fontSize: '26px', color: '#7dffb0', fontStyle: 'bold' })
           .setOrigin(0.5)
           .setDepth(DEPTH.hud + 3);
         this.dynamic.push({ destroy: () => t.destroy() });
         continue;
+      }
+      if (owned > 0) {
+        const t = this.add
+          // top-right corner of the card
+          .text(x + 128, y - 300, `${owned}/${item.max}`, { fontFamily: FONT, fontSize: '22px', color: '#7dffb0', fontStyle: 'bold' })
+          .setOrigin(1, 0)
+          .setDepth(DEPTH.hud + 3);
+        this.dynamic.push({ destroy: () => t.destroy() });
       }
       const affordable = gameState.wallet >= item.price;
       const btn = makeButton(
@@ -129,7 +146,8 @@ export class UpgradeShopScene extends Phaser.Scene {
       return;
     }
     gameState.wallet -= item.price;
-    gameState.upgrades[item.key] = true;
+    if (item.key === 'ovens') gameState.upgrades.ovens++;
+    else gameState.upgrades[item.key] = true;
     sfx(this, 'coin', 0.5);
     sfx(this, 'serve_ok', 0.4);
     floatText(this, x, y - 40, T.owned, '#7dffb0', 26);
