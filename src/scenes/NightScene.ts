@@ -422,29 +422,20 @@ export class NightScene extends Phaser.Scene {
     return s.kind === 'plate' || (s as { i: number }).i === (loc as { i: number }).i;
   }
 
-  /** Redraw the cupcakes on the plate and on the ready tray, with a white ring around the selected one. */
+  /** Redraw the cupcakes on the plate and on the ready tray; the selected one is lifted up a little. */
   private refreshItems(): void {
     const g = this.itemsGfx;
     g.clear();
-    const ring = (x: number, y: number, w: number, h: number) => {
-      g.fillStyle(0xffffff, 0.14);
-      g.fillEllipse(x, y, w, h);
-      g.lineStyle(4, 0xffffff, 0.95);
-      g.strokeEllipse(x, y, w, h);
-    };
+    const LIFT = 10;
     const dragged = this.drag?.moving ? this.drag.loc : null;
     if (this.plate && dragged?.kind !== 'plate') {
-      const x = STATION_X.plate;
-      const y = LAYOUT.stationY;
-      if (this.isSelected({ kind: 'plate' })) ring(x, y - 10, 98, 112);
-      drawCupcake(g, x, y + 8, this.plate, 1.2);
+      const lift = this.isSelected({ kind: 'plate' }) ? LIFT : 0;
+      drawCupcake(g, STATION_X.plate, LAYOUT.stationY + 8 - lift, this.plate, 1.2);
     }
     this.tray.forEach((c, i) => {
       if (!c || (dragged?.kind === 'tray' && dragged.i === i)) return;
-      const x = STATION_X.tray[i];
-      const y = LAYOUT.trayY;
-      if (this.isSelected({ kind: 'tray', i })) ring(x, y - 12, 84, 108);
-      drawCupcake(g, x, y + 8, c, 1.0);
+      const lift = this.isSelected({ kind: 'tray', i }) ? LIFT : 0;
+      drawCupcake(g, STATION_X.tray[i], LAYOUT.trayY + 8 - lift, c, 1.0);
     });
   }
 

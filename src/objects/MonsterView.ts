@@ -62,7 +62,8 @@ export interface MonsterViewOptions {
 
 /**
  * A monster: either the team's character picture (`def.sprite`) or drawn in code in a soft pastel cartoon style.
- * Handles the mood (drawn: the face; picture: tint, sweat drop, anger mark, steam, trembling, happy hops),
+ * Handles the mood (drawn: the face; picture: sweat drop, anger mark, steam, trembling, happy hops; the
+ * picture also turns red little by little as patience runs out, see setRedness),
  * idle bobbing, blinking (drawn only) and the enter / leave animations.
  * `root` is positioned at the center of the head.
  */
@@ -164,6 +165,20 @@ export class MonsterView {
     });
   }
 
+  /** Picture characters: 0 = normal colors, 1 = fully red with anger (follows the patience bar). */
+  setRedness(t: number): void {
+    if (!this.pic || this.gone) return;
+    const k = Phaser.Math.Clamp(t, 0, 1);
+    // white (no tint) -> warm red
+    const c = Phaser.Display.Color.Interpolate.ColorWithColor(
+      Phaser.Display.Color.ValueToColor(0xffffff),
+      Phaser.Display.Color.ValueToColor(0xff6a5a),
+      100,
+      Math.round(k * 100),
+    );
+    this.pic.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+  }
+
   setMood(mood: Mood): void {
     if (mood === this.mood || this.gone) return;
     this.mood = mood;
@@ -243,8 +258,9 @@ export class MonsterView {
 
   /**
    * Show the mood on a character picture (the drawing itself cannot change its face):
-   * happy = little hops now and then; uneasy = slight blush, a sweat drop and impatient tilts;
-   * angry = red tint, a pulsing anger mark, steam puffing from the head and trembling.
+   * happy = little hops now and then; uneasy = a sweat drop and impatient tilts;
+   * angry = a pulsing anger mark, steam puffing from the head and trembling.
+   * (The red color comes from setRedness.)
    */
   private applyPictureMood(): void {
     const pic = this.pic;
@@ -255,7 +271,6 @@ export class MonsterView {
     const halfW = pic.displayWidth / 2;
 
     if (this.mood === 'happy') {
-      pic.clearTint();
       this.every(Phaser.Math.Between(2600, 3600), () => {
         s.tweens.add({ targets: pic, y: PIC_BOTTOM - 8, duration: 140, yoyo: true, ease: 'Quad.easeOut' });
       });
@@ -263,16 +278,20 @@ export class MonsterView {
     }
 
     if (this.mood === 'neutral') {
-      pic.setTint(0xfff0ea);
       // a sweat drop slides down next to the head
       const drop = s.add.graphics();
-      drop.fillStyle(0x9fd3ff, 1);
-      drop.fillCircle(0, 0, 9);
-      drop.fillTriangle(-8.3, -3, 8.3, -3, 0, -20);
+      // teardrop outline: pointed tip on top, round bottom (one smooth shape)
+      const tear: Phaser.Math.Vector2[] = [];
+      for (let k = 0; k < 40; k++) {
+        const t = (k / 40) * Math.PI * 2;
+        tear.push(new Phaser.Math.Vector2(9 * Math.sin(t) * Math.sin(t / 2), -11 * Math.cos(t)));
+      }
+      drop.fillStyle(0xa8dcff, 1);
+      drop.fillPoints(tear, true);
       drop.lineStyle(2.5, 0x4a6a8a, 1);
-      drop.strokeCircle(0, 0, 9);
-      drop.fillStyle(0xffffff, 0.85);
-      drop.fillCircle(-3, -2, 2.6);
+      drop.strokePoints(tear, true, true);
+      drop.fillStyle(0xffffff, 0.9);
+      drop.fillEllipse(-2.5, 4, 3.5, 5);
       const dy = top + 50;
       drop.setPosition(-halfW * 0.55, dy).setAlpha(0);
       this.inner.add(drop);
@@ -284,7 +303,6 @@ export class MonsterView {
     }
 
     // angry
-    pic.setTint(0xff9e90);
     // anger mark (four red curved ticks) above the head, pulsing
     const mark = s.add.graphics();
     mark.lineStyle(6, 0xe8394d, 1);

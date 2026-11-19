@@ -46,13 +46,15 @@ export class Customer {
     const bx = x + LAYOUT.bubbleDX;
     this.bubble = scene.add.graphics().setDepth(DEPTH.bubble);
     const names = [doughInfo(order.dough).name, frostingInfo(order.frosting).name, toppingInfo(order.topping).name];
+    // long names ("Yabanmersini") are squeezed to fit inside the bubble
+    const maxW = BUBBLE.w / 2 - 22;
     names.forEach((name, i) => {
-      this.lines.push(
-        scene.add
-          .text(bx + 14, cy - 26 + i * 22, name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
-          .setOrigin(0, 0.5)
-          .setDepth(DEPTH.bubble + 1),
-      );
+      const t = scene.add
+        .text(bx + 14, cy - 26 + i * 22, name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
+        .setOrigin(0, 0.5)
+        .setDepth(DEPTH.bubble + 1);
+      if (t.width > maxW) t.setScale(maxW / t.width, 1);
+      this.lines.push(t);
     });
 
     this.zone = scene.add.zone(x, this.y + 10, 200, 230).setInteractive({ useHandCursor: true });
@@ -91,6 +93,8 @@ export class Customer {
     this.patience -= dt * speed;
     const mood = this.scene.time.now < this.disgustUntil ? 'angry' : this.mood;
     this.monster.setMood(mood === 'happy' ? 'happy' : mood === 'uneasy' ? 'neutral' : 'angry');
+    // the character starts turning red once it stops being happy, fully red when patience runs out
+    this.monster.setRedness(1 - this.fraction / CONFIG.mood.happyAbove);
     this.redraw();
   }
 

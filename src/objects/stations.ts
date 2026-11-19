@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
-import { DEPTH } from '../config';
-import type { DoughId, FrostingId, ToppingId } from '../data/recipes';
+import { DEPTH, FONT, INK } from '../config';
+import { frostingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 
 // The workbench stations use the team's drawings (src/assets/stations/, cut out of one sheet). The pictures
 // already carry their own name labels. The ingredients (dough bowls, piping bags, topping jars) are separate
@@ -26,12 +26,15 @@ function addPart(scene: Phaser.Scene, base: Phaser.GameObjects.Image, name: Stat
   return img.setPosition(left + cx * s, top + (cy + img.height / 2) * s);
 }
 
-/** Wiggle on hover, hop up on click (the player takes from it). The picture's origin is its bottom center. */
-function makeIngredient(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, onClick: () => void): void {
+type Movable = Phaser.GameObjects.Image | Phaser.GameObjects.Container;
+
+/**
+ * Wiggle on hover, hop up on click (the player takes from it). `pic` stands on its bottom center;
+ * w and h are its size on screen (needed when it is a container).
+ */
+function makeIngredient(scene: Phaser.Scene, pic: Movable, onClick: () => void, w = (pic as Phaser.GameObjects.Image).displayWidth, h = (pic as Phaser.GameObjects.Image).displayHeight): void {
   const restY = pic.y;
-  const zone = scene.add
-    .zone(pic.x, pic.y - pic.displayHeight / 2, pic.displayWidth, pic.displayHeight)
-    .setInteractive({ useHandCursor: true });
+  const zone = scene.add.zone(pic.x, pic.y - h / 2, w, h).setInteractive({ useHandCursor: true });
   const reset = () => {
     scene.tweens.killTweensOf(pic);
     pic.setAngle(0).setY(restY);
@@ -80,10 +83,28 @@ export function createFrostingPocket(scene: Phaser.Scene, cx: number): Phaser.Ga
   return addPicture(scene, cx, 'frosting_pocket', { h: 228 });
 }
 
-/** One piping bag in the pocket. */
+/** One piping bag in the pocket, with a flavor tag stuck over the color name written on the drawing. */
 export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, id: FrostingId, onClick: () => void): void {
   const b = BAGS[id];
-  makeIngredient(scene, addPart(scene, pocket, b.key, b.cx, b.cy), onClick);
+  const pic = addPart(scene, pocket, b.key, b.cx, b.cy);
+  const w = pic.displayWidth;
+  const h = pic.displayHeight;
+  const bag = scene.add.container(pic.x, pic.y).setDepth(pic.depth);
+  pic.setPosition(0, 0);
+  // the drawing's own label sits about 37% down from the top of the bag
+  const name = frostingInfo(id).name.replace('Yabanmersini', 'Yaban-\nmersini');
+  const text = scene.add
+    .text(0, -h * 0.63, name, { fontFamily: FONT, fontSize: '12px', color: '#4a3531', fontStyle: 'bold', align: 'center', lineSpacing: -3 })
+    .setOrigin(0.5);
+  const tw = Math.max(text.width + 10, w * 0.78);
+  const th = text.height + 6;
+  const tag = scene.add.graphics();
+  tag.fillStyle(0xfff6e6, 1);
+  tag.fillRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
+  tag.lineStyle(2, INK, 1);
+  tag.strokeRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
+  bag.add([pic, tag, text]);
+  makeIngredient(scene, bag, onClick, w, h);
 }
 
 /** Glass jar of toppings with a cork lid and a label. */

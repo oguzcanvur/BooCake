@@ -9,9 +9,10 @@ export const DOUGHS = [
 ] as const;
 
 export const FROSTINGS = [
-  { id: 'pink', name: 'Pembe', color: 0xff8fc7 },
-  { id: 'mint', name: 'Yeşil', color: 0x8fffd0 },
-  { id: 'lilac', name: 'Mor', color: 0xb98cff },
+  // flavors: pink = strawberry, green = pistachio, purple = blueberry
+  { id: 'pink', name: 'Çilek', color: 0xff8fc7 },
+  { id: 'mint', name: 'Fıstık', color: 0x8fffd0 },
+  { id: 'lilac', name: 'Yabanmersini', color: 0xb98cff },
 ] as const;
 
 export const TOPPINGS = [
