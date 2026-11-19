@@ -1,24 +1,23 @@
 import Phaser from 'phaser';
-import { fxKey } from '../assets';
+import { BG_SHOP, fxKey } from '../assets';
 import { COLORS, DEPTH, FONT, H, INK, LAYOUT, W } from '../config';
 
 const TOP = LAYOUT.counterTop;
+/** Y of the counter edge inside the background painting (in the painting's own pixels). */
+const BG_COUNTER_Y = 410;
 const JAR_X = 1228;
 const BEAM_Y = LAYOUT.hudH;
-/** Warm palette for wood and the plum wall. */
+/** Warm palette for wood. */
 const WOOD = { dark: 0x4a2c22, mid: 0x6e4430, light: 0x8d5a3d, top: 0xa66f4b };
-const WALL = { top: 0x45306e, bottom: 0x2c1f4d };
 const CLOTH = { base: 0x6b3fa0, dark: 0x4e2b7a, trim: 0xd9a84e };
 
 /**
- * The bakery interior, layered back to front: wall, windows with moonlight, shelves, string lights, lanterns,
- * counter with a cloth runner, workbench and a soft vignette. Everything is vector art drawn in code, with an
- * ink outline and light coming from the top-left.
+ * The bakery interior, layered back to front: the painted background (walls, window, shelves, display case),
+ * counter with a cloth runner, workbench and a soft vignette. The counter and everything on it are vector art
+ * drawn in code, with an ink outline and light coming from the top-left.
  */
 export class Shop {
-  private readonly hands: Phaser.GameObjects.Graphics;
   private readonly jar: Phaser.GameObjects.Graphics;
-  private readonly clock = { x: 82, y: 156, r: 40 };
   private jarFill = -1;
   private garlicShown = false;
 
@@ -27,18 +26,6 @@ export class Shop {
 
   constructor(private readonly scene: Phaser.Scene) {
     this.drawWall();
-    this.drawWindow(450, 0);
-    this.drawWindow(830, 1);
-    this.drawCeiling();
-    this.drawStringLights();
-    this.drawCobweb(26, BEAM_Y + 28, 1);
-    this.drawCobweb(W - 26, BEAM_Y + 28, -1);
-    this.drawLanterns();
-    this.drawClockFace();
-    this.hands = scene.add.graphics().setDepth(DEPTH.deco + 2);
-    this.drawShelf(78, 262, 'left');
-    this.drawShelf(1206, 262, 'right');
-    this.drawSign(1206, 190);
     this.drawCounter();
     this.drawWorkbench();
     this.drawPumpkin(52, TOP);
@@ -53,23 +40,8 @@ export class Shop {
     this.update(0);
   }
 
-  /** Move the clock hands (t = 0 at 18:00, 1 at midnight). */
-  update(t: number): void {
-    const { x, y, r } = this.clock;
-    const totalMin = Phaser.Math.Clamp(t, 0, 1) * 360;
-    const hour = (6 + totalMin / 60) % 12;
-    const minute = totalMin % 60;
-    const hAngle = (hour / 12) * Math.PI * 2 - Math.PI / 2;
-    const mAngle = (minute / 60) * Math.PI * 2 - Math.PI / 2;
-    const g = this.hands;
-    g.clear();
-    g.lineStyle(5, INK, 1);
-    g.lineBetween(x, y, x + Math.cos(hAngle) * r * 0.48, y + Math.sin(hAngle) * r * 0.48);
-    g.lineStyle(3.5, INK, 1);
-    g.lineBetween(x, y, x + Math.cos(mAngle) * r * 0.74, y + Math.sin(mAngle) * r * 0.74);
-    g.fillStyle(0xd9643a, 1);
-    g.fillCircle(x, y, 4.5);
-  }
+  /** Day progress (t = 0..1). The painted background has no clock, so nothing moves yet. */
+  update(_t: number): void {}
 
   /** Fill the tip jar. fraction 0..1. */
   setJar(fraction: number): void {
@@ -128,35 +100,11 @@ export class Shop {
 
   private drawWall(): void {
     const s = this.scene;
-    const g = s.add.graphics().setDepth(DEPTH.wall);
-    g.fillGradientStyle(WALL.top, WALL.top, WALL.bottom, WALL.bottom, 1);
-    g.fillRect(0, 0, W, TOP);
-    // wallpaper: soft stripes with little diamonds
-    g.fillStyle(0xffffff, 0.03);
-    for (let x = 0; x < W; x += 64) g.fillRect(x, BEAM_Y, 30, TOP - BEAM_Y);
-    g.fillStyle(0xf3d9ff, 0.06);
-    for (let y = BEAM_Y + 44; y < TOP - 80; y += 46) {
-      for (let x = ((y / 46) % 2) * 32 + 15; x < W; x += 64) {
-        g.fillTriangle(x, y - 6, x + 5, y, x, y + 6);
-        g.fillTriangle(x, y - 6, x - 5, y, x, y + 6);
-      }
-    }
-    // wooden wainscot with vertical boards and a molding on top
-    const wy = TOP - 70;
-    g.fillGradientStyle(WOOD.mid, WOOD.mid, WOOD.dark, WOOD.dark, 1);
-    g.fillRect(0, wy, W, 70);
-    for (let x = 0; x < W; x += 40) {
-      g.fillStyle(0x000000, 0.18);
-      g.fillRect(x, wy + 10, 2, 60);
-      g.fillStyle(0xffffff, 0.06);
-      g.fillRect(x + 3, wy + 10, 2, 60);
-    }
-    g.fillStyle(WOOD.top, 1);
-    g.fillRect(0, wy - 4, W, 12);
-    g.fillStyle(0xffffff, 0.2);
-    g.fillRect(0, wy - 4, W, 3);
-    g.lineStyle(2, INK, 0.8);
-    g.lineBetween(0, wy + 8, W, wy + 8);
+    // The team's painted shop interior, scaled to the screen width. Its own counter edge (BG_COUNTER_Y in the
+    // painting) is lined up with the game's counter top, so customers stand right behind it.
+    const bg = s.add.image(W / 2, 0, BG_SHOP).setOrigin(0.5, 0).setDepth(DEPTH.wall);
+    const scale = W / bg.width;
+    bg.setScale(scale).setY(TOP - BG_COUNTER_Y * scale);
 
     // Floor under the counter. It is drawn above the customers (so their legs stay hidden behind the
     // counter) but below the counter itself and the stations.
@@ -166,313 +114,14 @@ export class Shop {
     f.fillRect(0, floorTop, W, H - floorTop);
   }
 
-  private drawCeiling(): void {
-    const g = this.scene.add.graphics().setDepth(DEPTH.deco + 3);
-    // a heavy wooden beam under the HUD and two posts at the sides
-    g.fillGradientStyle(WOOD.light, WOOD.light, WOOD.dark, WOOD.dark, 1);
-    g.fillRect(0, BEAM_Y, W, 22);
-    g.fillStyle(0x000000, 0.25);
-    g.fillRect(0, BEAM_Y + 22, W, 6);
-    g.lineStyle(2, INK, 1);
-    g.lineBetween(0, BEAM_Y + 22, W, BEAM_Y + 22);
-    g.lineStyle(1.5, 0x000000, 0.2);
-    for (let x = 30; x < W; x += 170) g.lineBetween(x, BEAM_Y + 6, x + 90, BEAM_Y + 9);
-    for (const px of [0, W - 18]) {
-      g.fillGradientStyle(WOOD.mid, WOOD.light, WOOD.mid, WOOD.light, 1);
-      g.fillRect(px, BEAM_Y, 18, TOP - 70 - BEAM_Y);
-      g.lineStyle(2, INK, 1);
-      g.strokeRect(px, BEAM_Y, 18, TOP - 70 - BEAM_Y);
-    }
-  }
 
-  private drawWindow(cx: number, variant: number): void {
-    const s = this.scene;
-    const g = s.add.graphics().setDepth(DEPTH.deco);
-    const w = 128;
-    const r = w / 2;
-    const top = 112;
-    const bottom = 264;
-    // moonlit sky inside an arched frame
-    const sky = (gg: Phaser.GameObjects.Graphics, inset: number) => {
-      gg.fillRect(cx - r + inset, top, w - inset * 2, bottom - top);
-      gg.fillCircle(cx, top, r - inset);
-    };
-    g.fillStyle(WOOD.dark, 1);
-    sky(g, -10);
-    g.fillGradientStyle(0x10123a, 0x10123a, 0x44338a, 0x44338a, 1);
-    sky(g, 0);
-    g.fillStyle(0xffffff, 0.9);
-    for (const [sx, sy] of [[0.2, 0.05], [0.78, 0.18], [0.55, -0.12], [0.3, 0.42], [0.86, 0.5], [0.12, 0.62]]) {
-      g.fillCircle(cx - r + w * sx, top + (bottom - top) * sy, 1.8);
-    }
-    // moon with a soft halo
-    const mx = cx + (variant === 0 ? 22 : -20);
-    const my = top + 6;
-    const halo = s.add.image(mx, my, fxKey('light_01')).setDepth(DEPTH.deco + 1).setTint(0xfff0b0).setAlpha(0.5).setScale(1.2);
-    halo.setBlendMode(Phaser.BlendModes.ADD);
-    s.tweens.add({ targets: halo, alpha: 0.32, duration: 2600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    g.fillStyle(0xfff4cc, 1);
-    g.fillCircle(mx, my, 22);
-    if (variant === 1) {
-      g.fillStyle(0x1b1650, 1);
-      g.fillCircle(mx + 10, my - 4, 19);
-    } else {
-      g.fillStyle(0xeedc9c, 1);
-      g.fillCircle(mx - 6, my + 6, 4.5);
-      g.fillCircle(mx + 7, my - 6, 3);
-    }
-    // spooky house and hills
-    g.fillStyle(0x140f33, 1);
-    g.fillTriangle(cx - r, bottom, cx - r + 50, bottom - 44, cx + 30, bottom);
-    g.fillTriangle(cx - 10, bottom, cx + 40, bottom - 30, cx + r, bottom - 6);
-    g.fillRect(cx - r, bottom - 6, w, 6);
-    g.fillRect(cx + 18, bottom - 52, 22, 30);
-    g.fillTriangle(cx + 14, bottom - 52, cx + 44, bottom - 52, cx + 29, bottom - 70);
-    g.fillStyle(0xffd166, 0.9);
-    g.fillRect(cx + 26, bottom - 44, 6, 7);
-    // frame bars and outline
-    g.lineStyle(7, WOOD.dark, 1);
-    g.lineBetween(cx, top - r + 6, cx, bottom);
-    g.lineBetween(cx - r, top + 40, cx + r, top + 40);
-    g.lineStyle(3, INK, 1);
-    g.beginPath();
-    g.arc(cx, top, r + 10, Math.PI, 0, false);
-    g.lineTo(cx + r + 10, bottom + 6);
-    g.lineTo(cx - r - 10, bottom + 6);
-    g.closePath();
-    g.strokePath();
-    // sill
-    g.fillStyle(WOOD.top, 1);
-    g.fillRoundedRect(cx - r - 20, bottom + 4, w + 40, 12, 4);
-    g.lineStyle(2, INK, 1);
-    g.strokeRoundedRect(cx - r - 20, bottom + 4, w + 40, 12, 4);
 
-    // purple drapes with folds and gold tie-backs
-    const c = this.scene.add.graphics().setDepth(DEPTH.deco + 1);
-    for (const side of [-1, 1]) {
-      const ox = cx + side * (r + 4);
-      const pts = [
-        { x: ox - side * 4, y: top - r - 6 },
-        { x: ox + side * 30, y: top - r - 6 },
-        { x: ox + side * 22, y: bottom - 40 },
-        { x: ox + side * 30, y: bottom + 2 },
-        { x: ox - side * 2, y: bottom + 2 },
-        { x: ox - side * 22, y: bottom - 46 },
-      ];
-      c.fillStyle(CLOTH.base, 1);
-      c.fillPoints(pts as Phaser.Math.Vector2[], true);
-      c.fillStyle(CLOTH.dark, 1);
-      c.fillTriangle(ox + side * 8, top - r, ox + side * 14, top - r, ox + side * 6, bottom - 44);
-      c.lineStyle(2.5, INK, 1);
-      c.strokePoints(pts as Phaser.Math.Vector2[], true);
-      c.fillStyle(CLOTH.trim, 1);
-      c.fillRoundedRect(ox - side * 22 - 6 + (side > 0 ? 0 : 0), bottom - 52, 34, 9, 4);
-    }
-    // valance across the top
-    c.fillStyle(CLOTH.base, 1);
-    c.fillRoundedRect(cx - r - 22, top - r - 14, w + 44, 20, 8);
-    for (let i = 0; i < 5; i++) c.fillCircle(cx - r - 10 + i * ((w + 20) / 4), top - r + 6, 10);
-    c.lineStyle(2.5, INK, 1);
-    c.strokeRoundedRect(cx - r - 22, top - r - 14, w + 44, 20, 8);
-    c.fillStyle(CLOTH.trim, 1);
-    c.fillRect(cx - r - 18, top - r - 2, w + 36, 3);
 
-    // moonlight beam falling toward the counter
-    const beam = this.scene.add.graphics().setDepth(DEPTH.monster + 2).setBlendMode(Phaser.BlendModes.ADD);
-    beam.fillStyle(0xbfb2ff, 0.07);
-    beam.fillPoints(
-      [
-        { x: cx - r + 10, y: top - 10 },
-        { x: cx + r - 10, y: top - 10 },
-        { x: cx + r - 70, y: TOP },
-        { x: cx - r - 120, y: TOP },
-      ] as Phaser.Math.Vector2[],
-      true,
-    );
-    this.scene.tweens.add({ targets: beam, alpha: 0.6, duration: 3200, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-  }
 
-  private drawStringLights(): void {
-    const s = this.scene;
-    const g = s.add.graphics().setDepth(DEPTH.deco + 4);
-    const baseY = BEAM_Y + 24;
-    const sag = 20;
-    const seg = W / 4;
-    const colors = [0xffd27a, 0xff9ec9, 0x9ef0d0, 0xc4a6ff];
-    let n = 0;
-    for (let si = 0; si < 4; si++) {
-      const x0 = si * seg;
-      const x1 = x0 + seg;
-      const pts: { x: number; y: number }[] = [];
-      for (let i = 0; i <= 20; i++) {
-        const t = i / 20;
-        pts.push({ x: Phaser.Math.Linear(x0, x1, t), y: baseY + sag * Math.sin(Math.PI * t) });
-      }
-      g.lineStyle(2, INK, 0.9);
-      g.beginPath();
-      g.moveTo(pts[0].x, pts[0].y);
-      for (const p of pts) g.lineTo(p.x, p.y);
-      g.strokePath();
-      for (let i = 2; i < 20; i += 4) {
-        const p = pts[i];
-        const col = colors[n++ % colors.length];
-        g.fillStyle(INK, 1);
-        g.fillRect(p.x - 2.5, p.y, 5, 4);
-        g.fillStyle(col, 1);
-        g.fillEllipse(p.x, p.y + 9, 9, 12);
-        g.lineStyle(1.5, INK, 1);
-        g.strokeEllipse(p.x, p.y + 9, 9, 12);
-        g.fillStyle(0xffffff, 0.7);
-        g.fillCircle(p.x - 1.5, p.y + 6, 1.5);
-        const glow = s.add.image(p.x, p.y + 9, fxKey('light_01')).setDepth(DEPTH.deco + 3).setTint(col).setScale(0.32).setAlpha(0.45);
-        glow.setBlendMode(Phaser.BlendModes.ADD);
-        s.tweens.add({ targets: glow, alpha: 0.2, duration: Phaser.Math.Between(900, 1600), yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: Phaser.Math.Between(0, 900) });
-      }
-    }
-  }
 
-  private drawLanterns(): void {
-    const s = this.scene;
-    for (const x of LAYOUT.customerSlotsX) {
-      const g = s.add.graphics().setDepth(DEPTH.deco + 5);
-      const y = BEAM_Y + 52;
-      g.lineStyle(2, INK, 1);
-      g.lineBetween(x, BEAM_Y + 22, x, y - 16);
-      // cap, glass, base
-      g.fillStyle(0x3a2a4a, 1);
-      g.fillTriangle(x - 13, y - 10, x + 13, y - 10, x, y - 20);
-      g.lineStyle(2, INK, 1);
-      g.strokeTriangle(x - 13, y - 10, x + 13, y - 10, x, y - 20);
-      g.fillStyle(0xffd27a, 1);
-      g.fillRoundedRect(x - 10, y - 10, 20, 24, 4);
-      g.fillStyle(0xffffff, 0.5);
-      g.fillRect(x - 6, y - 7, 3, 16);
-      g.lineStyle(2, INK, 1);
-      g.strokeRoundedRect(x - 10, y - 10, 20, 24, 4);
-      g.lineBetween(x, y - 10, x, y + 14);
-      g.fillStyle(0x3a2a4a, 1);
-      g.fillRoundedRect(x - 12, y + 13, 24, 6, 2);
-      // light pool on the wall behind the customer
-      const pool = s.add.image(x, y + 90, fxKey('light_01')).setDepth(DEPTH.wall + 1).setTint(0xffc98a).setAlpha(0.22).setScale(2.4);
-      pool.setBlendMode(Phaser.BlendModes.ADD);
-      const flame = s.add.image(x, y + 2, fxKey('light_01')).setDepth(DEPTH.deco + 6).setTint(0xffd27a).setAlpha(0.6).setScale(0.45);
-      flame.setBlendMode(Phaser.BlendModes.ADD);
-      s.tweens.add({ targets: [flame, pool], alpha: '-=0.08', duration: Phaser.Math.Between(260, 420), yoyo: true, repeat: -1 });
-      s.tweens.add({ targets: g, angle: { from: -2, to: 2 }, duration: 2400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    }
-  }
 
-  private drawCobweb(x: number, y: number, dir: 1 | -1): void {
-    const g = this.scene.add.graphics().setDepth(DEPTH.deco + 2);
-    g.lineStyle(1.5, 0xffffff, 0.28);
-    const len = 100;
-    const spokes = [0.05, 0.4, 0.75, 1.1, 1.45];
-    for (const a of spokes) g.lineBetween(x, y, x + dir * Math.cos(a) * len, y + Math.sin(a) * len);
-    for (let r = 24; r <= len; r += 24) {
-      g.beginPath();
-      spokes.forEach((a, i) => {
-        const px = x + dir * Math.cos(a) * r;
-        const py = y + Math.sin(a) * r;
-        if (i === 0) g.moveTo(px, py);
-        else g.lineTo(px - dir * 3, py - 3);
-      });
-      g.strokePath();
-    }
-  }
-
-  private drawClockFace(): void {
-    const { x, y, r } = this.clock;
-    const g = this.scene.add.graphics().setDepth(DEPTH.deco + 1);
-    g.fillStyle(0x000000, 0.28);
-    g.fillCircle(x + 4, y + 6, r + 10);
-    // carved wooden case with bat wings
-    g.fillStyle(WOOD.mid, 1);
-    g.fillTriangle(x - r - 8, y - 6, x - r - 30, y - 26, x - r - 4, y + 16);
-    g.fillTriangle(x + r + 8, y - 6, x + r + 30, y - 26, x + r + 4, y + 16);
-    g.lineStyle(2.5, INK, 1);
-    g.strokeTriangle(x - r - 8, y - 6, x - r - 30, y - 26, x - r - 4, y + 16);
-    g.strokeTriangle(x + r + 8, y - 6, x + r + 30, y - 26, x + r + 4, y + 16);
-    g.fillStyle(WOOD.light, 1);
-    g.fillCircle(x, y, r + 9);
-    g.lineStyle(3, INK, 1);
-    g.strokeCircle(x, y, r + 9);
-    g.fillStyle(0xfff3dc, 1);
-    g.fillCircle(x, y, r);
-    g.fillStyle(0xffffff, 0.6);
-    g.fillEllipse(x - r * 0.35, y - r * 0.45, r * 0.7, r * 0.35);
-    g.lineStyle(2.5, INK, 1);
-    g.strokeCircle(x, y, r);
-    for (let i = 0; i < 12; i++) {
-      const a = (i / 12) * Math.PI * 2;
-      const r0 = i % 3 === 0 ? r - 11 : r - 7;
-      g.lineStyle(i % 3 === 0 ? 3 : 2, INK, 1);
-      g.lineBetween(x + Math.cos(a) * r0, y + Math.sin(a) * r0, x + Math.cos(a) * (r - 3), y + Math.sin(a) * (r - 3));
-    }
-  }
-
-  private drawShelf(x: number, y: number, side: 'left' | 'right'): void {
-    const g = this.scene.add.graphics().setDepth(DEPTH.deco + 1);
-    // plank with brackets
-    g.fillStyle(WOOD.light, 1);
-    g.fillRoundedRect(x - 58, y, 116, 10, 3);
-    g.lineStyle(2, INK, 1);
-    g.strokeRoundedRect(x - 58, y, 116, 10, 3);
-    g.fillStyle(WOOD.mid, 1);
-    g.fillTriangle(x - 44, y + 10, x - 30, y + 10, x - 44, y + 26);
-    g.fillTriangle(x + 44, y + 10, x + 30, y + 10, x + 44, y + 26);
-    // potion bottles and candy jars
-    const items =
-      side === 'left'
-        ? [
-            { dx: -38, w: 18, h: 30, c: 0x8be7c9 },
-            { dx: -12, w: 24, h: 24, c: 0xff9ec9 },
-            { dx: 16, w: 16, h: 36, c: 0xc4a6ff },
-            { dx: 38, w: 20, h: 22, c: 0xffd27a },
-          ]
-        : [
-            { dx: -36, w: 22, h: 26, c: 0xffd27a },
-            { dx: -10, w: 16, h: 34, c: 0x9ef0d0 },
-            { dx: 14, w: 24, h: 22, c: 0xff9ec9 },
-            { dx: 38, w: 16, h: 30, c: 0xb2a2ff },
-          ];
-    for (const it of items) {
-      const bx = x + it.dx;
-      const by = y - it.h;
-      g.fillStyle(it.c, 0.9);
-      g.fillRoundedRect(bx - it.w / 2, by, it.w, it.h, 6);
-      g.fillStyle(0xffffff, 0.4);
-      g.fillRoundedRect(bx - it.w / 2 + 3, by + 4, 3, it.h - 10, 2);
-      g.lineStyle(2, INK, 1);
-      g.strokeRoundedRect(bx - it.w / 2, by, it.w, it.h, 6);
-      g.fillStyle(0x8a5a3c, 1);
-      g.fillRoundedRect(bx - 5, by - 7, 10, 8, 2);
-      g.strokeRoundedRect(bx - 5, by - 7, 10, 8, 2);
-    }
-  }
 
   /** Little hanging neon "OPEN" sign. */
-  private drawSign(x: number, y: number): void {
-    const s = this.scene;
-    const g = s.add.graphics().setDepth(DEPTH.deco);
-    g.lineStyle(2, 0xd9c9f5, 0.6);
-    g.lineBetween(x - 34, y - 24, x - 20, BEAM_Y + 22);
-    g.lineBetween(x + 34, y - 24, x + 20, BEAM_Y + 22);
-    g.fillStyle(0x15102b, 1);
-    g.fillRoundedRect(x - 54, y - 26, 108, 52, 14);
-    g.lineStyle(3, 0xff4fa3, 0.9);
-    g.strokeRoundedRect(x - 54, y - 26, 108, 52, 14);
-    const t = s.add
-      .text(x, y, 'OPEN', {
-        fontFamily: FONT,
-        fontSize: '30px',
-        color: '#ffd1ea',
-        fontStyle: 'bold',
-        shadow: { offsetX: 0, offsetY: 0, color: '#ff4fa3', blur: 14, fill: true, stroke: true },
-      })
-      .setOrigin(0.5)
-      .setDepth(DEPTH.deco + 1);
-    s.tweens.add({ targets: t, alpha: 0.75, duration: 900, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-  }
 
   // ------------------------------------------------------------------ counter and workbench
 
