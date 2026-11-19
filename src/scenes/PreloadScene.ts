@@ -23,6 +23,9 @@ export class PreloadScene extends Phaser.Scene {
     this.load.on('progress', (p: number) => fill.setSize(Math.max(2, barW * p), 14));
     this.load.once('complete', () => track.setAlpha(1));
 
+    // Every asset is an embedded data URI. Above Phaser's default of 32 parallel files the loader stalled
+    // after the first batch, so all of them are started at once.
+    this.load.maxParallelDownloads = 256;
     queueAssets(this);
   }
 

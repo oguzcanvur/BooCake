@@ -1,7 +1,9 @@
-// Customer monsters. Each one is a recipe for the drawing code in objects/MonsterView.ts
+// Customer monsters. Customers with a `sprite` use the team's character drawing (src/assets/chars/);
+// the others (thief, guard) are drawn in code by objects/MonsterView.ts from the recipe fields
 // (soft pastel cartoon style: thin dark outline, flat colors, rosy cheeks).
 // Add a new monster by adding an entry here: no other code changes.
 
+import type { CharSprite } from '../assets';
 import type { SpecialId } from './gameConfig';
 
 export type Mood = 'happy' | 'neutral' | 'angry';
@@ -28,6 +30,8 @@ export type Extra =
 export interface MonsterDef {
   id: string;
   kind: MonsterKind;
+  /** Character picture. When set, the picture is shown and the drawing fields below are only a fallback. */
+  sprite?: CharSprite;
   /** Skin / body color. */
   skin: number;
   hair?: { style: HairStyle; color: number };
@@ -45,11 +49,12 @@ export interface MonsterDef {
   alpha?: number;
 }
 
-/** Regular customers: only the looks differ (zombie, mummy, werewolf, slime). */
+/** Regular customers: only the looks differ (zombie, mummy, werewolf, witch). */
 export const NORMAL_MONSTERS: MonsterDef[] = [
   {
     id: 'zombie',
     kind: 'normal',
+    sprite: 'zombie',
     skin: 0xa9d4a6,
     hair: { style: 'messy', color: 0x9fcfb4 },
     outfit: { type: 'hoodie', color: 0xcbb3d8 },
@@ -58,18 +63,9 @@ export const NORMAL_MONSTERS: MonsterDef[] = [
     extras: ['sprout', 'stitch'],
   },
   {
-    id: 'zombieGirl',
-    kind: 'normal',
-    skin: 0xa9d4a6,
-    hair: { style: 'long', color: 0xa6d2b8 },
-    outfit: { type: 'sweater', color: 0xf5b8c4 },
-    eyes: { style: 'sleepy', white: 0xfff0b8 },
-    nose: 'skull',
-    extras: ['sprout', 'stitch', 'lashes'],
-  },
-  {
     id: 'mummy',
     kind: 'normal',
+    sprite: 'mummy',
     skin: 0xebe0c4,
     faceColor: 0xb7d68c,
     outfit: { type: 'wraps', color: 0xebe0c4 },
@@ -80,6 +76,7 @@ export const NORMAL_MONSTERS: MonsterDef[] = [
   {
     id: 'wolf',
     kind: 'normal',
+    sprite: 'wolf',
     skin: 0xc4a58f,
     hair: { style: 'fur', color: 0xa98a76 },
     outfit: { type: 'sweater', color: 0x9fdcc9 },
@@ -88,13 +85,15 @@ export const NORMAL_MONSTERS: MonsterDef[] = [
     extras: ['wolfEars'],
   },
   {
-    id: 'slime',
+    id: 'witch',
     kind: 'normal',
-    skin: 0x9ec5f2,
-    outfit: { type: 'blob', color: 0x9ec5f2 },
+    sprite: 'witch',
+    skin: 0xf2cbb8,
+    hair: { style: 'long', color: 0x78b38c },
+    outfit: { type: 'cape', color: 0x524656 },
     eyes: { style: 'round', color: 0x4a3340 },
-    nose: 'none',
-    alpha: 0.95,
+    nose: 'dot',
+    extras: ['pointyEars'],
   },
 ];
 
@@ -103,6 +102,7 @@ export const SPECIAL_MONSTERS: Record<SpecialId, MonsterDef> = {
   vampire: {
     id: 'vampire',
     kind: 'vampire',
+    sprite: 'vampire',
     skin: 0xe6dcf2,
     hair: { style: 'slick', color: 0x3d3550 },
     outfit: { type: 'cape', color: 0x5b3a7a },
@@ -113,6 +113,7 @@ export const SPECIAL_MONSTERS: Record<SpecialId, MonsterDef> = {
   ghost: {
     id: 'ghost',
     kind: 'ghost',
+    sprite: 'ghost',
     skin: 0xf5f3fc,
     outfit: { type: 'sheet', color: 0xf5f3fc },
     eyes: { style: 'bead' },
@@ -135,29 +136,7 @@ export const SPECIAL_MONSTERS: Record<SpecialId, MonsterDef> = {
 
 /** Extra looks for the special monsters (same rules, different character). One is picked at random. */
 export const SPECIAL_VARIANTS: Record<SpecialId, MonsterDef[]> = {
-  vampire: [
-    SPECIAL_MONSTERS.vampire,
-    {
-      id: 'vampireGirl',
-      kind: 'vampire',
-      skin: 0xe2dcf4,
-      hair: { style: 'bob', color: 0x6e5570 },
-      outfit: { type: 'sweater', color: 0xfbe8c8 },
-      eyes: { style: 'cute' },
-      nose: 'pink',
-      extras: ['pointyEars', 'fangs', 'lashes', 'batClip', 'scarf'],
-    },
-    {
-      id: 'vampireBoy',
-      kind: 'vampire',
-      skin: 0xd6d6f2,
-      hair: { style: 'spiky', color: 0x3e3f63 },
-      outfit: { type: 'tee', color: 0x7a5c6b },
-      eyes: { style: 'sleepy', white: 0xfff0b0 },
-      nose: 'line',
-      extras: ['pointyEars', 'fangs', 'collar'],
-    },
-  ],
+  vampire: [SPECIAL_MONSTERS.vampire],
   ghost: [SPECIAL_MONSTERS.ghost],
   thief: [SPECIAL_MONSTERS.thief],
 };

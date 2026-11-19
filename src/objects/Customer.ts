@@ -55,7 +55,7 @@ export class Customer {
       );
     });
 
-    this.zone = scene.add.zone(x, 250, 200, 230).setInteractive({ useHandCursor: true });
+    this.zone = scene.add.zone(x, this.y + 10, 200, 230).setInteractive({ useHandCursor: true });
     this.zone.on('pointerdown', () => onClick(this));
 
     // the bubble fades in just after the monster pops up

@@ -73,12 +73,18 @@ export const STATION_SPRITES = [
 export type StationSprite = (typeof STATION_SPRITES)[number];
 export const stationKey = (n: StationSprite): string => `st_${n}`;
 
+/** Customer pictures (the team's character drawings, cut out of one sheet). */
+export const CHAR_SPRITES = ['wolf', 'vampire', 'ghost', 'witch', 'mummy', 'zombie'] as const;
+export type CharSprite = (typeof CHAR_SPRITES)[number];
+export const charKey = (n: CharSprite): string => `char_${n}`;
+
 export const fxKey = (n: FxName): string => `fx_${n}`;
 export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 
 /** Queue every asset the game uses. Call from a scene's preload(). */
 export function queueAssets(scene: Phaser.Scene): void {
   scene.load.image(BG_SHOP, binaryUrl('bg/shop.webp'));
+  for (const n of CHAR_SPRITES) scene.load.image(charKey(n), binaryUrl(`chars/${n}.png`));
   for (const n of STATION_SPRITES) scene.load.image(stationKey(n), binaryUrl(`stations/${n}.png`));
   for (const n of FX_NAMES) scene.load.image(fxKey(n), binaryUrl(`fx/${n}.png`));
   for (const n of SFX_NAMES) scene.load.audio(sfxKey(n), binaryUrl(`audio/${n}.ogg`));
