@@ -59,6 +59,13 @@ export function drawClock(g: G, x: number, y: number, r: number, color = 0xfff0d
 }
 
 /** Speaker with sound waves, or crossed out when muted. */
+/** Pause sign: two rounded bars. */
+export function drawPause(g: G, x: number, y: number): void {
+  g.fillStyle(0xffffff, 1);
+  g.fillRoundedRect(x - 8, y - 9, 6, 18, 2);
+  g.fillRoundedRect(x + 2, y - 9, 6, 18, 2);
+}
+
 export function drawSpeaker(g: G, x: number, y: number, muted: boolean): void {
   const col = muted ? 0x8a7fa8 : 0xffffff;
   g.fillStyle(col, 1);

@@ -53,7 +53,8 @@ export const CONFIG = {
 
   /** The 4 days. */
   days: [
-    { goal: 60, interval: 12, patience: 30, specials: [] },
+    // day 1 is a gentle start: lower goal, more patient customers who come a little slower
+    { goal: 45, interval: 13, patience: 36, specials: [] },
     { goal: 90, interval: 10, patience: 27, specials: ['vampire', 'ghost'] },
     { goal: 120, interval: 8, patience: 24, specials: ['vampire', 'ghost', 'thief'] },
     { goal: 150, interval: 7, patience: 22, specials: ['vampire', 'ghost', 'thief'] },

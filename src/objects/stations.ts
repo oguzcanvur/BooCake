@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
-import { frostingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { doughInfo, frostingInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { T } from '../text';
 
 // The workbench stations use the team's drawings (src/assets/stations/, cut out of one sheet). The pictures
-// already carry their own name labels. The ingredients (dough bowls, piping bags, topping jars) are separate
+// carry Turkish name labels; English name tags are stuck over them (withTag). The ingredients (dough bowls, piping bags, topping jars) are separate
 // pictures: they wiggle when the mouse is over them and hop up a little when the player takes from them.
 
 /** Bottom edge of the station pictures (they stand on the workbench). */
@@ -68,13 +69,40 @@ export function createDoughTable(scene: Phaser.Scene, cx: number): Phaser.GameOb
   return addPicture(scene, cx, 'dough_table', { w: 262 });
 }
 
+/**
+ * Put `pic` in a container (standing on its bottom center) with a cream name tag stuck over the Turkish word
+ * written on the drawing. `fromTop` = where that word is, as a share of the picture's height from its top.
+ */
+function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: string, fromTop: number, fontSize = 12): Phaser.GameObjects.Container {
+  const w = pic.displayWidth;
+  const h = pic.displayHeight;
+  const box = scene.add.container(pic.x, pic.y).setDepth(pic.depth);
+  pic.setPosition(0, 0);
+  const text = scene.add
+    .text(0, -h * (1 - fromTop), label, { fontFamily: FONT, fontSize: `${fontSize}px`, color: '#4a3531', fontStyle: 'bold', align: 'center', lineSpacing: -3 })
+    .setOrigin(0.5);
+  const tw = Math.max(text.width + 10, w * 0.6);
+  const th = text.height + 6;
+  const tag = scene.add.graphics();
+  tag.fillStyle(0xfff6e6, 1);
+  tag.fillRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
+  tag.lineStyle(2, INK, 1);
+  tag.strokeRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
+  box.add([pic, tag, text]);
+  return box;
+}
+
 /** One dough bowl on the table. Returns a handle to wiggle it ("the ovens are full"). */
 export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.Image, id: DoughId, onClick: () => void): { shake: () => void } {
   const b = BOWLS[id];
   const pic = addPart(scene, table, b.key, b.cx, b.cy);
-  makeIngredient(scene, pic, onClick);
+  const w = pic.displayWidth;
+  const h = pic.displayHeight;
+  // the bowl's name is written on its front, about 76% down
+  const bowl = withTag(scene, pic, doughInfo(id).name, 0.76, 11);
+  makeIngredient(scene, bowl, onClick, w, h);
   return {
-    shake: () => scene.tweens.add({ targets: pic, x: pic.x + 5, duration: 45, yoyo: true, repeat: 3 }),
+    shake: () => scene.tweens.add({ targets: bowl, x: bowl.x + 5, duration: 45, yoyo: true, repeat: 3 }),
   };
 }
 
@@ -89,27 +117,18 @@ export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.
   const pic = addPart(scene, pocket, b.key, b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
-  const bag = scene.add.container(pic.x, pic.y).setDepth(pic.depth);
-  pic.setPosition(0, 0);
-  // the drawing's own label sits about 37% down from the top of the bag
-  const name = frostingInfo(id).name.replace('Yabanmersini', 'Yaban-\nmersini');
-  const text = scene.add
-    .text(0, -h * 0.63, name, { fontFamily: FONT, fontSize: '12px', color: '#4a3531', fontStyle: 'bold', align: 'center', lineSpacing: -3 })
-    .setOrigin(0.5);
-  const tw = Math.max(text.width + 10, w * 0.78);
-  const th = text.height + 6;
-  const tag = scene.add.graphics();
-  tag.fillStyle(0xfff6e6, 1);
-  tag.fillRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
-  tag.lineStyle(2, INK, 1);
-  tag.strokeRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
-  bag.add([pic, tag, text]);
-  makeIngredient(scene, bag, onClick, w, h);
+  // the drawing's color name sits about 37% down from the top of the bag; long flavors go on two lines
+  const name = frostingInfo(id).name.replace(/(berry|chio)$/, '-\n$1');
+  makeIngredient(scene, withTag(scene, pic, name, 0.37, 11), onClick, w, h);
 }
 
 /** Glass jar of toppings with a cork lid and a label. */
 export function createToppingJar(scene: Phaser.Scene, x: number, id: ToppingId, onClick: () => void): void {
-  makeIngredient(scene, addPicture(scene, x, JAR[id], { h: 130 }), onClick);
+  const pic = addPicture(scene, x, JAR[id], { h: 130 });
+  const w = pic.displayWidth;
+  const h = pic.displayHeight;
+  // the jar's paper label is about 60% down
+  makeIngredient(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 11), onClick, w, h);
 }
 
 /** Trash can with a skull. */
@@ -141,5 +160,6 @@ export function createTray(scene: Phaser.Scene, centers: number[], y: number, on
 
 /** An oven slot the player has not bought yet: the locked oven picture shows the price. */
 export function createLockedOven(scene: Phaser.Scene, x: number): void {
-  addPicture(scene, x, 'oven_locked', { w: 124 }).setDepth(DEPTH.station);
+  // "Dükkandan al" is written under the price, about 69% down
+  withTag(scene, addPicture(scene, x, 'oven_locked', { w: 124 }).setDepth(DEPTH.station), T.ovenLocked, 0.69, 10);
 }

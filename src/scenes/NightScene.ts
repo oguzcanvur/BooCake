@@ -122,6 +122,9 @@ export class NightScene extends Phaser.Scene {
       sfx(this, 'star', 0.5);
       burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
     };
+    this.hud.onPause = () => this.pause();
+    this.input.keyboard?.on('keydown-P', () => this.pause());
+    this.input.keyboard?.on('keydown-ESC', () => this.pause());
     this.createStations();
     this.itemsGfx = this.add.graphics().setDepth(DEPTH.items);
     this.dragGfx = this.add.graphics().setDepth(DEPTH.hand).setVisible(false);
@@ -307,6 +310,18 @@ export class NightScene extends Phaser.Scene {
       },
       { color: 'green', depth: DEPTH.overlay + 2, fontSize: 30 },
     );
+  }
+
+  /** Freeze the day (patience, ovens, timers, animations) and open the pause menu on top. */
+  private pause(): void {
+    if (this.phase !== 'playing' || this.scene.isPaused()) return;
+    sfx(this, 'ui_click', 0.4);
+    // drop whatever is being dragged back where it was
+    this.drag = null;
+    this.dragGfx.setVisible(false);
+    this.refreshItems();
+    this.scene.pause();
+    this.scene.launch('Pause');
   }
 
   // ---------------------------------------------------------------- drag and drop

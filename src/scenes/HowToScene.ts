@@ -9,7 +9,7 @@ import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawPanel } from '../ui/panel';
 
-/** "Nasıl Oynanır": four short steps, each with a picture. */
+/** "How to Play": four short steps, each with a picture. */
 export class HowToScene extends Phaser.Scene {
   constructor() {
     super('HowTo');

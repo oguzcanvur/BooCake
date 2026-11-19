@@ -91,8 +91,8 @@ export class SummaryScene extends Phaser.Scene {
     }
 
     const lines = [T.earned(this.earned, day.goal), T.served(this.stats.served), T.missed(this.stats.left), T.wrong(this.stats.wrong), T.burntCount(this.stats.burnt)];
-    if (this.stats.stolen > 0) lines.push(`Çalınan kek: ${this.stats.stolen}`);
-    if (this.stats.bites > 0) lines.push(`Isırılma: ${this.stats.bites}`);
+    if (this.stats.stolen > 0) lines.push(T.stolenCount(this.stats.stolen));
+    if (this.stats.bites > 0) lines.push(T.bitesCount(this.stats.bites));
     panel.add(
       this.add.text(0, 30, lines.join('\n'), { fontFamily: FONT, fontSize: '25px', color: '#ffffff', align: 'center', lineSpacing: 8 }).setOrigin(0.5),
     );

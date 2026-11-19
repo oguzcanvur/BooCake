@@ -10,7 +10,7 @@ import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
 import { drawPanel } from '../ui/panel';
 
-/** Shown after day 4: "Kazandın! BooCake şehrin en iyi canavar pastanesi!" */
+/** Shown after day 4: "You won! BooCake is the best monster bakery in town!" */
 export class FinalScene extends Phaser.Scene {
   constructor() {
     super('Final');

@@ -3,12 +3,12 @@ import { COLORS, DEPTH, FONT, INK, W } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import { isMuted, setMuted, sfx } from '../audio';
 import { T } from '../text';
-import { drawClock, drawCoin, drawMoon, drawPill, drawSpeaker, drawStar } from './icons';
+import { drawClock, drawCoin, drawMoon, drawPause, drawPill, drawSpeaker, drawStar } from './icons';
 
 const BAR = { x: 676, y: 17, w: 380, h: 22 };
 const PANEL = 0x4a3266;
 
-/** Top bar: day, time left, money with an animated progress bar and star markers, sound toggle. */
+/** Top bar: day, time left, money with an animated progress bar and star markers, pause and sound buttons. */
 export class Hud {
   private readonly timeText: Phaser.GameObjects.Text;
   private readonly moneyText: Phaser.GameObjects.Text;
@@ -24,6 +24,8 @@ export class Hud {
 
   /** Called once when the money passes a star threshold (0, 1 or 2). */
   onStar?: (starIndex: number, x: number, y: number) => void;
+  /** Called when the pause button is clicked. */
+  onPause?: () => void;
 
   constructor(
     private readonly scene: Phaser.Scene,
@@ -69,15 +71,24 @@ export class Hud {
       this.earned.push(false);
     });
 
-    // sound button
+    // round buttons: sound (right) and pause (next to it)
     const sx = W - 36;
+    const px = W - 84;
     const btn = scene.add.graphics().setDepth(d + 1);
-    btn.fillStyle(0x000000, 0.3);
-    btn.fillCircle(sx, 31, 20);
-    btn.fillStyle(PANEL, 1);
-    btn.fillCircle(sx, 28, 20);
-    btn.lineStyle(2.5, INK, 1);
-    btn.strokeCircle(sx, 28, 20);
+    for (const x of [sx, px]) {
+      btn.fillStyle(0x000000, 0.3);
+      btn.fillCircle(x, 31, 20);
+      btn.fillStyle(PANEL, 1);
+      btn.fillCircle(x, 28, 20);
+      btn.lineStyle(2.5, INK, 1);
+      btn.strokeCircle(x, 28, 20);
+    }
+    const pauseIcon = scene.add.graphics().setDepth(d + 2);
+    drawPause(pauseIcon, px, 28);
+    scene.add
+      .zone(px, 28, 44, 44)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.onPause?.());
     this.speaker = scene.add.graphics().setDepth(d + 2);
     scene.add
       .zone(sx, 28, 44, 44)
