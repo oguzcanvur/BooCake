@@ -130,7 +130,8 @@ export class NightScene extends Phaser.Scene {
     // every open special monster comes at least once, at a random time of the day
     this.plan = this.day.specials.map((id) => ({
       id,
-      at: id === 'thief' ? Phaser.Math.FloatBetween(30, 110) : Phaser.Math.FloatBetween(15, 100),
+      // as a share of the day's length, so every special monster still fits in a shorter day
+      at: this.day.length * (id === 'thief' ? Phaser.Math.FloatBetween(0.25, 0.8) : Phaser.Math.FloatBetween(0.12, 0.75)),
       done: false,
     }));
   }
@@ -140,9 +141,11 @@ export class NightScene extends Phaser.Scene {
     this.shop = new Shop(this);
     if (gameState.upgrades.garlic) this.shop.showGarlic();
     this.hud = new Hud(this, this.day.goal, gameState.day + 1, this.day.length);
-    this.hud.onStar = (_i, x, y) => {
+    this.hud.onStar = (i, x, y) => {
       sfx(this, 'star', 0.5);
       burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
+      // the third star finishes the day right away (after the star has popped in)
+      if (i === CONFIG.stars.length - 1) this.time.delayedCall(800, () => this.endDay(T.allStars));
     };
     this.hud.onPause = () => this.pause();
     this.input.keyboard?.on('keydown-P', () => this.pause());
@@ -1026,7 +1029,8 @@ export class NightScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- end of day
 
-  private endDay(): void {
+  /** End the day: when time runs out, or early when all 3 stars are earned (then `title` says so). */
+  private endDay(title: string = T.dayOver): void {
     if (this.phase === 'ended') return;
     this.phase = 'ended';
     this.select(null);
@@ -1039,7 +1043,7 @@ export class NightScene extends Phaser.Scene {
     this.thieves = [];
     sfx(this, 'win', 0.4);
     const t = this.add
-      .text(W / 2, H / 2 - 30, T.dayOver, { fontFamily: FONT, fontSize: '92px', color: '#ffffff', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
+      .text(W / 2, H / 2 - 30, title, { fontFamily: FONT, fontSize: '92px', color: '#ffffff', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
       .setOrigin(0.5)
       .setDepth(DEPTH.overlay)
       .setScale(0.3);

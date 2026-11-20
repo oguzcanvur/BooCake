@@ -99,6 +99,7 @@ export const T = {
   thiefEmpty: 'Nothing to steal!',
   thiefCaught: 'Thief caught!',
   dayOver: 'DAY OVER!',
+  allStars: '3 STARS!',
   oven_hint: 'Oven is full, wait',
 
   // day summary
