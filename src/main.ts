@@ -16,9 +16,12 @@ import { PauseScene } from './scenes/PauseScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { SummaryScene } from './scenes/SummaryScene';
 import { UpgradeShopScene } from './scenes/UpgradeShopScene';
+import { loadGame } from './systems/save';
 import { addPaperGrain, installSoftStyle, softenTextStyle } from './softStyle';
 
 installSoftStyle();
+// pick up where the player left off (browser storage)
+loadGame();
 addPaperGrain();
 
 // Every text is rendered at RES x resolution so it stays sharp after the camera zoom (see config.RES).

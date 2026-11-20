@@ -5,7 +5,8 @@ import { NORMAL_MONSTERS } from '../data/monsters';
 import { fadeIn, fadeOutThen } from '../fx';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
-import { resetGame } from '../systems/GameState';
+import { gameState, resetGame } from '../systems/GameState';
+import { canContinue, progress } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 
@@ -47,19 +48,27 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(DEPTH.bubble + 1);
 
-    makeButton(
-      this,
-      W / 2,
-      500,
-      340,
-      86,
-      T.play,
-      () => {
-        resetGame();
-        fadeOutThen(this, () => this.scene.start('Night'));
-      },
-      { color: 'green', fontSize: 42, depth: DEPTH.hud },
-    );
+    if (canContinue()) {
+      // a saved game: continue it, or start over (asks for a second click so progress is not lost by accident)
+      makeButton(this, W / 2 - 175, 500, 330, 86, T.continueDay(gameState.day + (progress.resumeAt === 'shop' ? 2 : 1)), () => {
+        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'UpgradeShop' : 'Night'));
+      }, { color: 'green', fontSize: 34, depth: DEPTH.hud });
+      this.newGameButton(false);
+    } else {
+      makeButton(
+        this,
+        W / 2,
+        500,
+        340,
+        86,
+        T.play,
+        () => {
+          resetGame();
+          fadeOutThen(this, () => this.scene.start('Night'));
+        },
+        { color: 'green', fontSize: 42, depth: DEPTH.hud },
+      );
+    }
     makeButton(this, W / 2 - 150, 606, 280, 72, T.howTo, () => fadeOutThen(this, () => this.scene.start('HowTo')), {
       color: 'blue',
       fontSize: 30,
@@ -79,5 +88,37 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(DEPTH.hud);
+  }
+
+  /** "New game" next to Continue. The first click turns it into "Sure?"; a second click within 3 s starts over. */
+  private newGameButton(confirm: boolean): void {
+    const btn = makeButton(
+      this,
+      W / 2 + 175,
+      500,
+      300,
+      86,
+      confirm ? T.newGameSure : T.newGame,
+      () => {
+        if (confirm) {
+          resetGame();
+          fadeOutThen(this, () => this.scene.start('Night'));
+          return;
+        }
+        // rebuild on the next frame so the clicked button is not destroyed while it handles the click
+        this.time.delayedCall(0, () => {
+          btn.destroy();
+          this.newGameButton(true);
+        });
+      },
+      { color: confirm ? 'red' : 'blue', fontSize: 30, depth: DEPTH.hud },
+    );
+    if (confirm) {
+      this.time.delayedCall(3000, () => {
+        if (!this.scene.isActive()) return;
+        btn.destroy();
+        this.newGameButton(false);
+      });
+    }
   }
 }

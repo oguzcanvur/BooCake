@@ -9,6 +9,7 @@ import { drawCupcake } from '../objects/cupcake';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
 import { gameState, MAX_EXTRA_OVENS, MAX_EXTRA_PLATES, type Upgrades } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawPanel } from '../ui/panel';
@@ -83,6 +84,8 @@ export class UpgradeShopScene extends Phaser.Scene {
     });
     makeButton(this, W / 2, cy + panelH / 2 + 46, 320, 72, T.nextDay, () => {
       gameState.day++;
+      progress.resumeAt = 'night';
+      saveGame();
       fadeOutThen(this, () => this.scene.start('Night'));
     }, { color: 'green', fontSize: 32, depth: DEPTH.hud + 2 });
   }
@@ -161,6 +164,7 @@ export class UpgradeShopScene extends Phaser.Scene {
     gameState.wallet -= item.price;
     if (item.key === 'ovens' || item.key === 'plates') gameState.upgrades[item.key]++;
     else gameState.upgrades[item.key] = true;
+    saveGame();
     sfx(this, 'coin', 0.5);
     sfx(this, 'serve_ok', 0.4);
     floatText(this, x, y - 40, T.owned, '#7dffb0', 26);

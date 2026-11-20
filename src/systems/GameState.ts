@@ -1,4 +1,5 @@
 import { CONFIG, DAY_COUNT, type DayConfig } from '../data/gameConfig';
+import { progress, saveGame } from './save';
 
 export interface Upgrades {
   garlic: boolean;
@@ -28,11 +29,14 @@ export const gameState = {
 };
 
 export function resetGame(): void {
+  progress.resumeAt = 'night';
+  progress.finished = false;
   gameState.day = 0;
   gameState.wallet = 0;
   gameState.upgrades = { garlic: false, guard: false, ovens: 0, plates: 0 };
   gameState.stars = [];
   gameState.seenCards = [];
+  saveGame();
 }
 
 export function currentDay(): DayConfig {

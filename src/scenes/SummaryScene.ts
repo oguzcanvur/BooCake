@@ -5,6 +5,7 @@ import { burst, fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
 import { decor } from '../data/decor';
 import { currentDay, gameState, isLastDay, starsFor } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
@@ -44,6 +45,9 @@ export class SummaryScene extends Phaser.Scene {
       gameState.stars[gameState.day] = Math.max(gameState.stars[gameState.day] ?? 0, stars);
       gameState.wallet += this.earned;
     }
+    // a won day continues in the shop (the last one goes to the final screen); a lost day is replayed
+    progress.resumeAt = won && !isLastDay() ? 'shop' : 'night';
+    saveGame();
 
     new Shop(this).update(1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0618, 0.62).setDepth(DEPTH.bubble);

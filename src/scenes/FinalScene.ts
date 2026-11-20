@@ -6,6 +6,7 @@ import { DAY_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
 import { gameState, resetGame } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
@@ -18,6 +19,9 @@ export class FinalScene extends Phaser.Scene {
   }
 
   create(): void {
+    // the run is complete: the menu offers a new game instead of Continue (stars and decoration stay)
+    progress.finished = true;
+    saveGame();
     fadeIn(this, 600);
     new Shop(this).update(1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0618, 0.55).setDepth(DEPTH.bubble);

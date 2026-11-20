@@ -6,6 +6,9 @@ import type { SpecialId } from './data/gameConfig';
 export const T = {
   tagline: 'Bake cupcakes for monsters before they get angry!',
   play: 'Play',
+  continueDay: (n: number) => `Continue: Day ${n}`,
+  newGame: 'New game',
+  newGameSure: 'Sure? Click again',
   howTo: 'How to Play',
   decorate: 'Decorate',
   decorateTitle: 'Decorate your shop',

@@ -6,6 +6,7 @@ import { CLOTHS, DECORATIONS, PLATE_COLORS, WRAPPERS, decor, plateColor, type Co
 import { fadeIn, fadeOutThen, setupCamera } from '../fx';
 import { drawCupcake } from '../objects/cupcake';
 import { Shop } from '../objects/Shop';
+import { saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
@@ -181,6 +182,7 @@ export class DecorateScene extends Phaser.Scene {
       return;
     }
     apply();
+    saveGame();
     sfx(this, 'place', 0.45);
     // restart without a fade so the shop behind redraws with the new look
     this.scene.restart({ from: this.from, refresh: true });
