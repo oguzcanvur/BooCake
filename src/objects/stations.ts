@@ -184,9 +184,11 @@ export function createFrostingPocket(scene: Phaser.Scene, cx: number, w: number,
 }
 
 /** One piping bag in the pocket (`spot` 0..5). The team's bags carry their English flavor names, so no tag. */
-export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, lockedUntil: number, onClick: () => void): Spot {
+export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, lockedUntil: number, onClick: () => void, centered = false): Spot {
   const b = BAG_SPOTS[spot];
-  const pic = addPart(scene, pocket, BAG[id], b.cx, b.cy);
+  // `centered`: only the first 3 bags are out (the new flavors come later), so they move to the pocket's middle
+  const shift = centered ? pocket.width / 2 - (BAG_SPOTS[0].cx + BAG_SPOTS[2].cx) / 2 : 0;
+  const pic = addPart(scene, pocket, BAG[id], b.cx + shift, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
   return finish(scene, withTag(scene, pic, '', 0, 10), w, h, lockedUntil, onClick);

@@ -276,8 +276,10 @@ export class NightScene extends Phaser.Scene {
 
     // frostings: one wide pocket with 6 bags (the new flavors' bags stay hidden until their day)
     const pocket = createFrostingPocket(this, POCKET.x, POCKET.w, POCKET.bottom);
+    // until the new flavors open, the first 3 bags sit in the middle of the pocket
+    const onlyFirst = lock('frosting', true) > 0;
     FROSTINGS.forEach((f, i) => {
-      const spot = createPipingBag(this, pocket, i, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y));
+      const spot = createPipingBag(this, pocket, i, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y), onlyFirst);
       this.bags.push(spot);
     });
     // toppings: jars in 3 columns, bottom row first
