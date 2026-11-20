@@ -83,9 +83,16 @@ const BAG: Record<FrostingId, StationSprite> = {
   caramel: 'bag_caramel',
 };
 /** The team's jars; the new toppings use an emptied copy of the sprinkles jar with the candies drawn inside. */
-const JAR: Partial<Record<ToppingId, StationSprite>> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
-/** Jars whose drawing already carries an English label (the team's newer sprinkles jar), so no tag goes on them. */
-const JAR_LABELED: ToppingId[] = ['sprinkles'];
+const JAR: Partial<Record<ToppingId, StationSprite>> = {
+  sprinkles: 'jar_sprinkles',
+  eye: 'jar_eyes',
+  spider: 'jar_spiders',
+  cherry: 'jar_cherry',
+  bat: 'jar_bats',
+  ghost: 'jar_ghosts',
+};
+/** Jars whose drawing already carries an English label (the team's newer jars), so no tag goes on them. */
+const JAR_LABELED: ToppingId[] = ['sprinkles', 'cherry', 'bat', 'ghost'];
 /**
  * The drawn candies inside the empty jar, like the team's own jars: big candies filling the glass, two at the
  * top peeking out above the label and a little pile at the bottom (in the jar's own 74 x 124 pixels; the glass
