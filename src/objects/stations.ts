@@ -84,6 +84,8 @@ const BAG: Record<FrostingId, StationSprite> = {
 };
 /** The team's jars; the new toppings use an emptied copy of the sprinkles jar with the candies drawn inside. */
 const JAR: Partial<Record<ToppingId, StationSprite>> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
+/** Jars whose drawing already carries an English label (the team's newer sprinkles jar), so no tag goes on them. */
+const JAR_LABELED: ToppingId[] = ['sprinkles'];
 /**
  * The drawn candies inside the empty jar, like the team's own jars: big candies filling the glass, two at the
  * top peeking out above the label and a little pile at the bottom (in the jar's own 74 x 124 pixels; the glass
@@ -125,6 +127,11 @@ function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: stri
   const h = pic.displayHeight;
   const box = scene.add.container(pic.x, pic.y).setDepth(pic.depth);
   pic.setPosition(0, 0);
+  if (!label) {
+    // the drawing already has an English label: no tag needed
+    box.add([pic, ...extra]);
+    return box;
+  }
   const text = scene.add
     .text(0, -h * (1 - fromTop), label, { fontFamily: FONT, fontSize: `${fontSize}px`, color: '#4a3531', fontStyle: 'bold', align: 'center', lineSpacing: -3 })
     .setOrigin(0.5);
@@ -199,7 +206,7 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
     extra.push(g);
   }
   // the jar's paper label is about 60% down
-  return finish(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 10, extra), w, h, lockedUntil, onClick);
+  return finish(scene, withTag(scene, pic, JAR_LABELED.includes(id) ? '' : toppingInfo(id).name, 0.6, 10, extra), w, h, lockedUntil, onClick);
 }
 
 /**
