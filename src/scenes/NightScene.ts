@@ -16,8 +16,6 @@ import {
   createDoughBowl,
   createDoughTable,
   createFrostingPocket,
-  createLockedOven,
-  createLockedPlate,
   createPipingBag,
   createPlate,
   createToppingJar,
@@ -267,17 +265,13 @@ export class NightScene extends Phaser.Scene {
       this.bowls.push(spot);
     });
 
-    // ovens (the 2nd one is locked until it is bought in the shop)
+    // ovens and plates: only the ones the player owns are on the workbench (the rest appear once bought)
     const owned = ovenCount();
     STATION_X.oven.forEach((x, i) => {
       if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOvenDown(slot)));
-      else createLockedOven(this, x);
     });
-
-    // plates (preparation spots); the ones not bought yet show a faded plate
     PLATES.forEach((p, i) => {
       if (i < this.plates.length) createPlate(this, p.x, p.bottom, () => this.onPlate(i));
-      else createLockedPlate(this, p.x, p.bottom);
     });
 
     // frostings: one wide pocket with 6 bags (the new flavors' bags stay hidden until their day)

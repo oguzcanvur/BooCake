@@ -4,8 +4,6 @@ import { DEPTH, FONT, INK } from '../config';
 import { doughInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 import { drawTopping } from './cupcake';
 import { plateColor } from '../data/decor';
-import { CONFIG } from '../data/gameConfig';
-import { T } from '../text';
 
 // The workbench stations use the team's drawings (src/assets/stations/, cut out of one sheet). The pictures
 // carry Turkish name labels; English name tags are stuck over them (withTag). The ingredients (dough bowls, piping bags, topping jars) are separate
@@ -284,11 +282,6 @@ export function createPlate(scene: Phaser.Scene, x: number, bottom: number, onCl
   scene.add.zone(x, bottom - 48, PLATE_W + 6, 104).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
 }
 
-/** A plate place the player has not bought yet: a faded plate with a "buy in shop" tag. */
-export function createLockedPlate(scene: Phaser.Scene, x: number, bottom: number): void {
-  const pic = addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station).setAlpha(0.4);
-  withTag(scene, pic, `$${CONFIG.shop.plate}\n${T.ovenLocked}`, 0.4, 11);
-}
 
 /** The ready tray: a silver tray with handles, one click zone per slot. */
 export function createTray(scene: Phaser.Scene, centers: number[], y: number, onSlotClick: (index: number) => void): void {
@@ -306,8 +299,3 @@ export function createTray(scene: Phaser.Scene, centers: number[], y: number, on
   });
 }
 
-/** An oven slot the player has not bought yet: the locked oven picture shows the price. */
-export function createLockedOven(scene: Phaser.Scene, x: number): void {
-  // "Dükkandan al" is written under the price, about 69% down
-  withTag(scene, addPicture(scene, x, 'oven_locked', { w: 124 }).setDepth(DEPTH.station), T.ovenLocked, 0.69, 10);
-}
