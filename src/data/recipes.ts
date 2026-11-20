@@ -1,6 +1,6 @@
 // Cupcake ingredients. An order is one dough + one frosting + one topping.
-// The first three of each list are there from day 1; the `extra` ones join from CONFIG.extrasFromDay
-// (6 x 6 x 6 = 216 combinations then). Names are shown to the player; colors are used by the drawing code.
+// The first three of each list are there from day 1; the `extra` ones join on the day CONFIG.extrasFromDay
+// gives for their group (6 x 6 x 6 = 216 combinations once all are open). Names are shown to the player; colors are used by the drawing code.
 
 export const DOUGHS = [
   // raw = batter color, baked = right out of the oven, over = just before burning
@@ -53,11 +53,16 @@ export function toppingInfo(id: ToppingId) {
   return TOPPINGS.find((t) => t.id === id)!;
 }
 
-/** A random order. Without extras only the first three of each ingredient are used (day 1). */
-export function randomOrder(withExtras: boolean, rand: () => number = Math.random): Order {
-  const pick = <T extends { extra: boolean }>(list: readonly T[]): T => {
-    const open = withExtras ? list : list.filter((x) => !x.extra);
-    return open[Math.floor(rand() * open.length)];
+export type IngredientGroup = 'dough' | 'frosting' | 'topping';
+
+/** Which groups have their extra ingredients open today. */
+export type OpenExtras = Record<IngredientGroup, boolean>;
+
+/** A random order. A group whose extras are not open yet only uses its first three ingredients. */
+export function randomOrder(open: OpenExtras, rand: () => number = Math.random): Order {
+  const pick = <T extends { extra: boolean }>(list: readonly T[], withExtras: boolean): T => {
+    const pool = withExtras ? list : list.filter((x) => !x.extra);
+    return pool[Math.floor(rand() * pool.length)];
   };
-  return { dough: pick(DOUGHS).id, frosting: pick(FROSTINGS).id, topping: pick(TOPPINGS).id };
+  return { dough: pick(DOUGHS, open.dough).id, frosting: pick(FROSTINGS, open.frosting).id, topping: pick(TOPPINGS, open.topping).id };
 }

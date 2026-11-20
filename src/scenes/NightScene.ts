@@ -3,7 +3,7 @@ import { sfx } from '../audio';
 import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKETS, STATION_X, TRASH, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
-import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type IngredientGroup, type OpenExtras, type ToppingId } from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
 import { drawCupcake, isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
@@ -217,12 +217,13 @@ export class NightScene extends Phaser.Scene {
     const ty = LAYOUT.trayY;
 
     // the extra doughs / frostings / toppings (second table, second pocket, top jar row) open on a later day
-    const extrasLocked = !this.extrasOpen();
+    // 0 = open today, otherwise the day this group's extra ingredients open
+    const lock = (group: IngredientGroup, extra: boolean) => (extra && !this.extrasOpen()[group] ? CONFIG.extrasFromDay[group] : 0);
 
     // dough bowls: 3 on each table (the extra ones on the top table)
     const tables = DOUGH_TABLES.bottoms.map((bottom) => createDoughTable(this, DOUGH_TABLES.x, DOUGH_TABLES.w, bottom));
     DOUGHS.forEach((d, i) => {
-      const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, d.extra && extrasLocked, () => this.onDough(d.id));
+      const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, lock('dough', d.extra), () => this.onDough(d.id));
       this.bowls.push(spot);
     });
 
@@ -242,11 +243,11 @@ export class NightScene extends Phaser.Scene {
     // frostings: two pockets with 3 bags each
     const pockets = POCKETS.xs.map((x) => createFrostingPocket(this, x, POCKETS.h, POCKETS.bottom));
     FROSTINGS.forEach((f, i) => {
-      const spot = createPipingBag(this, pockets[Math.floor(i / 3)], i % 3, f.id, f.extra && extrasLocked, () => this.onFrosting(f.id, spot.x, spot.y));
+      const spot = createPipingBag(this, pockets[Math.floor(i / 3)], i % 3, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y));
     });
     // toppings: jars in 3 columns, bottom row first
     TOPPINGS.forEach((t, i) => {
-      const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, t.extra && extrasLocked, () => this.onTopping(t.id, spot.x, spot.y));
+      const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, lock('topping', t.extra), () => this.onTopping(t.id, spot.x, spot.y));
     });
 
     // tray (above the ovens) and trash can
@@ -260,19 +261,26 @@ export class NightScene extends Phaser.Scene {
     }
   }
 
-  /** Are the extra doughs, frostings and toppings open today? */
-  private extrasOpen(): boolean {
-    return gameState.day + 1 >= CONFIG.extrasFromDay;
+  /** Which groups of extra ingredients (doughs, frostings, toppings) are open today. */
+  private extrasOpen(): OpenExtras {
+    const day = gameState.day + 1;
+    const from = CONFIG.extrasFromDay;
+    return { dough: day >= from.dough, frosting: day >= from.frosting, topping: day >= from.topping };
   }
 
   private showIntro(): void {
     const cx = W / 2;
     const newOnes = this.day.specials.filter((s) => !gameState.seenCards.includes(s));
     newOnes.forEach((s) => gameState.seenCards.push(s));
+    // a group of extra ingredients that opens today gets a "New flavors!" card (once)
+    const groups = (['dough', 'frosting', 'topping'] as const).filter(
+      (grp) => CONFIG.extrasFromDay[grp] === gameState.day + 1 && !gameState.seenCards.includes(`flavors-${grp}`),
+    );
+    groups.forEach((grp) => gameState.seenCards.push(`flavors-${grp}`));
 
     const rowH = 124;
     const panelW = 700;
-    const panelH = 190 + newOnes.length * rowH;
+    const panelH = 190 + (newOnes.length + groups.length) * rowH;
     const cy = H / 2 - 24;
     const cover = this.add.rectangle(cx, H / 2, W, H, 0x0a0618, 0.72).setDepth(DEPTH.overlay).setInteractive();
     const panel = this.add.container(cx, cy).setDepth(DEPTH.overlay + 1);
@@ -305,6 +313,40 @@ export class NightScene extends Phaser.Scene {
             fontFamily: FONT,
             fontSize: '22px',
             color: '#ffffff',
+            fontStyle: 'bold',
+            wordWrap: { width: panelW - 250 },
+          })
+          .setOrigin(0, 0.5),
+      );
+    });
+
+    groups.forEach((grp, k) => {
+      const i = newOnes.length + k;
+      const rowY = top + 178 + i * rowH + rowH / 2 - 10;
+      const rowBg = this.add.graphics();
+      rowBg.fillStyle(0x000000, 0.2);
+      rowBg.fillRoundedRect(-panelW / 2 + 24, rowY - rowH / 2 + 8, panelW - 48, rowH - 16, 18);
+      panel.add(rowBg);
+      // three little cupcakes showing the new ingredients
+      const icons = this.add.graphics();
+      const list = grp === 'dough' ? DOUGHS : grp === 'frosting' ? FROSTINGS : TOPPINGS;
+      const extras = (list as readonly { id: string; name: string; extra: boolean }[]).filter((x) => x.extra);
+      extras.forEach((x, j) => {
+        const c: CupcakeData =
+          grp === 'dough'
+            ? { dough: x.id as DoughId, bake: 'ready', tone: 0.2 }
+            : grp === 'frosting'
+              ? { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: x.id as FrostingId }
+              : { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: x.id as ToppingId };
+        drawCupcake(icons, -panelW / 2 + 72 + j * 38, rowY + 14, c, 0.62);
+      });
+      panel.add(icons);
+      panel.add(
+        this.add
+          .text(-panelW / 2 + 190, rowY, T.newFlavors(grp, extras.map((x) => x.name)), {
+            fontFamily: FONT,
+            fontSize: '22px',
+            color: '#ffe08a',
             fontStyle: 'bold',
             wordWrap: { width: panelW - 250 },
           })

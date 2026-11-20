@@ -31,6 +31,9 @@ export const T = {
   goal: (g: number) => `Goal: $${g}`,
   startDay: 'Start day',
   newCustomer: 'New customer',
+  /** Day intro card when a group of extra ingredients opens. */
+  newFlavors: (group: 'dough' | 'frosting' | 'topping', names: string[]) =>
+    `New flavors! ${{ dough: 'Doughs', frosting: 'Frostings', topping: 'Toppings' }[group]}: ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}.`,
 
   // hints and messages during play
   ovenFull: 'Oven is full!',

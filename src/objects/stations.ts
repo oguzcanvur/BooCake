@@ -131,14 +131,14 @@ function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: stri
   return box;
 }
 
-/** Clickable (wiggle + hop), or locked: faded picture, tag says from which day. Returns where it is and a "no" wiggle. */
-function finish(scene: Phaser.Scene, box: Phaser.GameObjects.Container, w: number, h: number, locked: boolean, onClick: () => void): Spot {
-  if (locked) {
+/** Clickable (wiggle + hop), or locked until a later day (lockedUntil > 0): faded picture, tag says the day. Returns where it is and a "no" wiggle. */
+function finish(scene: Phaser.Scene, box: Phaser.GameObjects.Container, w: number, h: number, lockedUntil: number, onClick: () => void): Spot {
+  if (lockedUntil > 0) {
     const [pic, ...rest] = box.list as (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | Phaser.GameObjects.Text)[];
     pic.setAlpha(LOCKED_ALPHA);
     // drawn candies (empty jar) fade too; the tag and its text stay
     rest.slice(0, rest.length - 2).forEach((o) => o.setAlpha(LOCKED_ALPHA));
-    (rest[rest.length - 1] as Phaser.GameObjects.Text).setText(T.fromDay(CONFIG.extrasFromDay));
+    (rest[rest.length - 1] as Phaser.GameObjects.Text).setText(T.fromDay(lockedUntil));
   } else makeIngredient(scene, box, onClick, w, h);
   return {
     x: box.x,
@@ -148,13 +148,13 @@ function finish(scene: Phaser.Scene, box: Phaser.GameObjects.Container, w: numbe
 }
 
 /** One dough bowl on a table (`spot` 0..2 = left to right). */
-export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.Image, spot: number, id: DoughId, locked: boolean, onClick: () => void): Spot {
+export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.Image, spot: number, id: DoughId, lockedUntil: number, onClick: () => void): Spot {
   const b = BOWL_SPOTS[spot];
   const pic = addPart(scene, table, BOWL[id], b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
   // the bowl's name is written on its front, about 76% down
-  return finish(scene, withTag(scene, pic, doughInfo(id).name, 0.76, 10), w, h, locked, onClick);
+  return finish(scene, withTag(scene, pic, doughInfo(id).name, 0.76, 10), w, h, lockedUntil, onClick);
 }
 
 /** A cloth pocket the piping bags hang in. */
@@ -163,18 +163,18 @@ export function createFrostingPocket(scene: Phaser.Scene, cx: number, h: number,
 }
 
 /** One piping bag in a pocket (`spot` 0..2), with a flavor tag stuck over the color name written on the drawing. */
-export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, locked: boolean, onClick: () => void): Spot {
+export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, lockedUntil: number, onClick: () => void): Spot {
   const b = BAG_SPOTS[spot];
   const pic = addPart(scene, pocket, BAG[id], b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
   // the drawing's color name sits about 37% down from the top of the bag; long flavors go on two lines
   const name = frostingInfo(id).name.replace(/(berry|chio|late)$/, '-\n$1');
-  return finish(scene, withTag(scene, pic, name, 0.37, 10), w, h, locked, onClick);
+  return finish(scene, withTag(scene, pic, name, 0.37, 10), w, h, lockedUntil, onClick);
 }
 
 /** Glass jar of toppings with a cork lid and a label. */
-export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number, height: number, id: ToppingId, locked: boolean, onClick: () => void): Spot {
+export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number, height: number, id: ToppingId, lockedUntil: number, onClick: () => void): Spot {
   const key = JAR[id];
   const pic = addPicture(scene, x, key ?? 'jar_empty', { h: height }, bottom);
   const w = pic.displayWidth;
@@ -188,7 +188,7 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
     extra.push(g);
   }
   // the jar's paper label is about 60% down
-  return finish(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 10, extra), w, h, locked, onClick);
+  return finish(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 10, extra), w, h, lockedUntil, onClick);
 }
 
 /** Trash can with a skull; (x, y) is its center. */
