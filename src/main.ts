@@ -6,6 +6,7 @@ import '@fontsource/fredoka/latin-ext-700.css';
 import Phaser from 'phaser';
 import { H, RES, W } from './config';
 import { GUARD_MONSTER, NORMAL_MONSTERS, SPECIAL_VARIANTS } from './data/monsters';
+import { BootScene } from './scenes/BootScene';
 import { FinalScene } from './scenes/FinalScene';
 import { HowToScene } from './scenes/HowToScene';
 import { MenuScene } from './scenes/MenuScene';
@@ -41,7 +42,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [PreloadScene, MenuScene, HowToScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, FinalScene],
+  scene: [BootScene, PreloadScene, MenuScene, HowToScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, FinalScene],
 });
 
 // Dev-only handle so the game can be inspected/tested from the browser console.

@@ -48,6 +48,12 @@ export const SFX_NAMES = [
 export type FxName = (typeof FX_NAMES)[number];
 export type SfxName = (typeof SFX_NAMES)[number];
 
+/** Game logo (the team's art, background cut away). Loaded first by BootScene so the splash screen can show it. */
+export const LOGO = 'logo';
+export function queueLogo(scene: Phaser.Scene): void {
+  scene.load.image(LOGO, binaryUrl('ui/logo.webp'));
+}
+
 /** Shop interior painting behind the counter (the team's background art). */
 export const BG_SHOP = 'bg_shop';
 
