@@ -52,7 +52,7 @@ export class MenuScene extends Phaser.Scene {
     if (canContinue()) {
       // a saved game: continue it, or start over (asks for a second click so progress is not lost by accident)
       makeButton(this, W / 2 - 175, 500, 330, 86, T.continueDay(gameState.day + (progress.resumeAt === 'shop' ? 2 : 1)), () => {
-        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'UpgradeShop' : 'Night'));
+        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'UpgradeShop' : 'Map'));
       }, { color: 'green', fontSize: 34, depth: DEPTH.hud });
       this.newGameButton(false);
     } else {
@@ -65,7 +65,7 @@ export class MenuScene extends Phaser.Scene {
         T.play,
         () => {
           resetGame();
-          fadeOutThen(this, () => this.scene.start('Night'));
+          fadeOutThen(this, () => this.scene.start('Map'));
         },
         { color: 'green', fontSize: 42, depth: DEPTH.hud },
       );
@@ -105,7 +105,7 @@ export class MenuScene extends Phaser.Scene {
       () => {
         if (confirm) {
           resetGame();
-          fadeOutThen(this, () => this.scene.start('Night'));
+          fadeOutThen(this, () => this.scene.start('Map'));
           return;
         }
         // rebuild on the next frame so the clicked button is not destroyed while it handles the click

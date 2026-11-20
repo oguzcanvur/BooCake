@@ -22,6 +22,12 @@ export const T = {
   decorItems: 'Decorations',
   done: 'Done',
   back: 'Back',
+
+  // day map
+  mapTitle: 'Monster Town',
+  mapPick: 'Pick a day to open the shop',
+  mapTestNote: 'Test mode: every day is open',
+  locked: 'Locked',
   menu: 'Menu',
 
   // HUD

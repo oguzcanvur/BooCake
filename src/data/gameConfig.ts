@@ -58,6 +58,9 @@ export const CONFIG = {
   shop: { garlic: 40, guard: 60, oven: 50, plate: 30 },
 
   /** The 4 days. */
+  /** While the game is being tested: every day on the map can be played without finishing the ones before it. */
+  unlockAllDays: true,
+
   days: [
     // day 1 is a gentle start for first-time players: 2 minutes, lower goal, slower customers who wait longer
     { length: 120, goal: 35, interval: 15, patience: 45, specials: [] },

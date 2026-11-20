@@ -11,6 +11,7 @@ import { DecorateScene } from './scenes/DecorateScene';
 import { FinalScene } from './scenes/FinalScene';
 import { HowToScene } from './scenes/HowToScene';
 import { MenuScene } from './scenes/MenuScene';
+import { MapScene } from './scenes/MapScene';
 import { NightScene } from './scenes/NightScene';
 import { PauseScene } from './scenes/PauseScene';
 import { PreloadScene } from './scenes/PreloadScene';
@@ -46,7 +47,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [BootScene, PreloadScene, MenuScene, HowToScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, DecorateScene, FinalScene],
+  scene: [BootScene, PreloadScene, MenuScene, HowToScene, MapScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, DecorateScene, FinalScene],
 });
 
 // Dev-only handle so the game can be inspected/tested from the browser console.

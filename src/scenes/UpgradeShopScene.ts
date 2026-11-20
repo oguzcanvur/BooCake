@@ -86,7 +86,8 @@ export class UpgradeShopScene extends Phaser.Scene {
       gameState.day++;
       progress.resumeAt = 'night';
       saveGame();
-      fadeOutThen(this, () => this.scene.start('Night'));
+      // the day map shows the walk from the finished day to the next one
+      fadeOutThen(this, () => this.scene.start('Map', { walkFrom: gameState.day - 1 }));
     }, { color: 'green', fontSize: 32, depth: DEPTH.hud + 2 });
   }
 
