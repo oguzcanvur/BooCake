@@ -10,6 +10,8 @@ export const T = {
   newGame: 'New game',
   newGameSure: 'Sure? Click again',
   howTo: 'How to Play',
+  fullscreen: 'Full screen',
+  fullscreenIphone: 'On iPhone: tap Share, then "Add to Home Screen" and open the game from there.',
   decorate: 'Decorate',
   decorateTitle: 'Decorate your shop',
   decorStars: (n: number) => `${n} stars`,

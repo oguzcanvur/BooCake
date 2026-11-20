@@ -9,6 +9,7 @@ import { gameState, resetGame } from '../systems/GameState';
 import { canContinue, progress } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
+import { drawFullscreen } from '../ui/icons';
 
 /** Main menu: the shop at night with two customers and the BooCake logo. */
 export class MenuScene extends Phaser.Scene {
@@ -88,6 +89,8 @@ export class MenuScene extends Phaser.Scene {
       })
       .setOrigin(0.5)
       .setDepth(DEPTH.hud);
+
+    this.addFullscreenButton();
   }
 
   /** "New game" next to Continue. The first click turns it into "Sure?"; a second click within 3 s starts over. */
@@ -120,5 +123,77 @@ export class MenuScene extends Phaser.Scene {
         this.newGameButton(false);
       });
     }
+  }
+
+  /**
+   * Round "full screen" button in the top-right corner (phones and tablets: hides the browser bars).
+   * Browsers only allow full screen from a tap, so it switches on pointerup. iPhone Safari has no full screen
+   * for pages: there the button explains how to add the game to the home screen (it then opens without bars).
+   */
+  private addFullscreenButton(): void {
+    const x = W - 44;
+    const y = 40;
+    const g = this.add.graphics().setDepth(DEPTH.hud + 2);
+    const draw = (hover: boolean) => {
+      g.clear();
+      g.fillStyle(0x000000, 0.3);
+      g.fillCircle(x, y + 3, 26);
+      g.fillStyle(hover ? 0x5d4280 : 0x4a3266, 1);
+      g.fillCircle(x, y, 26);
+      g.lineStyle(3, 0x4a2a2e, 1);
+      g.strokeCircle(x, y, 26);
+      drawFullscreen(g, x, y, this.scale.isFullscreen);
+    };
+    draw(false);
+    const label = this.add
+      .text(x - 36, y, T.fullscreen, { fontFamily: FONT, fontSize: '18px', color: '#fff1fa', fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 5 })
+      .setOrigin(1, 0.5)
+      .setDepth(DEPTH.hud + 2);
+    const zone = this.add.zone(x - 50, y, 170, 60).setInteractive({ useHandCursor: true });
+    zone.on('pointerover', () => draw(true));
+    zone.on('pointerout', () => draw(false));
+    zone.on('pointerup', () => {
+      if (!this.scale.fullscreen.available) {
+        this.showHint(T.fullscreenIphone, x + 26, y + 40);
+        return;
+      }
+      if (this.scale.isFullscreen) this.scale.stopFullscreen();
+      else {
+        this.scale.startFullscreen();
+        // Android: keep it sideways while in full screen (ignored where not supported)
+        const orientation = screen.orientation as ScreenOrientation & { lock?: (o: string) => Promise<void> };
+        orientation.lock?.('landscape').catch(() => undefined);
+      }
+    });
+    const refresh = () => {
+      draw(false);
+      label.setVisible(!this.scale.isFullscreen);
+    };
+    this.scale.on(Phaser.Scale.Events.ENTER_FULLSCREEN, refresh);
+    this.scale.on(Phaser.Scale.Events.LEAVE_FULLSCREEN, refresh);
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.scale.off(Phaser.Scale.Events.ENTER_FULLSCREEN, refresh);
+      this.scale.off(Phaser.Scale.Events.LEAVE_FULLSCREEN, refresh);
+    });
+    label.setVisible(!this.scale.isFullscreen);
+  }
+
+  private hintBox?: Phaser.GameObjects.Container;
+
+  /** A small dark note under the top-right corner (right edge at `right`), gone after 5 seconds. */
+  private showHint(msg: string, right: number, top: number): void {
+    this.hintBox?.destroy();
+    const text = this.add
+      .text(0, 0, msg, { fontFamily: FONT, fontSize: '17px', color: '#fff1fa', fontStyle: 'bold', wordWrap: { width: 320 }, lineSpacing: 2 })
+      .setOrigin(1, 0);
+    const pad = 12;
+    const g = this.add.graphics();
+    g.fillStyle(0x2e2230, 0.95);
+    g.fillRoundedRect(-text.width - pad, -pad, text.width + pad * 2, text.height + pad * 2, 14);
+    g.lineStyle(2.5, 0x4a2a2e, 1);
+    g.strokeRoundedRect(-text.width - pad, -pad, text.width + pad * 2, text.height + pad * 2, 14);
+    const box = this.add.container(right - pad, top + pad, [g, text]).setDepth(DEPTH.hud + 3);
+    this.hintBox = box;
+    this.tweens.add({ targets: box, alpha: 0, delay: 5000, duration: 400, onComplete: () => box.destroy() });
   }
 }
