@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { sfx } from '../audio';
 import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKETS, STATION_X, TRASH, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
+import { THIEF_KEYS } from '../assets';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import { DOUGHS, FROSTINGS, TOPPINGS, doughInfo, frostingInfo, toppingInfo, randomOrder, type DoughId, type FrostingId, type IngredientGroup, type OpenExtras, type ToppingId } from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
@@ -331,9 +332,14 @@ export class NightScene extends Phaser.Scene {
       rowBg.fillStyle(0x000000, 0.2);
       rowBg.fillRoundedRect(-panelW / 2 + 24, rowY - rowH / 2 + 8, panelW - 48, rowH - 16, 18);
       panel.add(rowBg);
-      const view = new MonsterView(this, 0, 0, def);
-      panel.add(view.root);
-      view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
+      if (id === 'thief') {
+        // the thief is the team's picture, not a code-drawn figure
+        panel.add(this.add.image(-panelW / 2 + 110, rowY - 4, THIEF_KEYS.stand).setScale(0.2));
+      } else {
+        const view = new MonsterView(this, 0, 0, def);
+        panel.add(view.root);
+        view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
+      }
       const card = MONSTER_CARDS[id];
       panel.add(
         this.add
@@ -997,6 +1003,7 @@ export class NightScene extends Phaser.Scene {
           return 'empty';
         }
         loot.forEach(({ c, i }) => this.flyCupcake(c, { x: STATION_X.tray[i], y: LAYOUT.trayY }, { x: thief.x, y: thief.y - 20 }, 320));
+        this.time.delayedCall(320, () => thief.holdCupcake(loot[0].c));
         this.tray = this.tray.map(() => null);
         if (this.selected?.kind === 'tray') this.select(null);
         else this.refreshItems();
