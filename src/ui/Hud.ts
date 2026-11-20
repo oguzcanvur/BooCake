@@ -31,6 +31,7 @@ export class Hud {
     private readonly scene: Phaser.Scene,
     private readonly goal: number,
     dayNumber: number,
+    dayLength: number,
   ) {
     const d = DEPTH.hud;
     const g = scene.add.graphics().setDepth(d);
@@ -100,7 +101,7 @@ export class Hud {
         sfx(scene, 'ui_click', 0.4);
       });
     drawSpeaker(this.speaker, sx - 3, 28, isMuted());
-    this.update(CONFIG.dayLengthSec, 0);
+    this.update(dayLength, 0);
   }
 
   /** Push the latest numbers: seconds left in the day and money earned today. */

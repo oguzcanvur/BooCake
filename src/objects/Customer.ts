@@ -17,6 +17,8 @@ const BUBBLE = { w: 198, h: 120 };
  */
 export class Customer {
   patience: number;
+  /** The first-order guide freezes this customer's patience so there is time to read it. */
+  frozen = false;
   readonly y = LAYOUT.customerY;
 
   private readonly monster: MonsterView;
@@ -90,7 +92,7 @@ export class Customer {
     if (this.gone) return;
     // ghosts are patient: they lose patience more slowly
     const speed = this.def.kind === 'ghost' ? CONFIG.ghostPatienceFactor : 1;
-    this.patience -= dt * speed;
+    if (!this.frozen) this.patience -= dt * speed;
     const mood = this.scene.time.now < this.disgustUntil ? 'angry' : this.mood;
     this.monster.setMood(mood === 'happy' ? 'happy' : mood === 'uneasy' ? 'neutral' : 'angry');
     // the character starts turning red once it stops being happy, fully red when patience runs out
@@ -105,6 +107,7 @@ export class Customer {
 
   /** Lose a share (0..1) of the full patience, e.g. 0.2 after a wrong cupcake. */
   hitPatience(share: number): void {
+    if (this.frozen) return;
     this.patience -= this.maxPatience * share;
   }
 

@@ -94,7 +94,6 @@ const JAR_FILL = [
 ];
 
 /** Faded and not clickable: an ingredient that joins on a later day. */
-const LOCKED_ALPHA = 0.35;
 
 /** Where an ingredient is on screen (for hints and effects). */
 export interface Spot {
@@ -135,11 +134,8 @@ function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: stri
 /** Clickable (wiggle + hop), or locked until a later day (lockedUntil > 0): faded picture, tag says the day. Returns where it is and a "no" wiggle. */
 function finish(scene: Phaser.Scene, box: Phaser.GameObjects.Container, w: number, h: number, lockedUntil: number, onClick: () => void): Spot {
   if (lockedUntil > 0) {
-    const [pic, ...rest] = box.list as (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | Phaser.GameObjects.Text)[];
-    pic.setAlpha(LOCKED_ALPHA);
-    // drawn candies (empty jar) fade too; the tag and its text stay
-    rest.slice(0, rest.length - 2).forEach((o) => o.setAlpha(LOCKED_ALPHA));
-    (rest[rest.length - 1] as Phaser.GameObjects.Text).setText(T.fromDay(lockedUntil));
+    // not unlocked yet: stay out of sight until its day comes (the "New flavors!" card announces it)
+    box.setVisible(false);
   } else makeIngredient(scene, box, onClick, w, h);
   return {
     x: box.x,
@@ -192,9 +188,60 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
   return finish(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 10, extra), w, h, lockedUntil, onClick);
 }
 
-/** Trash can with a skull; (x, y) is its center. */
-export function createTrash(scene: Phaser.Scene, x: number, y: number, height: number, onClick: () => void): void {
-  makeIngredient(scene, addPicture(scene, x, 'trash', { h: height }, y + height / 2), onClick);
+/**
+ * Trash can with a skull; (x, y) is its center. It has a drawn lid: the lid lifts when the mouse is over the can
+ * and flaps open when something is thrown in. Returns a function that plays the flap (used for drops and clicks).
+ */
+export function createTrash(scene: Phaser.Scene, x: number, y: number, height: number, onClick: () => void): () => void {
+  const bottom = y + height / 2;
+  const pic = addPicture(scene, x, 'trash', { h: height }, bottom);
+  const pw = pic.displayWidth;
+  const box = scene.add.container(x, bottom).setDepth(DEPTH.station);
+  pic.setPosition(0, 0);
+  const shadow = scene.add.ellipse(2, 1, pw * 1.05, 11, 0x4a2a2e, 0.22);
+  // lid: hinged on its left end, rim of the can is about 14% below the picture top
+  const lw = pw * 1.04;
+  const hingeX = -lw / 2;
+  const hingeY = -height * 0.86;
+  const lid = scene.add.container(hingeX, hingeY);
+  const g = scene.add.graphics();
+  g.fillStyle(0x8f8ba3, 1);
+  g.fillRoundedRect(0, -8, lw, 10, 5);
+  g.fillStyle(0xb9b5cc, 1);
+  g.fillRoundedRect(3, -7, lw - 6, 3.5, 2);
+  g.lineStyle(2.5, INK, 1);
+  g.strokeRoundedRect(0, -8, lw, 10, 5);
+  // handle
+  g.fillStyle(0x8f8ba3, 1);
+  g.fillRoundedRect(lw / 2 - 9, -15, 18, 8, 4);
+  g.lineStyle(2.5, INK, 1);
+  g.strokeRoundedRect(lw / 2 - 9, -15, 18, 8, 4);
+  lid.add(g);
+  box.add([shadow, pic, lid]);
+  const restY = box.y;
+  let open = false;
+  const setLid = (angle: number, duration: number, ease = 'Quad.easeOut') => {
+    scene.tweens.killTweensOf(lid);
+    scene.tweens.add({ targets: lid, angle, duration, ease });
+  };
+  const flap = () => {
+    scene.tweens.killTweensOf(lid);
+    scene.tweens.add({ targets: lid, angle: -62, duration: 90, ease: 'Quad.easeOut', yoyo: true, hold: 140, onComplete: () => lid.setAngle(open ? -28 : 0) });
+    scene.tweens.killTweensOf(box);
+    box.setY(restY);
+    scene.tweens.add({ targets: box, y: restY - 5, duration: 90, yoyo: true, ease: 'Quad.easeOut' });
+  };
+  const zone = scene.add.zone(x, bottom - height / 2, pw + 12, height + 14).setInteractive({ useHandCursor: true });
+  zone.on('pointerover', () => {
+    open = true;
+    setLid(-28, 130);
+  });
+  zone.on('pointerout', () => {
+    open = false;
+    setLid(0, 160);
+  });
+  zone.on('pointerdown', onClick);
+  return flap;
 }
 
 /** Width of a plate picture on screen. */

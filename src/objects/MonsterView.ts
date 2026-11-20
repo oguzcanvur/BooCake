@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { charKey, fxKey } from '../assets';
+import { CHAR_FRAME, CHAR_TEX_K, charKey, fxKey, type CharFace } from '../assets';
 import { DEPTH } from '../config';
 import type { MonsterDef, Mood } from '../data/monsters';
 import { shade } from './cupcake';
@@ -62,7 +62,7 @@ export interface MonsterViewOptions {
 
 /**
  * A monster: either the team's character picture (`def.sprite`) or drawn in code in a soft pastel cartoon style.
- * Handles the mood (drawn: the face; picture: sweat drop, anger mark, steam, trembling, happy hops; the
+ * Handles the mood (drawn: the face; picture: a different picture per face, steam, trembling, hops; the
  * picture also turns red little by little as patience runs out, see setRedness),
  * idle bobbing, blinking (drawn only) and the enter / leave animations.
  * `root` is positioned at the center of the head.
@@ -76,6 +76,12 @@ export class MonsterView {
   private readonly blinkTimer: Phaser.Time.TimerEvent | null = null;
   /** The character picture (picture mode only). */
   private readonly pic: Phaser.GameObjects.Image | null = null;
+  /** Second picture used to fade from one face to the next (invisible otherwise). */
+  private readonly picNext: Phaser.GameObjects.Image | null = null;
+  /** Holds the pictures, so they hop, tilt and tremble together. */
+  private readonly picBox: Phaser.GameObjects.Container | null = null;
+  private picRedness = 0;
+  private picFace: CharFace = 'happy';
   /** Mood effects of a picture character (removed when the mood changes). */
   private moodFx: { destroy: () => void }[] = [];
   private mood: Mood = 'happy';
@@ -100,8 +106,12 @@ export class MonsterView {
     const hands = scene.add.graphics();
     if (def.sprite) {
       // the picture is a bust: the counter hides its bottom edge, no separate hands
-      this.pic = scene.add.image(0, PIC_BOTTOM, charKey(def.sprite)).setOrigin(0.5, 1).setScale(PIC_SCALE);
-      this.inner.add(this.pic);
+      const frame = CHAR_FRAME[def.sprite];
+      const mk = () => scene.add.image(0, 0, charKey(def.sprite!)).setOrigin(frame.ox, frame.oy).setScale(PIC_SCALE / CHAR_TEX_K);
+      this.pic = mk();
+      this.picNext = mk().setAlpha(0);
+      this.picBox = scene.add.container(0, PIC_BOTTOM, [this.pic, this.picNext]);
+      this.inner.add(this.picBox);
     } else {
       const body = scene.add.graphics();
       this.inner.add(body);
@@ -165,18 +175,50 @@ export class MonsterView {
     });
   }
 
-  /** Picture characters: 0 = normal colors, 1 = fully red with anger (follows the patience bar). */
+  /**
+   * Picture characters: 0 = normal colors, 1 = fully red with anger (follows the patience bar).
+   * The angry picture is already red, so the tint only builds up while the character is happy or uneasy.
+   */
   setRedness(t: number): void {
     if (!this.pic || this.gone) return;
-    const k = Phaser.Math.Clamp(t, 0, 1);
-    // white (no tint) -> warm red
+    this.picRedness = Phaser.Math.Clamp(t, 0, 1);
+    this.applyTint();
+  }
+
+  private applyTint(): void {
+    if (!this.pic || !this.picNext) return;
+    const k = this.picFace === 'angry' ? 0 : this.picRedness * 0.55;
     const c = Phaser.Display.Color.Interpolate.ColorWithColor(
       Phaser.Display.Color.ValueToColor(0xffffff),
       Phaser.Display.Color.ValueToColor(0xff6a5a),
       100,
       Math.round(k * 100),
     );
-    this.pic.setTint(Phaser.Display.Color.GetColor(c.r, c.g, c.b));
+    const tint = Phaser.Display.Color.GetColor(c.r, c.g, c.b);
+    this.pic.setTint(tint);
+    this.picNext.setTint(tint);
+  }
+
+  /** Fade the picture to the face that belongs to the current mood. */
+  private showFace(face: CharFace): void {
+    const pic = this.pic;
+    const next = this.picNext;
+    if (!pic || !next || !this.def.sprite || face === this.picFace) return;
+    this.picFace = face;
+    const key = charKey(this.def.sprite, face);
+    this.scene.tweens.killTweensOf(next);
+    next.setTexture(key).setAlpha(0);
+    this.applyTint();
+    this.scene.tweens.add({
+      targets: next,
+      alpha: 1,
+      duration: 200,
+      onComplete: () => {
+        if (this.gone || !pic.active) return;
+        pic.setTexture(key);
+        next.setAlpha(0);
+      },
+    });
   }
 
   setMood(mood: Mood): void {
@@ -257,65 +299,34 @@ export class MonsterView {
   }
 
   /**
-   * Show the mood on a character picture (the drawing itself cannot change its face):
-   * happy = little hops now and then; uneasy = a sweat drop and impatient tilts;
-   * angry = a pulsing anger mark, steam puffing from the head and trembling.
-   * (The red color comes from setRedness.)
+   * Show the mood on a character picture: the picture fades to the happy / neutral / angry face, plus movement:
+   * happy = little hops now and then; uneasy = impatient tilts; angry = steam puffing from the head and trembling.
+   * (The red color builds up in setRedness while the character is still happy or uneasy.)
    */
   private applyPictureMood(): void {
     const pic = this.pic;
     if (!pic) return;
     this.clearMoodFx();
+    this.showFace(this.mood === 'happy' ? 'happy' : this.mood === 'neutral' ? 'neutral' : 'angry');
     const s = this.scene;
-    const top = PIC_BOTTOM - pic.displayHeight;
-    const halfW = pic.displayWidth / 2;
+    const box = this.picBox!;
+    const frame = CHAR_FRAME[this.def.sprite!];
+    const top = PIC_BOTTOM - (frame.bodyH * PIC_SCALE) / CHAR_TEX_K;
 
     if (this.mood === 'happy') {
       this.every(Phaser.Math.Between(2600, 3600), () => {
-        s.tweens.add({ targets: pic, y: PIC_BOTTOM - 8, duration: 140, yoyo: true, ease: 'Quad.easeOut' });
+        s.tweens.add({ targets: box, y: PIC_BOTTOM - 8, duration: 140, yoyo: true, ease: 'Quad.easeOut' });
       });
       return;
     }
 
     if (this.mood === 'neutral') {
-      // a sweat drop slides down next to the head
-      const drop = s.add.graphics();
-      // teardrop outline: pointed tip on top, round bottom (one smooth shape)
-      const tear: Phaser.Math.Vector2[] = [];
-      for (let k = 0; k < 40; k++) {
-        const t = (k / 40) * Math.PI * 2;
-        tear.push(new Phaser.Math.Vector2(9 * Math.sin(t) * Math.sin(t / 2), -11 * Math.cos(t)));
-      }
-      drop.fillStyle(0xa8dcff, 1);
-      drop.fillPoints(tear, true);
-      drop.lineStyle(2.5, 0x4a6a8a, 1);
-      drop.strokePoints(tear, true, true);
-      drop.fillStyle(0xffffff, 0.9);
-      drop.fillEllipse(-2.5, 4, 3.5, 5);
-      const dy = top + 50;
-      drop.setPosition(-halfW * 0.55, dy).setAlpha(0);
-      this.inner.add(drop);
-      const slide = s.tweens.add({ targets: drop, y: dy + 22, alpha: { from: 1, to: 0 }, duration: 900, repeat: -1, repeatDelay: 700, ease: 'Quad.easeIn' });
-      this.moodFx.push({ destroy: () => { slide.remove(); drop.destroy(); } });
       // impatient little tilt
-      this.every(1800, () => s.tweens.add({ targets: pic, angle: { from: -2.5, to: 2.5 }, duration: 160, yoyo: true, repeat: 1, onComplete: () => pic.setAngle(0) }));
+      this.every(1800, () => s.tweens.add({ targets: box, angle: { from: -2.5, to: 2.5 }, duration: 160, yoyo: true, repeat: 1, onComplete: () => box.setAngle(0) }));
       return;
     }
 
-    // angry
-    // anger mark (four red curved ticks) above the head, pulsing
-    const mark = s.add.graphics();
-    mark.lineStyle(6, 0xe8394d, 1);
-    for (let k = 0; k < 4; k++) {
-      const a = (k * Math.PI) / 2 + Math.PI / 4;
-      mark.beginPath();
-      mark.arc(Math.cos(a) * 20, Math.sin(a) * 20, 11, a + Math.PI * 0.75, a + Math.PI * 1.25, false);
-      mark.strokePath();
-    }
-    mark.setPosition(halfW * 0.6, top + 22);
-    this.inner.add(mark);
-    const pulse = s.tweens.add({ targets: mark, scale: { from: 0.8, to: 1.2 }, duration: 260, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
-    this.moodFx.push({ destroy: () => { pulse.remove(); mark.destroy(); } });
+    // angry (the picture itself shows the angry face)
     // steam puffs from the top of the head
     const scale = Math.abs(this.root.scaleY) || 1;
     const steam = s.add
@@ -333,7 +344,7 @@ export class MonsterView {
     steam.startFollow(this.root, 0, (top + 18) * scale);
     this.moodFx.push({ destroy: () => steam.destroy() });
     // trembling with rage every now and then
-    this.every(1300, () => s.tweens.add({ targets: pic, x: { from: -3, to: 3 }, duration: 40, yoyo: true, repeat: 4, onComplete: () => pic.setX(0) }));
+    this.every(1300, () => s.tweens.add({ targets: box, x: { from: -3, to: 3 }, duration: 40, yoyo: true, repeat: 4, onComplete: () => box.setX(0) }));
   }
 
   private parts(): Phaser.GameObjects.Container[] {
