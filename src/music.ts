@@ -64,7 +64,13 @@ export function startMusic(scene: Phaser.Scene): void {
 
   const master = ctx.createGain();
   master.gain.value = VOLUME;
-  master.connect(sm.destination);
+  // everything goes through a gentle low-pass, so nothing sounds buzzy or hissy
+  const soften = ctx.createBiquadFilter();
+  soften.type = 'lowpass';
+  soften.frequency.value = 2200;
+  soften.Q.value = 0.5;
+  master.connect(soften);
+  soften.connect(sm.destination);
 
   // a little echo (feedback delay) makes everything sound far away and dreamy
   const echo = ctx.createDelay();
@@ -158,7 +164,8 @@ export function startMusic(scene: Phaser.Scene): void {
       const end = at + total + 0.5;
       for (const detune of [-7, 7]) {
         const o = ctx.createOscillator();
-        o.type = 'sawtooth';
+        // triangle (not sawtooth): far fewer high harmonics, so the choir hums instead of buzzing
+        o.type = 'triangle';
         o.detune.value = detune;
         const depth = ctx.createGain();
         depth.gain.value = 5;
@@ -198,14 +205,14 @@ export function startMusic(scene: Phaser.Scene): void {
     const src = ctx.createBufferSource();
     src.buffer = buf;
     const filter = ctx.createBiquadFilter();
-    filter.type = 'bandpass';
-    filter.Q.value = 3;
+    filter.type = 'lowpass';
+    filter.Q.value = 1;
     filter.frequency.setValueAtTime(400, when);
     filter.frequency.linearRampToValueAtTime(1100, when + len * 0.5);
     filter.frequency.linearRampToValueAtTime(500, when + len);
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, when);
-    g.gain.linearRampToValueAtTime(0.09, when + len * 0.45);
+    g.gain.linearRampToValueAtTime(0.035, when + len * 0.45);
     g.gain.linearRampToValueAtTime(0.0001, when + len);
     src.connect(filter);
     filter.connect(g);
