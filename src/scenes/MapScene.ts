@@ -5,6 +5,7 @@ import { DEPTH, FONT, H, INK, W } from '../config';
 import { CONFIG, DAY_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
 import { drawCupcake } from '../objects/cupcake';
+import { unsoftened } from '../softStyle';
 import { gameState } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
 import { MONSTER_CARDS, T } from '../text';
@@ -99,16 +100,28 @@ export class MapScene extends Phaser.Scene {
     bg.setScale(Math.max(W / bg.width, H / bg.height));
   }
 
-  /** The road: a soft wide band with a dotted center line. */
+  /** The road: a thin, bright yellow line of light with a soft glow and twinkling sparks along it. */
   private drawRoad(road: Phaser.Curves.Spline): void {
-    const g = this.add.graphics().setDepth(DEPTH.deco);
-    const pts = road.getPoints(120);
-    g.lineStyle(30, 0x2b1d4f, 0.45);
-    g.strokePoints(pts);
-    g.lineStyle(22, 0xf6e3c4, 0.92);
-    g.strokePoints(pts);
-    g.fillStyle(0xc99a6a, 1);
-    for (const p of road.getSpacedPoints(48)) g.fillCircle(p.x, p.y, 3.5);
+    const pts = road.getPoints(160);
+    unsoftened(() => {
+      // soft glow (added light), then the bright core
+      const glow = this.add.graphics().setDepth(DEPTH.deco).setBlendMode(Phaser.BlendModes.ADD);
+      glow.lineStyle(16, 0xffc94a, 0.18);
+      glow.strokePoints(pts);
+      glow.lineStyle(9, 0xffd76a, 0.3);
+      glow.strokePoints(pts);
+      const core = this.add.graphics().setDepth(DEPTH.deco + 1);
+      core.lineStyle(3.5, 0xfff1a0, 1);
+      core.strokePoints(pts);
+      // sparks along the road that twinkle one after another
+      road.getSpacedPoints(28).forEach((p, i) => {
+        const spark = this.add.graphics().setDepth(DEPTH.deco + 2).setBlendMode(Phaser.BlendModes.ADD);
+        spark.fillStyle(0xfffbe0, 1);
+        spark.fillCircle(0, 0, 2.6);
+        spark.setPosition(p.x, p.y).setAlpha(0.3);
+        this.tweens.add({ targets: spark, alpha: 1, scale: 1.6, duration: 500, yoyo: true, repeat: -1, delay: (i * 90) % 1400, ease: 'Sine.easeInOut' });
+      });
+    });
   }
 
   /** One day stop: badge with the day number, goal, new monsters and stars. Click to play it if it is open. */
