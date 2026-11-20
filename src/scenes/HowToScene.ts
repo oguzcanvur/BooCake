@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { DEPTH, FONT, H, W } from '../config';
+import { THIEF_KEYS } from '../assets';
 import { SPECIAL_MONSTERS } from '../data/monsters';
 import { fadeIn, fadeOutThen } from '../fx';
 import { drawCupcake, type CupcakeData } from '../objects/cupcake';
@@ -67,10 +68,10 @@ export class HowToScene extends Phaser.Scene {
         drawCupcake(pic, px + 32, y + 6, done, 1);
       } else {
         const vamp = new MonsterView(this, 0, 0, SPECIAL_MONSTERS.vampire);
-        const thief = new MonsterView(this, 0, 0, SPECIAL_MONSTERS.thief);
-        panel.add([vamp.root, thief.root]);
+        const thief = this.add.image(0, 0, THIEF_KEYS.stand).setOrigin(0.5, 0.6);
+        panel.add([vamp.root, thief]);
         vamp.root.setPosition(px, y - 12).setScale(0.36);
-        thief.root.setPosition(px + 72, y - 18).setScale(0.3);
+        thief.setPosition(px + 72, y).setScale(0.2);
       }
 
       panel.add(

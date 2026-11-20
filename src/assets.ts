@@ -108,6 +108,11 @@ export const CHAR_FRAME: Record<CharSprite, { ox: number; oy: number; bodyW: num
   vampire: { ox: 0.5008, oy: 0.9964, bodyW: 282.3, bodyH: 438.0 },
 };
 
+/** The thief's pictures: standing, holding a cupcake (the cupcake itself is drawn in code), and the hand that goes over it. */
+export const THIEF_KEYS = { stand: 'thief_stand', hold: 'thief_hold', hand: 'thief_hand' } as const;
+/** Picture size, anchor (share of the picture) and where the cupcake sits in his hand (wrapper middle, shares of the picture). */
+export const THIEF_FRAME = { w: 297, h: 440, ox: 0.4968, cupX: 0.391, cupY: 0.585 };
+
 export const fxKey = (n: FxName): string => `fx_${n}`;
 export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 
@@ -115,6 +120,9 @@ export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 export function queueAssets(scene: Phaser.Scene): void {
   scene.load.image(BG_SHOP, binaryUrl('bg/shop.webp'));
   for (const n of CHAR_SPRITES) for (const f of ['happy', 'neutral', 'angry'] as const) scene.load.image(charKey(n, f), binaryUrl(`chars/${n}${CHAR_FILE[f]}.webp`));
+  scene.load.image(THIEF_KEYS.stand, binaryUrl('chars/thief.webp'));
+  scene.load.image(THIEF_KEYS.hold, binaryUrl('chars/thief_hold.webp'));
+  scene.load.image(THIEF_KEYS.hand, binaryUrl('chars/thief_hand.webp'));
   for (const n of STATION_SPRITES) scene.load.image(stationKey(n), binaryUrl(`stations/${n}.png`));
   for (const n of FX_NAMES) scene.load.image(fxKey(n), binaryUrl(`fx/${n}.png`));
   for (const n of SFX_NAMES) scene.load.audio(sfxKey(n), binaryUrl(`audio/${n}.ogg`));

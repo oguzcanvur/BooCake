@@ -1,26 +1,59 @@
 import Phaser from 'phaser';
+import { THIEF_FRAME, THIEF_KEYS } from '../assets';
 import { DEPTH, LAYOUT, STATION_X, W } from '../config';
-import { SPECIAL_MONSTERS } from '../data/monsters';
-import { MonsterView } from './MonsterView';
+import { drawCupcake, type CupcakeData } from './cupcake';
 
 /** What happens when the thief reaches the ready tray. */
 export type ThiefOutcome = 'steal' | 'empty' | 'caught';
 
+/** Height of the thief on screen (world pixels) and how big the stolen cupcake looks in his hand. */
+const HEIGHT = 150;
+const CUP_SCALE = 0.5;
+
 /**
  * The thief does not take a counter seat: it runs along the front of the counter, grabs the cupcakes on the
- * ready tray and runs off. If a security guard is there, it gets caught instead.
+ * ready tray and runs off holding one of them. If a security guard is there, it gets caught instead.
+ * It uses the team's drawings (standing / holding a cupcake); the cupcake in his hand is drawn in code.
  */
 export class Thief {
-  private readonly view: MonsterView;
+  private readonly root: Phaser.GameObjects.Container;
+  private readonly inner: Phaser.GameObjects.Container;
+  private readonly body: Phaser.GameObjects.Image;
+  private readonly cup: Phaser.GameObjects.Graphics;
+  private readonly hand: Phaser.GameObjects.Image;
   private done = false;
 
   constructor(private readonly scene: Phaser.Scene) {
-    // a small full-body figure running on the table, in front of the tray row
-    const y = LAYOUT.trayY - 44;
-    this.view = new MonsterView(scene, W + 90, y, SPECIAL_MONSTERS.thief);
-    this.view.root.setDepth(DEPTH.thief).setScale(0.6);
-    this.view.face(-1);
-    this.view.setMood('angry');
+    const s = HEIGHT / THIEF_FRAME.h;
+    const F = THIEF_FRAME;
+    const feetY = LAYOUT.trayY + 24;
+    this.root = scene.add.container(W + 90, feetY).setDepth(DEPTH.thief);
+    const shadow = scene.add.ellipse(0, -2, 96, 14, 0x000000, 0.22);
+    this.inner = scene.add.container(0, 0);
+    this.body = scene.add.image(0, 0, THIEF_KEYS.stand).setOrigin(F.ox, 1).setScale(s);
+    this.cup = scene.add.graphics().setVisible(false);
+    this.cup.setPosition((F.cupX - F.ox) * F.w * s, -(1 - F.cupY) * F.h * s);
+    this.hand = scene.add.image(0, 0, THIEF_KEYS.hand).setOrigin(F.ox, 1).setScale(s).setVisible(false);
+    this.inner.add([this.body, this.cup, this.hand]);
+    this.root.add([shadow, this.inner]);
+  }
+
+  /** The thief holds this cupcake in his hand (switches to the "holding" picture). */
+  holdCupcake(c: CupcakeData): void {
+    if (this.done) return;
+    this.body.setTexture(THIEF_KEYS.hold);
+    this.cup.clear();
+    drawCupcake(this.cup, 0, 0, c, CUP_SCALE);
+    this.cup.setVisible(true);
+    this.hand.setVisible(true);
+  }
+
+  private hop(height: number, ms: number): void {
+    this.scene.tweens.add({ targets: this.inner, y: `-=${height}`, duration: ms, yoyo: true, ease: 'Quad.easeOut' });
+  }
+
+  private shake(): void {
+    this.scene.tweens.add({ targets: this.inner, x: '+=8', duration: 50, yoyo: true, repeat: 3 });
   }
 
   /**
@@ -28,9 +61,9 @@ export class Thief {
    * `onDone` runs when the thief has left the screen.
    */
   run(decide: () => ThiefOutcome, onDone: () => void): void {
-    const root = this.view.root;
+    const root = this.root;
     const stopX = STATION_X.tray[1] + 90;
-    const hops = this.scene.time.addEvent({ delay: 170, loop: true, callback: () => this.view.hop(12, 85) });
+    const hops = this.scene.time.addEvent({ delay: 170, loop: true, callback: () => this.hop(12, 85) });
 
     this.scene.tweens.add({
       targets: root,
@@ -42,14 +75,12 @@ export class Thief {
         const outcome = decide();
         if (outcome === 'caught') {
           // caught: wiggle in place, then vanish with a poof
-          this.view.shake();
+          this.shake();
           this.scene.time.delayedCall(900, () => this.finish(onDone));
         } else {
-          this.view.setMood(outcome === 'steal' ? 'happy' : 'angry');
-          if (outcome === 'empty') this.view.shake();
+          if (outcome === 'empty') this.shake();
           this.scene.time.delayedCall(380, () => {
-            this.view.face(1);
-            const hops2 = this.scene.time.addEvent({ delay: 150, loop: true, callback: () => this.view.hop(12, 75) });
+            const hops2 = this.scene.time.addEvent({ delay: 150, loop: true, callback: () => this.hop(12, 75) });
             this.scene.tweens.add({
               targets: root,
               x: -120,
@@ -66,30 +97,31 @@ export class Thief {
     });
   }
 
-  /** Position of the thief (for effects). */
+  /** Position of the thief (for effects): about his chest. */
   get x(): number {
-    return this.view.root.x;
+    return this.root.x;
   }
 
   get y(): number {
-    return this.view.root.y;
+    return this.root.y - 60;
   }
 
   destroy(): void {
     if (this.done) return;
     this.done = true;
-    this.view.destroy();
+    this.scene.tweens.killTweensOf([this.root, this.inner]);
+    this.root.destroy();
   }
 
   private finish(onDone: () => void): void {
     if (this.done) return;
     this.done = true;
     this.scene.tweens.add({
-      targets: this.view.root,
+      targets: this.root,
       alpha: 0,
       duration: 240,
       onComplete: () => {
-        this.view.destroy();
+        this.root.destroy();
         onDone();
       },
     });
