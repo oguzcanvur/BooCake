@@ -321,7 +321,7 @@ export class NightScene extends Phaser.Scene {
       cy + panelH / 2 + 56,
       300,
       70,
-      T.openShop,
+      T.startDay,
       () => {
         sfx(this, 'night_start', 0.6);
         cover.destroy();

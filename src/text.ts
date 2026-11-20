@@ -29,7 +29,7 @@ export const T = {
   // day intro
   dayIntro: (n: number) => `Day ${n}`,
   goal: (g: number) => `Goal: $${g}`,
-  openShop: 'Open shop',
+  startDay: 'Start day',
   newCustomer: 'New customer',
 
   // hints and messages during play
