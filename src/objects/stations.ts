@@ -136,10 +136,19 @@ export function createTrash(scene: Phaser.Scene, x: number, y: number, onClick: 
   makeIngredient(scene, addPicture(scene, x, 'trash', { h: 88 }, y + 44), onClick);
 }
 
-/** The plate on its mat: the preparation spot. The cupcake itself is drawn by the scene. */
-export function createPlate(scene: Phaser.Scene, x: number, y: number, onClick: () => void): void {
-  addPicture(scene, x, 'plate', { w: 172 }).setDepth(DEPTH.station);
-  scene.add.zone(x, y, 136, 150).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
+/** Width of a plate picture on screen. */
+export const PLATE_W = 128;
+
+/** A plate: a preparation spot. The cupcake itself is drawn by the scene. */
+export function createPlate(scene: Phaser.Scene, x: number, bottom: number, onClick: () => void): void {
+  addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station);
+  scene.add.zone(x, bottom - 48, PLATE_W + 6, 104).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
+}
+
+/** A plate place the player has not bought yet: a faded plate with a "buy in shop" tag. */
+export function createLockedPlate(scene: Phaser.Scene, x: number, bottom: number): void {
+  const pic = addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station).setAlpha(0.4);
+  withTag(scene, pic, T.ovenLocked, 0.45, 10);
 }
 
 /** The ready tray: a silver tray with handles, one click zone per slot. */

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio';
-import { DEPTH, FONT, H, LAYOUT, STATION_X, W } from '../config';
+import { DEPTH, FONT, H, LAYOUT, PLATES, STATION_X, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
@@ -15,6 +15,7 @@ import {
   createDoughTable,
   createFrostingPocket,
   createLockedOven,
+  createLockedPlate,
   createPipingBag,
   createPlate,
   createToppingJar,
@@ -22,7 +23,7 @@ import {
   createTray,
 } from '../objects/stations';
 import { Thief, type ThiefOutcome } from '../objects/Thief';
-import { currentDay, gameState, ovenCount } from '../systems/GameState';
+import { currentDay, gameState, ovenCount, plateCount } from '../systems/GameState';
 import { MONSTER_CARDS, T } from '../text';
 import { makeButton } from '../ui/button';
 import { Hud } from '../ui/Hud';
@@ -30,8 +31,11 @@ import { drawPanel } from '../ui/panel';
 
 type Phase = 'intro' | 'playing' | 'ended';
 
-/** Where a cupcake can be: on the plate, on a ready-tray slot, or still in an oven (a burnt one). */
-type Loc = { kind: 'plate' } | { kind: 'tray'; i: number } | { kind: 'oven'; i: number };
+/** Where a cupcake can be: on a plate, on a ready-tray slot, or still in an oven (a burnt one). */
+type Loc = { kind: 'plate' | 'tray' | 'oven'; i: number };
+
+/** Cupcake center above a plate's bottom edge. */
+const ON_PLATE = 60;
 
 export interface DayStats {
   served: number;
@@ -47,8 +51,8 @@ export interface DayStats {
  * One day in the shop: the core gameplay loop.
  *
  * Click flow ("select, then click the target"):
- *   dough bowl -> oven (cooks 5 s, burns after 10 s) -> click the cupcake to move it to the plate
- *   -> frosting -> topping -> click the customer (or put it on the ready tray and serve it later).
+ *   dough bowl -> oven (cooks 5 s, burns after 10 s) -> click the cupcake to move it to a free plate
+ *   -> frosting -> topping (they go on the selected plate, or on the first plate that needs them) -> click the customer (or put it on the ready tray and serve it later).
  *   The trash can throws away whatever is selected (plate, tray cupcake or a burnt cupcake in the oven).
  *
  * Scene events used: 'cupcake-ready', 'cupcake-burned'.
@@ -63,7 +67,8 @@ export class NightScene extends Phaser.Scene {
   /** Clicks are ignored until this time (vampire bite). */
   private lockUntil = 0;
 
-  private plate: CupcakeData | null = null;
+  /** One entry per plate the player owns (2 at the start, up to 4). */
+  private plates: (CupcakeData | null)[] = [];
   private tray: (CupcakeData | null)[] = [];
   private selected: Loc | null = null;
 
@@ -95,7 +100,7 @@ export class NightScene extends Phaser.Scene {
     this.spawnIn = CONFIG.firstCustomerSec;
     this.lastTick = -1;
     this.lockUntil = 0;
-    this.plate = null;
+    this.plates = new Array(plateCount()).fill(null);
     this.tray = new Array(CONFIG.traySlots).fill(null);
     this.selected = null;
     this.customers = LAYOUT.customerSlotsX.map(() => null);
@@ -214,15 +219,18 @@ export class NightScene extends Phaser.Scene {
     const doughTable = createDoughTable(this, 140);
     DOUGHS.forEach((d) => this.bowls.push(createDoughBowl(this, doughTable, d.id, () => this.onDough(d.id))));
 
-    // ovens (the 3rd one is locked until it is bought in the shop)
+    // ovens (the 2nd one is locked until it is bought in the shop)
     const owned = ovenCount();
     STATION_X.oven.forEach((x, i) => {
       if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOven(slot)));
       else createLockedOven(this, x);
     });
 
-    // plate (the preparation spot)
-    createPlate(this, STATION_X.plate, y, () => this.onPlate());
+    // plates (preparation spots); the ones not bought yet show a faded plate
+    PLATES.forEach((p, i) => {
+      if (i < this.plates.length) createPlate(this, p.x, p.bottom, () => this.onPlate(i));
+      else createLockedPlate(this, p.x, p.bottom);
+    });
 
     // frosting and toppings
     const pocket = createFrostingPocket(this, 906);
@@ -361,16 +369,22 @@ export class NightScene extends Phaser.Scene {
     });
   }
 
+  /** The plate under a point, if any (-1 = none). */
+  private plateAt(x: number, y: number): number {
+    return this.plates.findIndex((_c, i) => Math.abs(x - PLATES[i].x) < 66 && y > PLATES[i].bottom - 110 && y < PLATES[i].bottom + 4);
+  }
+
   /** The plate or tray cupcake under a point, if any. */
   private cupcakeAt(x: number, y: number): Loc | null {
-    if (this.plate && Math.abs(x - STATION_X.plate) < 70 && Math.abs(y - LAYOUT.stationY) < 75) return { kind: 'plate' };
+    const p = this.plateAt(x, y);
+    if (p >= 0 && this.plates[p]) return { kind: 'plate', i: p };
     for (let i = 0; i < this.tray.length; i++) {
       if (this.tray[i] && Math.abs(x - STATION_X.tray[i]) < 50 && Math.abs(y - LAYOUT.trayY) < 48) return { kind: 'tray', i };
     }
     return null;
   }
 
-  /** Drop a dragged cupcake: serve a customer, put it on a free tray slot, or throw it away. */
+  /** Drop a dragged cupcake: serve a customer, put it on a free tray slot or plate, or throw it away. */
   private dropAt(loc: Loc, x: number, y: number): void {
     const customer = this.customers.find((c) => c && Math.abs(x - c.x) < 110 && y < LAYOUT.counterTop + 30);
     if (customer) {
@@ -393,13 +407,16 @@ export class NightScene extends Phaser.Scene {
     if (Math.abs(x - STATION_X.trash) < 50 && Math.abs(y - LAYOUT.trayY) < 60) {
       this.select(loc);
       this.onTrash();
+      return;
     }
+    const plate = this.plateAt(x, y);
+    if (plate >= 0 && !this.plates[plate]) this.moveToPlate(loc, plate);
   }
 
   // ---------------------------------------------------------------- selection and drawing
 
   private peek(loc: Loc): CupcakeData | null {
-    if (loc.kind === 'plate') return this.plate;
+    if (loc.kind === 'plate') return this.plates[loc.i];
     if (loc.kind === 'tray') return this.tray[loc.i];
     return this.ovens[loc.i]?.cupcake ?? null;
   }
@@ -407,8 +424,8 @@ export class NightScene extends Phaser.Scene {
   /** Take the cupcake out of its place and return it. */
   private removeFrom(loc: Loc): CupcakeData | null {
     if (loc.kind === 'plate') {
-      const c = this.plate;
-      this.plate = null;
+      const c = this.plates[loc.i];
+      this.plates[loc.i] = null;
       return c;
     }
     if (loc.kind === 'tray') {
@@ -420,7 +437,7 @@ export class NightScene extends Phaser.Scene {
   }
 
   private locPos(loc: Loc): { x: number; y: number } {
-    if (loc.kind === 'plate') return { x: STATION_X.plate, y: LAYOUT.stationY - 16 };
+    if (loc.kind === 'plate') return { x: PLATES[loc.i].x, y: PLATES[loc.i].bottom - ON_PLATE - 24 };
     if (loc.kind === 'tray') return { x: STATION_X.tray[loc.i], y: LAYOUT.trayY - 14 };
     return { x: this.ovens[loc.i].x, y: this.ovens[loc.i].y };
   }
@@ -433,20 +450,20 @@ export class NightScene extends Phaser.Scene {
 
   private isSelected(loc: Loc): boolean {
     const s = this.selected;
-    if (!s || s.kind !== loc.kind) return false;
-    return s.kind === 'plate' || (s as { i: number }).i === (loc as { i: number }).i;
+    return !!s && s.kind === loc.kind && s.i === loc.i;
   }
 
-  /** Redraw the cupcakes on the plate and on the ready tray; the selected one is lifted up a little. */
+  /** Redraw the cupcakes on the plates and on the ready tray; the selected one is lifted up a little. */
   private refreshItems(): void {
     const g = this.itemsGfx;
     g.clear();
     const LIFT = 10;
     const dragged = this.drag?.moving ? this.drag.loc : null;
-    if (this.plate && dragged?.kind !== 'plate') {
-      const lift = this.isSelected({ kind: 'plate' }) ? LIFT : 0;
-      drawCupcake(g, STATION_X.plate, LAYOUT.stationY + 8 - lift, this.plate, 1.2);
-    }
+    this.plates.forEach((c, i) => {
+      if (!c || (dragged?.kind === 'plate' && dragged.i === i)) return;
+      const lift = this.isSelected({ kind: 'plate', i }) ? LIFT : 0;
+      drawCupcake(g, PLATES[i].x, PLATES[i].bottom - ON_PLATE - lift, c, 1.1);
+    });
     this.tray.forEach((c, i) => {
       if (!c || (dragged?.kind === 'tray' && dragged.i === i)) return;
       const lift = this.isSelected({ kind: 'tray', i }) ? LIFT : 0;
@@ -490,7 +507,7 @@ export class NightScene extends Phaser.Scene {
     if (!slot) {
       this.ovens.forEach((o) => o.shake());
       this.bowls.forEach((b) => b.shake());
-      this.hint(T.ovenFull, STATION_X.oven[1], LAYOUT.stationY - 100);
+      this.hint(T.ovenFull, STATION_X.oven[0] + 60, LAYOUT.stationY - 100);
       return;
     }
     sfx(this, 'bake_start', 0.5);
@@ -506,8 +523,9 @@ export class NightScene extends Phaser.Scene {
       return;
     }
     const index = this.ovens.indexOf(slot);
-    if (this.plate) {
-      // the plate is busy: a burnt cupcake can still be selected so the trash can takes it
+    const free = this.plates.indexOf(null);
+    if (free < 0) {
+      // every plate is busy: a burnt cupcake can still be selected so the trash can takes it
       if (c.bake === 'burnt') {
         this.select({ kind: 'oven', i: index });
         this.hint(T.burntSelected, slot.x, slot.y - 96);
@@ -517,39 +535,76 @@ export class NightScene extends Phaser.Scene {
       return;
     }
     sfx(this, 'pickup', 0.5);
-    this.plate = slot.take();
-    this.select({ kind: 'plate' });
+    this.plates[free] = slot.take();
+    this.select({ kind: 'plate', i: free });
   }
 
-  private onPlate(): void {
-    if (this.blocked() || !this.plate) return;
-    sfx(this, 'pickup', 0.35);
-    this.select({ kind: 'plate' });
+  private onPlate(i: number): void {
+    if (this.blocked()) return;
+    if (this.plates[i]) {
+      sfx(this, 'pickup', 0.35);
+      this.select({ kind: 'plate', i });
+      return;
+    }
+    // an empty plate: the selected plate or tray cupcake moves onto it
+    if (this.selected && this.selected.kind !== 'oven') this.moveToPlate(this.selected, i);
+  }
+
+  /** Move a plate or tray cupcake onto an empty plate (it stays selected). */
+  private moveToPlate(from: Loc, i: number): void {
+    if (from.kind === 'oven' || this.plates[i] || !this.peek(from)) return;
+    this.plates[i] = this.removeFrom(from);
+    sfx(this, 'place', 0.45);
+    this.select({ kind: 'plate', i });
+  }
+
+  /**
+   * The plate the next frosting / topping goes on: the selected plate, otherwise the first plate whose
+   * cupcake still needs that step (otherwise any cupcake, so the hint explains why it does not fit).
+   */
+  private workPlate(needs: (c: CupcakeData) => boolean): number {
+    if (this.selected?.kind === 'plate' && this.plates[this.selected.i]) return this.selected.i;
+    const i = this.plates.findIndex((c) => c && c.bake !== 'burnt' && needs(c));
+    return i >= 0 ? i : this.plates.findIndex((c) => c);
   }
 
   private onFrosting(id: FrostingId, bx: number, by: number): void {
     if (this.blocked()) return;
-    const c = this.plate;
+    const i = this.workPlate((c) => !c.frosting);
+    const c = i >= 0 ? this.plates[i] : null;
     if (!c) return this.hint(T.plateEmpty, bx, by - 96);
     if (c.bake === 'burnt') return this.hint(T.burntNoDecorate, bx, by - 96);
     if (c.frosting) return this.hint(T.alreadyFrosted, bx, by - 96);
     c.frosting = id;
     sfx(this, 'place', 0.45);
-    burst(this, bx, by + 42, 'circle_05', { count: 7, tint: frostingInfo(id).color, gravity: 260, speed: [40, 120], scale: [0.18, 0.04], additive: false });
+    burst(this, PLATES[i].x, PLATES[i].bottom - ON_PLATE - 20, 'circle_05', { count: 7, tint: frostingInfo(id).color, gravity: 260, speed: [40, 120], scale: [0.18, 0.04], additive: false });
     this.refreshItems();
   }
 
   private onTopping(id: ToppingId, bx: number, by: number): void {
     if (this.blocked()) return;
-    const c = this.plate;
+    const i = this.workPlate((c) => !!c.frosting && !c.topping);
+    const c = i >= 0 ? this.plates[i] : null;
     if (!c) return this.hint(T.plateEmpty, bx, by - 96);
     if (c.bake === 'burnt') return this.hint(T.burntNoDecorate, bx, by - 96);
     if (!c.frosting) return this.hint(T.frostingFirst, bx, by - 96);
     if (c.topping) return this.hint(T.alreadyTopped, bx, by - 96);
     c.topping = id;
     sfx(this, 'place', 0.45, 1.25);
-    burst(this, bx, by - 10, 'spark_05', { count: 8, tint: 0xfff0a8, gravity: 120, speed: [50, 140], scale: [0.2, 0.04] });
+    burst(this, PLATES[i].x, PLATES[i].bottom - ON_PLATE - 36, 'spark_05', { count: 8, tint: 0xfff0a8, gravity: 120, speed: [50, 140], scale: [0.2, 0.04] });
     this.refreshItems();
+  }
+
+  /** The selected plate if its cupcake is finished, otherwise the first plate with a finished one (-1 = none). */
+  private finishedPlate(prefer?: (c: CupcakeData) => boolean): number {
+    const s = this.selected;
+    if (s?.kind === 'plate') {
+      const c = this.plates[s.i];
+      return c && isFinished(c) ? s.i : -1;
+    }
+    const ok = (c: CupcakeData | null): c is CupcakeData => !!c && c.bake !== 'burnt' && isFinished(c);
+    const best = prefer ? this.plates.findIndex((c) => ok(c) && prefer(c)) : -1;
+    return best >= 0 ? best : this.plates.findIndex(ok);
   }
 
   private onTray(i: number): void {
@@ -561,10 +616,11 @@ export class NightScene extends Phaser.Scene {
       this.select({ kind: 'tray', i });
       return;
     }
-    if (this.plate && isFinished(this.plate)) {
+    const p = this.finishedPlate();
+    if (p >= 0) {
       sfx(this, 'place', 0.45);
-      this.tray[i] = this.plate;
-      this.plate = null;
+      this.tray[i] = this.plates[p];
+      this.plates[p] = null;
       this.select(null);
       return;
     }
@@ -573,7 +629,9 @@ export class NightScene extends Phaser.Scene {
 
   private onTrash(): void {
     if (this.blocked()) return;
-    const loc: Loc | null = this.selected ?? (this.plate ? { kind: 'plate' } : null);
+    // nothing selected: with a single cupcake on the plates, that one goes
+    const full = this.plates.flatMap((c, i) => (c ? [i] : []));
+    const loc: Loc | null = this.selected ?? (full.length === 1 ? { kind: 'plate', i: full[0] } : null);
     if (!loc || !this.peek(loc)) return this.hint(T.nothingToTrash, STATION_X.trash - 60, LAYOUT.trayY - 70);
     this.removeFrom(loc);
     this.select(null);
@@ -583,10 +641,15 @@ export class NightScene extends Phaser.Scene {
 
   private onCustomer(c: Customer): void {
     if (this.blocked()) return;
-    // the selected tray cupcake wins; otherwise serve what is on the plate
+    // the selected cupcake wins; otherwise a finished plate cupcake (one that matches the order first)
     let loc: Loc | null = null;
     if (this.selected && this.selected.kind !== 'oven') loc = this.selected;
-    else if (this.plate) loc = { kind: 'plate' };
+    else {
+      const p = this.finishedPlate((item) => matchesOrder(item, c.order));
+      const any = this.plates.findIndex((item) => item);
+      if (p >= 0) loc = { kind: 'plate', i: p };
+      else if (any >= 0) loc = { kind: 'plate', i: any };
+    }
     const item = loc ? this.peek(loc) : null;
     if (!loc || !item) return this.hint(T.nothingToServe, c.x, c.y - 10);
     if (item.bake === 'burnt') return this.hint(T.burntNoServe, c.x, c.y - 10);

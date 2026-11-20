@@ -33,7 +33,7 @@ export const T = {
   // hints and messages during play
   ovenFull: 'Oven is full!',
   stillBaking: 'Baking...',
-  plateFull: 'Plate is full!',
+  plateFull: 'All plates are full!',
   plateEmpty: 'Take a cake from the oven first',
   burntNoDecorate: "Can't decorate a burnt cake. Trash it!",
   alreadyFrosted: 'Already frosted',
@@ -45,7 +45,7 @@ export const T = {
   trayNeedsFinished: 'Only finished cupcakes go on the tray',
   trayFull: 'Tray is full',
   nothingToTrash: 'Pick something to throw away',
-  burntSelected: 'Plate is full: burnt cake picked, click the trash',
+  burntSelected: 'Plates are full: burnt cake picked, click the trash',
   ready: 'Ready!',
   burnt: 'Burnt!',
   wrongOrder: 'Wrong cupcake!',
@@ -89,7 +89,9 @@ export const T = {
   guardName: 'Security Guard',
   guardDesc: 'Catches the thief, who leaves +$5.',
   ovenName: 'Extra Oven',
-  ovenDesc: 'Bake one more cake at a time (up to 3 ovens).',
+  ovenDesc: 'Bake two cakes at a time.',
+  plateName: 'Extra Plate',
+  plateDesc: 'Room for one more cupcake (up to 4 plates).',
 
   // final
   finalTitle: 'You won!',

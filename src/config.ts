@@ -75,11 +75,21 @@ export const LAYOUT = {
 /** Horizontal centers of everything on the table. */
 export const STATION_X = {
   dough: [63, 142, 222],
-  oven: [328, 452, 576],
-  plate: 717,
+  oven: [335, 460],
   frosting: [838, 910, 982],
   topping: [1062, 1134, 1206],
   tray: [150, 270],
   trash: 1196,
-  guard: 580,
+  guard: 1088,
 };
+
+/**
+ * The plates (preparation spots). x = center, bottom = where the plate picture stands.
+ * The first two are on the workbench; the two bought in the shop sit just above them, in the tray row.
+ */
+export const PLATES: { x: number; bottom: number }[] = [
+  { x: 588, bottom: 700 },
+  { x: 718, bottom: 700 },
+  { x: 588, bottom: 536 },
+  { x: 718, bottom: 536 },
+];

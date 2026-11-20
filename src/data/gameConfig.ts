@@ -29,6 +29,8 @@ export const CONFIG = {
 
   /** Oven: seconds until cooked, and until burnt. (Cooked between cookSec and burnSec.) */
   oven: { slots: 1, cookSec: 5, burnSec: 10 },
+  /** Plates the player starts with (more can be bought in the shop, see MAX_EXTRA_PLATES). */
+  plates: { slots: 2 },
   /** How many finished cupcakes the ready tray holds. */
   traySlots: 2,
 
@@ -49,7 +51,7 @@ export const CONFIG = {
   stars: [1.0, 1.3, 1.6],
 
   /** Shop prices (permanent upgrades). */
-  shop: { garlic: 40, guard: 60, oven: 50 },
+  shop: { garlic: 40, guard: 60, oven: 50, plate: 30 },
 
   /** The 4 days. */
   days: [
