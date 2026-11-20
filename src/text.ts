@@ -23,6 +23,8 @@ export const T = {
   tray: 'TRAY',
   trash: 'TRASH',
   ovenLocked: 'Buy in shop',
+  /** Tag on an ingredient that opens on a later day. */
+  fromDay: (n: number) => `Day ${n}`,
 
   // day intro
   dayIntro: (n: number) => `Day ${n}`,

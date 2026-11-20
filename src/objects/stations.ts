@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
 import { doughInfo, frostingInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { drawTopping } from './cupcake';
 import { CONFIG } from '../data/gameConfig';
 import { T } from '../text';
 
@@ -53,28 +54,65 @@ function makeIngredient(scene: Phaser.Scene, pic: Movable, onClick: () => void, 
 }
 
 /** Where each part sits on its base picture (center, in the base picture's pixels; measured when cutting). */
-const BOWLS: Record<DoughId, { key: StationSprite; cx: number; cy: number }> = {
-  vanilla: { key: 'bowl_vanilla', cx: 62, cy: 53 },
-  chocolate: { key: 'bowl_chocolate', cx: 152.5, cy: 53 },
-  strawberry: { key: 'bowl_strawberry', cx: 244.5, cy: 53 },
+const BOWL_SPOTS = [
+  { cx: 62, cy: 53 },
+  { cx: 152.5, cy: 53 },
+  { cx: 244.5, cy: 53 },
+];
+const BAG_SPOTS = [
+  { cx: 45, cy: 106.5 },
+  { cx: 130, cy: 93.5 },
+  { cx: 214, cy: 105 },
+];
+/** The new flavors' pictures are recolored copies of the team's strawberry bowl and pink bag. */
+const BOWL: Record<DoughId, StationSprite> = {
+  vanilla: 'bowl_vanilla',
+  chocolate: 'bowl_chocolate',
+  strawberry: 'bowl_strawberry',
+  redvelvet: 'bowl_redvelvet',
+  lemon: 'bowl_lemon',
+  matcha: 'bowl_matcha',
 };
-const BAGS: Record<FrostingId, { key: StationSprite; cx: number; cy: number }> = {
-  pink: { key: 'bag_pink', cx: 45, cy: 106.5 },
-  mint: { key: 'bag_mint', cx: 130, cy: 93.5 },
-  lilac: { key: 'bag_lilac', cx: 214, cy: 105 },
+const BAG: Record<FrostingId, StationSprite> = {
+  pink: 'bag_pink',
+  mint: 'bag_mint',
+  lilac: 'bag_lilac',
+  cream: 'bag_vanilla',
+  choco: 'bag_chocolate',
+  caramel: 'bag_caramel',
 };
-const JAR: Record<ToppingId, StationSprite> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
+/** The team's jars; the new toppings use an emptied copy of the sprinkles jar with the candies drawn inside. */
+const JAR: Partial<Record<ToppingId, StationSprite>> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
+/** Where the drawn candies sit inside the empty jar (in its own pixels: above and below the label). */
+const JAR_FILL = [
+  [25, 47],
+  [47, 45],
+  [19, 101],
+  [37, 98],
+  [54, 102],
+];
 
-/** The little table the dough bowls stand on. */
-export function createDoughTable(scene: Phaser.Scene, cx: number): Phaser.GameObjects.Image {
-  return addPicture(scene, cx, 'dough_table', { w: 262 });
+/** Faded and not clickable: an ingredient that joins on a later day. */
+const LOCKED_ALPHA = 0.35;
+
+/** Where an ingredient is on screen (for hints and effects). */
+export interface Spot {
+  x: number;
+  y: number;
+  shake: () => void;
+}
+
+/** A dough table for 3 bowls, standing on `bottom`. */
+export function createDoughTable(scene: Phaser.Scene, cx: number, w: number, bottom: number): Phaser.GameObjects.Image {
+  return addPicture(scene, cx, 'dough_table', { w }, bottom);
 }
 
 /**
  * Put `pic` in a container (standing on its bottom center) with a cream name tag stuck over the Turkish word
  * written on the drawing. `fromTop` = where that word is, as a share of the picture's height from its top.
+ * `extra` objects (drawn candies) go between the picture and the tag.
  */
-function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: string, fromTop: number, fontSize = 12): Phaser.GameObjects.Container {
+function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: string, fromTop: number, fontSize = 12, extra: Phaser.GameObjects.GameObject[] = []): Phaser.GameObjects.Container {
   const w = pic.displayWidth;
   const h = pic.displayHeight;
   const box = scene.add.container(pic.x, pic.y).setDepth(pic.depth);
@@ -89,56 +127,77 @@ function withTag(scene: Phaser.Scene, pic: Phaser.GameObjects.Image, label: stri
   tag.fillRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
   tag.lineStyle(2, INK, 1);
   tag.strokeRoundedRect(-tw / 2, text.y - th / 2, tw, th, 6);
-  box.add([pic, tag, text]);
+  box.add([pic, ...extra, tag, text]);
   return box;
 }
 
-/** One dough bowl on the table. Returns a handle to wiggle it ("the ovens are full"). */
-export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.Image, id: DoughId, onClick: () => void): { shake: () => void } {
-  const b = BOWLS[id];
-  const pic = addPart(scene, table, b.key, b.cx, b.cy);
-  const w = pic.displayWidth;
-  const h = pic.displayHeight;
-  // the bowl's name is written on its front, about 76% down
-  const bowl = withTag(scene, pic, doughInfo(id).name, 0.76, 11);
-  makeIngredient(scene, bowl, onClick, w, h);
+/** Clickable (wiggle + hop), or locked: faded picture, tag says from which day. Returns where it is and a "no" wiggle. */
+function finish(scene: Phaser.Scene, box: Phaser.GameObjects.Container, w: number, h: number, locked: boolean, onClick: () => void): Spot {
+  if (locked) {
+    const [pic, ...rest] = box.list as (Phaser.GameObjects.Image | Phaser.GameObjects.Graphics | Phaser.GameObjects.Text)[];
+    pic.setAlpha(LOCKED_ALPHA);
+    // drawn candies (empty jar) fade too; the tag and its text stay
+    rest.slice(0, rest.length - 2).forEach((o) => o.setAlpha(LOCKED_ALPHA));
+    (rest[rest.length - 1] as Phaser.GameObjects.Text).setText(T.fromDay(CONFIG.extrasFromDay));
+  } else makeIngredient(scene, box, onClick, w, h);
   return {
-    shake: () => scene.tweens.add({ targets: bowl, x: bowl.x + 5, duration: 45, yoyo: true, repeat: 3 }),
+    x: box.x,
+    y: box.y - h / 2,
+    shake: () => scene.tweens.add({ targets: box, x: box.x + 5, duration: 45, yoyo: true, repeat: 3 }),
   };
 }
 
-/** The cloth pocket the piping bags hang in (it reaches up into the tray row). */
-export function createFrostingPocket(scene: Phaser.Scene, cx: number): Phaser.GameObjects.Image {
-  return addPicture(scene, cx, 'frosting_pocket', { h: 228 });
+/** One dough bowl on a table (`spot` 0..2 = left to right). */
+export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.Image, spot: number, id: DoughId, locked: boolean, onClick: () => void): Spot {
+  const b = BOWL_SPOTS[spot];
+  const pic = addPart(scene, table, BOWL[id], b.cx, b.cy);
+  const w = pic.displayWidth;
+  const h = pic.displayHeight;
+  // the bowl's name is written on its front, about 76% down
+  return finish(scene, withTag(scene, pic, doughInfo(id).name, 0.76, 10), w, h, locked, onClick);
 }
 
-/** One piping bag in the pocket, with a flavor tag stuck over the color name written on the drawing. */
-export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, id: FrostingId, onClick: () => void): void {
-  const b = BAGS[id];
-  const pic = addPart(scene, pocket, b.key, b.cx, b.cy);
+/** A cloth pocket the piping bags hang in. */
+export function createFrostingPocket(scene: Phaser.Scene, cx: number, h: number, bottom: number): Phaser.GameObjects.Image {
+  return addPicture(scene, cx, 'frosting_pocket', { h }, bottom);
+}
+
+/** One piping bag in a pocket (`spot` 0..2), with a flavor tag stuck over the color name written on the drawing. */
+export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, locked: boolean, onClick: () => void): Spot {
+  const b = BAG_SPOTS[spot];
+  const pic = addPart(scene, pocket, BAG[id], b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
   // the drawing's color name sits about 37% down from the top of the bag; long flavors go on two lines
-  const name = frostingInfo(id).name.replace(/(berry|chio)$/, '-\n$1');
-  makeIngredient(scene, withTag(scene, pic, name, 0.37, 11), onClick, w, h);
+  const name = frostingInfo(id).name.replace(/(berry|chio|late)$/, '-\n$1');
+  return finish(scene, withTag(scene, pic, name, 0.37, 10), w, h, locked, onClick);
 }
 
 /** Glass jar of toppings with a cork lid and a label. */
-export function createToppingJar(scene: Phaser.Scene, x: number, id: ToppingId, onClick: () => void): void {
-  const pic = addPicture(scene, x, JAR[id], { h: 130 });
+export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number, height: number, id: ToppingId, locked: boolean, onClick: () => void): Spot {
+  const key = JAR[id];
+  const pic = addPicture(scene, x, key ?? 'jar_empty', { h: height }, bottom);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
+  const extra: Phaser.GameObjects.GameObject[] = [];
+  if (!key) {
+    // fill the empty jar with the topping itself (positions are in the picture's own pixels)
+    const s = pic.scaleX;
+    const g = scene.add.graphics();
+    for (const [px, py] of JAR_FILL) drawTopping(g, (px - pic.width / 2) * s, (py - pic.height) * s, id, 0.62 * s);
+    extra.push(g);
+  }
   // the jar's paper label is about 60% down
-  makeIngredient(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 11), onClick, w, h);
+  return finish(scene, withTag(scene, pic, toppingInfo(id).name, 0.6, 10, extra), w, h, locked, onClick);
 }
 
-/** Trash can with a skull. */
-export function createTrash(scene: Phaser.Scene, x: number, y: number, onClick: () => void): void {
-  makeIngredient(scene, addPicture(scene, x, 'trash', { h: 88 }, y + 44), onClick);
+/** Trash can with a skull; (x, y) is its center. */
+export function createTrash(scene: Phaser.Scene, x: number, y: number, height: number, onClick: () => void): void {
+  makeIngredient(scene, addPicture(scene, x, 'trash', { h: height }, y + height / 2), onClick);
 }
 
 /** Width of a plate picture on screen. */
-export const PLATE_W = 128;
+export const PLATE_W = 116;
 
 /** A plate: a preparation spot. The cupcake itself is drawn by the scene. */
 export function createPlate(scene: Phaser.Scene, x: number, bottom: number, onClick: () => void): void {

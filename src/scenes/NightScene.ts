@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio';
-import { DEPTH, FONT, H, LAYOUT, PLATES, STATION_X, W } from '../config';
+import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKETS, STATION_X, TRASH, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
@@ -21,6 +21,7 @@ import {
   createToppingJar,
   createTrash,
   createTray,
+  type Spot,
 } from '../objects/stations';
 import { Thief, type ThiefOutcome } from '../objects/Thief';
 import { currentDay, gameState, ovenCount, plateCount } from '../systems/GameState';
@@ -74,7 +75,7 @@ export class NightScene extends Phaser.Scene {
 
   private customers: (Customer | null)[] = [];
   private ovens: OvenSlot[] = [];
-  private bowls: { shake: () => void }[] = [];
+  private bowls: Spot[] = [];
   private thieves: Thief[] = [];
   private guard: MonsterView | null = null;
   /** Each special monster is scheduled at least once per day. */
@@ -215,9 +216,15 @@ export class NightScene extends Phaser.Scene {
     const y = LAYOUT.stationY;
     const ty = LAYOUT.trayY;
 
-    // dough bowls on their little table
-    const doughTable = createDoughTable(this, 140);
-    DOUGHS.forEach((d) => this.bowls.push(createDoughBowl(this, doughTable, d.id, () => this.onDough(d.id))));
+    // the extra doughs / frostings / toppings (second table, second pocket, top jar row) open on a later day
+    const extrasLocked = !this.extrasOpen();
+
+    // dough bowls: 3 on each table (the extra ones on the top table)
+    const tables = DOUGH_TABLES.bottoms.map((bottom) => createDoughTable(this, DOUGH_TABLES.x, DOUGH_TABLES.w, bottom));
+    DOUGHS.forEach((d, i) => {
+      const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, d.extra && extrasLocked, () => this.onDough(d.id));
+      this.bowls.push(spot);
+    });
 
     // ovens (the 2nd one is locked until it is bought in the shop)
     const owned = ovenCount();
@@ -232,24 +239,30 @@ export class NightScene extends Phaser.Scene {
       else createLockedPlate(this, p.x, p.bottom);
     });
 
-    // frosting and toppings
-    const pocket = createFrostingPocket(this, 906);
-    FROSTINGS.forEach((f, i) => createPipingBag(this, pocket, f.id, () => this.onFrosting(f.id, STATION_X.frosting[i], y)));
-    TOPPINGS.forEach((t, i) => createToppingJar(this, STATION_X.topping[i], t.id, () => this.onTopping(t.id, STATION_X.topping[i], y)));
+    // frostings: two pockets with 3 bags each
+    const pockets = POCKETS.xs.map((x) => createFrostingPocket(this, x, POCKETS.h, POCKETS.bottom));
+    FROSTINGS.forEach((f, i) => {
+      const spot = createPipingBag(this, pockets[Math.floor(i / 3)], i % 3, f.id, f.extra && extrasLocked, () => this.onFrosting(f.id, spot.x, spot.y));
+    });
+    // toppings: jars in 3 columns, bottom row first
+    TOPPINGS.forEach((t, i) => {
+      const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, t.extra && extrasLocked, () => this.onTopping(t.id, spot.x, spot.y));
+    });
 
-    // ready tray and trash can
+    // tray (above the ovens) and trash can
     createTray(this, STATION_X.tray, ty, (i) => this.onTray(i));
-    this.add
-      .text(STATION_X.tray[1] + 108, ty - 6, T.tray, { fontFamily: FONT, fontSize: '15px', color: '#c9bdf0', fontStyle: 'bold' })
-      .setOrigin(0, 0.5)
-      .setDepth(DEPTH.station);
-    createTrash(this, STATION_X.trash, ty, () => this.onTrash());
+    createTrash(this, TRASH.x, TRASH.y, TRASH.h, () => this.onTrash());
 
-    // the security guard stands next to the tray
+    // the security guard stands behind the counter, at its left end
     if (gameState.upgrades.guard) {
-      this.guard = new MonsterView(this, STATION_X.guard, ty - 44, GUARD_MONSTER);
-      this.guard.root.setDepth(DEPTH.thief - 1).setScale(0.6);
+      this.guard = new MonsterView(this, GUARD.x, GUARD.y, GUARD_MONSTER);
+      this.guard.root.setDepth(DEPTH.monster).setScale(GUARD.scale);
     }
+  }
+
+  /** Are the extra doughs, frostings and toppings open today? */
+  private extrasOpen(): boolean {
+    return gameState.day + 1 >= CONFIG.extrasFromDay;
   }
 
   private showIntro(): void {
@@ -414,7 +427,7 @@ export class NightScene extends Phaser.Scene {
       this.putOnTray(loc, slot);
       return;
     }
-    if (Math.abs(x - STATION_X.trash) < 50 && Math.abs(y - LAYOUT.trayY) < 60) {
+    if (Math.abs(x - TRASH.x) < 45 && Math.abs(y - TRASH.y) < 50) {
       this.select(loc);
       this.onTrash();
       return;
@@ -658,11 +671,11 @@ export class NightScene extends Phaser.Scene {
     // nothing selected: with a single cupcake on the plates, that one goes
     const full = this.plates.flatMap((c, i) => (c ? [i] : []));
     const loc: Loc | null = this.selected ?? (full.length === 1 ? { kind: 'plate', i: full[0] } : null);
-    if (!loc || !this.peek(loc)) return this.hint(T.nothingToTrash, STATION_X.trash - 60, LAYOUT.trayY - 70);
+    if (!loc || !this.peek(loc)) return this.hint(T.nothingToTrash, TRASH.x - 60, TRASH.y - 50);
     this.removeFrom(loc);
     this.select(null);
     sfx(this, 'trash', 0.5);
-    burst(this, STATION_X.trash, LAYOUT.trayY - 20, 'smoke_05', { count: 5, tint: 0x9aa0b4, gravity: -30, speed: [20, 70], scale: [0.2, 0.5], additive: false });
+    burst(this, TRASH.x, TRASH.y - 20, 'smoke_05', { count: 5, tint: 0x9aa0b4, gravity: -30, speed: [20, 70], scale: [0.2, 0.5], additive: false });
   }
 
   private onCustomer(c: Customer): void {
@@ -755,7 +768,7 @@ export class NightScene extends Phaser.Scene {
     const def = kind ? pickSpecial(kind) : pickNormal();
     const slot = Phaser.Utils.Array.GetRandom(free);
     sfx(this, 'customer_arrive', 0.35);
-    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(), (cust) => this.onCustomer(cust));
+    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(this.extrasOpen()), (cust) => this.onCustomer(cust));
     this.customers[slot] = customer;
     if (def.kind === 'vampire') this.time.delayedCall(700, () => this.vampireArrives(customer));
     return true;

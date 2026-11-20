@@ -31,6 +31,8 @@ export const CONFIG = {
   oven: { slots: 1, cookSec: 5, burnSec: 10 },
   /** Plates the player starts with (more can be bought in the shop, see MAX_EXTRA_PLATES). */
   plates: { slots: 2 },
+  /** From this day on (1-based) the extra doughs, frostings and toppings are on the table and in the orders. */
+  extrasFromDay: 2,
   /** How many finished cupcakes the ready tray holds. */
   traySlots: 2,
 

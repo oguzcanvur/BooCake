@@ -113,6 +113,79 @@ export function drawTopping(g: G, x: number, y: number, id: ToppingId, s = 1): v
       g.fillCircle(x + 2.3 * s, y - 6.2 * s, 1.1 * s);
       break;
     }
+    case 'cherry': {
+      // a glossy cherry with a curved stem and a leaf
+      g.lineStyle(2.2 * s, 0x6b4a2a, 1);
+      g.beginPath();
+      g.moveTo(x, y - 4 * s);
+      g.lineTo(x + 3 * s, y - 11 * s);
+      g.lineTo(x + 7 * s, y - 16 * s);
+      g.strokePath();
+      g.fillStyle(0x7bc96f, 1);
+      g.fillEllipse(x + 10 * s, y - 15 * s, 9 * s, 5 * s);
+      g.lineStyle(1.4 * s, INK, 1);
+      g.strokeEllipse(x + 10 * s, y - 15 * s, 9 * s, 5 * s);
+      blob(g, x, y + 2 * s, 18 * s, 17 * s, 0xe0344b, lw);
+      g.fillStyle(0xffffff, 0.75);
+      g.fillEllipse(x - 4 * s, y - 2 * s, 5 * s, 3.5 * s);
+      break;
+    }
+    case 'bat': {
+      // a little candy bat with spread wings
+      const wing = (side: number) => {
+        const pts = [
+          { x: x + side * 4 * s, y: y - 3 * s },
+          { x: x + side * 17 * s, y: y - 7 * s },
+          { x: x + side * 15 * s, y: y + 1 * s },
+          { x: x + side * 11 * s, y: y - 1 * s },
+          { x: x + side * 8 * s, y: y + 4 * s },
+          { x: x + side * 4 * s, y: y + 3 * s },
+        ] as Phaser.Math.Vector2[];
+        g.fillStyle(0x5b3f7a, 1);
+        g.fillPoints(pts, true);
+        g.lineStyle(1.6 * s, INK, 1);
+        g.strokePoints(pts, true);
+      };
+      wing(-1);
+      wing(1);
+      blob(g, x, y, 11 * s, 13 * s, 0x6e4f92, lw);
+      g.fillStyle(0x6e4f92, 1);
+      g.fillTriangle(x - 4.5 * s, y - 4 * s, x - 2 * s, y - 4 * s, x - 4 * s, y - 9 * s);
+      g.fillTriangle(x + 4.5 * s, y - 4 * s, x + 2 * s, y - 4 * s, x + 4 * s, y - 9 * s);
+      g.fillStyle(0xfff3a8, 1);
+      g.fillCircle(x - 2.2 * s, y - 1 * s, 1.6 * s);
+      g.fillCircle(x + 2.2 * s, y - 1 * s, 1.6 * s);
+      break;
+    }
+    case 'ghost': {
+      // a meringue ghost: round head, wavy hem, two dark eyes and a small mouth
+      g.fillStyle(0xfdfbff, 1);
+      g.fillCircle(x, y - 3 * s, 9 * s);
+      g.fillRect(x - 9 * s, y - 3 * s, 18 * s, 10 * s);
+      for (const dx of [-6, 0, 6]) g.fillCircle(x + dx * s, y + 7 * s, 3 * s);
+      g.lineStyle(lw * 0.8, INK, 1);
+      g.beginPath();
+      g.arc(x, y - 3 * s, 9 * s, Math.PI, 0, false);
+      g.lineTo(x + 9 * s, y + 7 * s);
+      g.strokePath();
+      g.beginPath();
+      g.moveTo(x - 9 * s, y - 3 * s);
+      g.lineTo(x - 9 * s, y + 7 * s);
+      g.strokePath();
+      for (const dx of [-6, 0, 6]) {
+        g.beginPath();
+        g.arc(x + dx * s, y + 7 * s, 3 * s, 0, Math.PI, false);
+        g.strokePath();
+      }
+      g.fillStyle(INK, 1);
+      g.fillEllipse(x - 3.2 * s, y - 3 * s, 2.6 * s, 3.4 * s);
+      g.fillEllipse(x + 3.2 * s, y - 3 * s, 2.6 * s, 3.4 * s);
+      g.fillCircle(x, y + 1.5 * s, 1.2 * s);
+      g.fillStyle(0xffb3c9, 0.8);
+      g.fillCircle(x - 6 * s, y + 0.5 * s, 1.5 * s);
+      g.fillCircle(x + 6 * s, y + 0.5 * s, 1.5 * s);
+      break;
+    }
   }
 }
 

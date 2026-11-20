@@ -72,24 +72,37 @@ export const LAYOUT = {
   stationY: 616,
 };
 
-/** Horizontal centers of everything on the table. */
+/**
+ * The workbench has two rows. Bottom row: dough table, ovens, plates, frosting pockets, topping jars.
+ * Top row: the second dough table, the tray (above the ovens), the bought plates, the trash and the second jar row.
+ */
 export const STATION_X = {
-  dough: [63, 142, 222],
-  oven: [335, 460],
-  frosting: [838, 910, 982],
-  topping: [1062, 1134, 1206],
-  tray: [112, 232],
-  trash: 1196,
-  guard: 1088,
+  oven: [312, 436],
+  tray: [316, 436],
 };
+
+/** The security guard stands behind the counter, at the left end (next to the door). */
+export const GUARD = { x: 92, y: 322, scale: 0.72 };
+
+/** The two dough tables (3 bowls each): center x, width, and where each one stands (bottom edge). */
+export const DOUGH_TABLES = { x: 128, w: 236, bottoms: [700, 576] };
+
+/** The two frosting pockets (3 piping bags each), side by side. */
+export const POCKETS = { xs: [822, 980], h: 170, bottom: 700 };
+
+/** Topping jars: 3 columns, 2 rows (bottom row first). */
+export const JARS = { xs: [1098, 1166, 1234], bottoms: [700, 580], h: 112 };
+
+/** Trash can (center), on the top row above the second frosting pocket. */
+export const TRASH = { x: 1000, y: 494, h: 72 };
 
 /**
  * The plates (preparation spots). x = center, bottom = where the plate picture stands.
  * The first two are on the workbench; the two bought in the shop sit right above them, in the same columns.
  */
 export const PLATES: { x: number; bottom: number }[] = [
-  { x: 588, bottom: 700 },
-  { x: 718, bottom: 700 },
-  { x: 588, bottom: 586 },
-  { x: 718, bottom: 586 },
+  { x: 560, bottom: 700 },
+  { x: 680, bottom: 700 },
+  { x: 560, bottom: 586 },
+  { x: 680, bottom: 586 },
 ];
