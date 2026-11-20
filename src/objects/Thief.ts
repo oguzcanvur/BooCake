@@ -1,19 +1,22 @@
 import Phaser from 'phaser';
 import { THIEF_FRAME, THIEF_KEYS } from '../assets';
-import { DEPTH, LAYOUT, STATION_X, W } from '../config';
+import { DEPTH, LAYOUT, W } from '../config';
 import { drawCupcake, type CupcakeData } from './cupcake';
 
 /** What happens when the thief reaches the ready tray. */
 export type ThiefOutcome = 'steal' | 'empty' | 'caught';
 
-/** Height of the thief on screen (world pixels) and how big the stolen cupcake looks in his hand. */
-const HEIGHT = 150;
-const CUP_SCALE = 0.5;
+/** Height of the thief on screen (world pixels; his legs are hidden behind the counter) and the stolen cupcake's size. */
+const HEIGHT = 270;
+const CUP_SCALE = 0.85;
+/** His feet are this far below the counter edge, so he stands behind the counter like the customers. */
+const FEET_BELOW_COUNTER = 118;
 
 /**
- * The thief does not take a counter seat: it runs along the front of the counter, grabs the cupcakes on the
- * ready tray and runs off holding one of them. If a security guard is there, it gets caught instead.
- * It uses the team's drawings (standing / holding a cupcake); the cupcake in his hand is drawn in code.
+ * The thief comes to the counter like a customer (he sneaks in behind it to a free seat), looks around for a
+ * moment, then grabs the cupcakes waiting on the ready tray and runs off holding one of them. If a security
+ * guard is there, he gets caught instead. It uses the team's drawings (standing / holding a cupcake); the
+ * cupcake in his hand is drawn in code.
  */
 export class Thief {
   private readonly root: Phaser.GameObjects.Container;
@@ -26,16 +29,16 @@ export class Thief {
   constructor(private readonly scene: Phaser.Scene) {
     const s = HEIGHT / THIEF_FRAME.h;
     const F = THIEF_FRAME;
-    const feetY = LAYOUT.trayY + 24;
-    this.root = scene.add.container(W + 90, feetY).setDepth(DEPTH.thief);
-    const shadow = scene.add.ellipse(0, -2, 96, 14, 0x000000, 0.22);
+    const feetY = LAYOUT.counterTop + FEET_BELOW_COUNTER;
+    // behind the counter (and just behind the customers, so he can sneak past them)
+    this.root = scene.add.container(W + 120, feetY).setDepth(DEPTH.monster - 1);
     this.inner = scene.add.container(0, 0);
     this.body = scene.add.image(0, 0, THIEF_KEYS.stand).setOrigin(F.ox, 1).setScale(s);
     this.cup = scene.add.graphics().setVisible(false);
     this.cup.setPosition((F.cupX - F.ox) * F.w * s, -(1 - F.cupY) * F.h * s);
     this.hand = scene.add.image(0, 0, THIEF_KEYS.hand).setOrigin(F.ox, 1).setScale(s).setVisible(false);
     this.inner.add([this.body, this.cup, this.hand]);
-    this.root.add([shadow, this.inner]);
+    this.root.add(this.inner);
   }
 
   /** The thief holds this cupcake in his hand (switches to the "holding" picture). */
@@ -57,43 +60,54 @@ export class Thief {
   }
 
   /**
-   * Run in from the right, stop at the tray and ask the scene what happened (`decide` is called once, on arrival).
-   * `onDone` runs when the thief has left the screen.
+   * Sneak in from the right to `stopX` at the counter, look around for a moment, then ask the scene what
+   * happened (`decide` is called once). He leaves by the nearest side. `onDone` runs when he is gone.
    */
-  run(decide: () => ThiefOutcome, onDone: () => void): void {
+  run(stopX: number, decide: () => ThiefOutcome, onDone: () => void): void {
     const root = this.root;
-    const stopX = STATION_X.tray[1] + 90;
-    const hops = this.scene.time.addEvent({ delay: 170, loop: true, callback: () => this.hop(12, 85) });
+    const hops = this.scene.time.addEvent({ delay: 170, loop: true, callback: () => this.hop(10, 85) });
+    const exitX = stopX > W / 2 ? W + 140 : -140;
 
     this.scene.tweens.add({
       targets: root,
       x: stopX,
-      duration: 1900,
+      duration: Math.max(900, ((W + 120 - stopX) / W) * 2200),
       ease: 'Sine.easeOut',
       onComplete: () => {
         hops.remove();
-        const outcome = decide();
-        if (outcome === 'caught') {
-          // caught: wiggle in place, then vanish with a poof
-          this.shake();
-          this.scene.time.delayedCall(900, () => this.finish(onDone));
-        } else {
-          if (outcome === 'empty') this.shake();
-          this.scene.time.delayedCall(380, () => {
-            const hops2 = this.scene.time.addEvent({ delay: 150, loop: true, callback: () => this.hop(12, 75) });
-            this.scene.tweens.add({
-              targets: root,
-              x: -120,
-              duration: 1300,
-              ease: 'Quad.easeIn',
-              onComplete: () => {
-                hops2.remove();
-                this.finish(onDone);
-              },
-            });
-          });
-        }
+        // a sneaky look left and right before grabbing
+        this.scene.tweens.add({ targets: this.inner, angle: { from: -6, to: 6 }, duration: 220, yoyo: true, repeat: 1, onComplete: () => this.inner.setAngle(0) });
+        this.scene.time.delayedCall(900, () => this.act(decide, exitX, onDone));
       },
+    });
+  }
+
+  /** Grab (or get caught), then run off by the nearest side. */
+  private act(decide: () => ThiefOutcome, exitX: number, onDone: () => void): void {
+    if (this.done) return;
+    const root = this.root;
+    const outcome = decide();
+    if (outcome === 'caught') {
+      // caught: wiggle in place, then vanish with a poof
+      this.shake();
+      this.scene.time.delayedCall(900, () => this.finish(onDone));
+      return;
+    }
+    if (outcome === 'empty') this.shake();
+    this.scene.time.delayedCall(380, () => {
+      const hops = this.scene.time.addEvent({ delay: 150, loop: true, callback: () => this.hop(12, 75) });
+      // the drawing faces left; running right he turns around
+      if (exitX > root.x) this.inner.setScale(-1, 1);
+      this.scene.tweens.add({
+        targets: root,
+        x: exitX,
+        duration: 1300,
+        ease: 'Quad.easeIn',
+        onComplete: () => {
+          hops.remove();
+          this.finish(onDone);
+        },
+      });
     });
   }
 
@@ -103,7 +117,7 @@ export class Thief {
   }
 
   get y(): number {
-    return this.root.y - 60;
+    return this.root.y - HEIGHT * 0.55;
   }
 
   destroy(): void {

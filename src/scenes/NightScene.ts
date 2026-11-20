@@ -87,6 +87,8 @@ export class NightScene extends Phaser.Scene {
   private tutorialCustomer: Customer | null = null;
   private tutorialStarted = false;
   private thieves: Thief[] = [];
+  /** The counter seat the thief is standing at (no customer takes it until he leaves). */
+  private thiefSeat: number | null = null;
   private guard: MonsterView | null = null;
   /** Each special monster is scheduled at least once per day. */
   private plan: { id: SpecialId; at: number; done: boolean }[] = [];
@@ -124,6 +126,7 @@ export class NightScene extends Phaser.Scene {
     this.tutorialCustomer = null;
     this.tutorialStarted = false;
     this.thieves = [];
+    this.thiefSeat = null;
     this.guard = null;
     this.drag = null;
     this.stats = { served: 0, wrong: 0, left: 0, burnt: 0, stolen: 0, bites: 0, caught: 0 };
@@ -204,8 +207,8 @@ export class NightScene extends Phaser.Scene {
     for (const p of this.plan) {
       if (p.done || this.elapsed < p.at) continue;
       if (p.id === 'thief') {
-        p.done = true;
-        this.spawnThief();
+        // he needs a free seat at the counter; if the counter is full he waits for one
+        if (this.spawnThief()) p.done = true;
       } else if (this.trySpawn(p.id)) {
         p.done = true;
         // a special monster takes the next regular customer's turn
@@ -921,7 +924,7 @@ export class NightScene extends Phaser.Scene {
 
   /** Seat a new customer. `special` forces a special monster (for the daily guarantee). */
   private trySpawn(special?: SpecialId): boolean {
-    const free = this.customers.flatMap((c, i) => (c ? [] : [i]));
+    const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
     if (free.length === 0 || this.customers.length - free.length >= this.day.seats) return false;
 
     let kind: SpecialId | undefined = special;
@@ -992,11 +995,17 @@ export class NightScene extends Phaser.Scene {
   }
 
   /** The thief runs in front of the counter. It takes everything on the tray, unless the guard is there. */
-  private spawnThief(): void {
+  /** The thief comes to a free seat at the counter (kept free for him until he leaves). False if none is free. */
+  private spawnThief(): boolean {
+    const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
+    if (free.length === 0) return false;
+    const seat = Phaser.Utils.Array.GetRandom(free);
+    this.thiefSeat = seat;
     const thief = new Thief(this);
     this.thieves.push(thief);
     sfx(this, 'customer_arrive', 0.3, 1.5);
     thief.run(
+      LAYOUT.customerSlotsX[seat],
       (): ThiefOutcome => {
         if (gameState.upgrades.guard) {
           this.earned += CONFIG.guardBonus;
@@ -1023,8 +1032,12 @@ export class NightScene extends Phaser.Scene {
         floatText(this, thief.x, thief.y - 90, T.thiefStole, '#ff6b6b', 26);
         return 'steal';
       },
-      () => (this.thieves = this.thieves.filter((t) => t !== thief)),
+      () => {
+        this.thieves = this.thieves.filter((t) => t !== thief);
+        if (this.thiefSeat === seat) this.thiefSeat = null;
+      },
     );
+    return true;
   }
 
   // ---------------------------------------------------------------- end of day
@@ -1041,6 +1054,7 @@ export class NightScene extends Phaser.Scene {
     });
     this.thieves.forEach((t) => t.destroy());
     this.thieves = [];
+    this.thiefSeat = null;
     sfx(this, 'win', 0.4);
     const t = this.add
       .text(W / 2, H / 2 - 30, title, { fontFamily: FONT, fontSize: '92px', color: '#ffffff', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
