@@ -84,14 +84,19 @@ const BAG: Record<FrostingId, StationSprite> = {
 };
 /** The team's jars; the new toppings use an emptied copy of the sprinkles jar with the candies drawn inside. */
 const JAR: Partial<Record<ToppingId, StationSprite>> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
-/** Where the drawn candies sit inside the empty jar (in its own pixels: above and below the label). */
+/**
+ * Where the drawn candies sit inside the empty jar (in its own 74 x 124 pixels: the glass is about x 10-64,
+ * y 38-110, with the label over y 60-86). Kept well inside the glass so nothing sticks out of the jar.
+ */
 const JAR_FILL = [
-  [25, 47],
-  [47, 45],
-  [19, 101],
-  [37, 98],
-  [54, 102],
+  [27, 50],
+  [47, 50],
+  [24, 98],
+  [37, 101],
+  [50, 98],
 ];
+/** Size of each drawn candy in the jar (the bat is the widest, ~34 units). */
+const JAR_CANDY = 0.46;
 
 /** Faded and not clickable: an ingredient that joins on a later day. */
 
@@ -181,7 +186,7 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
     // fill the empty jar with the topping itself (positions are in the picture's own pixels)
     const s = pic.scaleX;
     const g = scene.add.graphics();
-    for (const [px, py] of JAR_FILL) drawTopping(g, (px - pic.width / 2) * s, (py - pic.height) * s, id, 0.62 * s);
+    for (const [px, py] of JAR_FILL) drawTopping(g, (px - pic.width / 2) * s, (py - pic.height) * s, id, JAR_CANDY * s);
     extra.push(g);
   }
   // the jar's paper label is about 60% down
