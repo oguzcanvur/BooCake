@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { BG_SHOP, fxKey } from '../assets';
+import { BG_SHOP, fxKey, stationKey } from '../assets';
 import { COLORS, DEPTH, FONT, H, INK, LAYOUT, W } from '../config';
 import { clothColors, hasDecoration } from '../data/decor';
 
@@ -76,25 +76,13 @@ export class Shop {
   showGarlic(): void {
     if (this.garlicShown) return;
     this.garlicShown = true;
-    const g = this.scene.add.graphics().setDepth(DEPTH.counterDeco);
+    // the team's garlic drawing, standing on the counter
     const x = 128;
-    g.fillStyle(0x000000, 0.22);
-    g.fillEllipse(x, TOP + 2, 66, 9);
-    const bulb = (bx: number, by: number, s: number) => {
-      g.fillStyle(0xefe6d2, 1);
-      g.fillEllipse(bx, by, 26 * s, 24 * s);
-      g.fillTriangle(bx - 4 * s, by - 9 * s, bx + 4 * s, by - 9 * s, bx, by - 19 * s);
-      g.lineStyle(2, INK, 1);
-      g.strokeEllipse(bx, by, 26 * s, 24 * s);
-      g.lineStyle(1.5, 0xc4b89c, 1);
-      g.lineBetween(bx, by - 10 * s, bx - 4 * s, by + 9 * s);
-      g.lineBetween(bx, by - 10 * s, bx + 5 * s, by + 9 * s);
-      g.fillStyle(0xffffff, 0.6);
-      g.fillEllipse(bx - 5 * s, by - 3 * s, 7 * s, 6 * s);
-    };
-    bulb(x - 15, TOP - 12, 1);
-    bulb(x + 15, TOP - 12, 1);
-    bulb(x, TOP - 28, 1.05);
+    const shadow = this.scene.add.graphics().setDepth(DEPTH.counterDeco);
+    shadow.fillStyle(0x000000, 0.22);
+    shadow.fillEllipse(x, TOP + 2, 70, 9);
+    const garlic = this.scene.add.image(x, TOP + 3, stationKey('garlic')).setOrigin(0.5, 1).setDepth(DEPTH.counterDeco);
+    garlic.setScale(54 / garlic.height);
   }
 
   // ------------------------------------------------------------------ back wall

@@ -221,27 +221,9 @@ export class DecorateScene extends Phaser.Scene {
       const guard = new MonsterView(this, x, y - 12, GUARD_MONSTER);
       guard.root.setDepth(depth).setScale(0.36);
     } else {
-      this.drawGarlic(this.add.graphics().setDepth(depth), x, y + 8, 0.7);
+      const garlic = this.add.image(x, y + 34, stationKey('garlic')).setOrigin(0.5, 1).setDepth(depth);
+      garlic.setScale(70 / garlic.height);
     }
-  }
-
-  private drawGarlic(g: Phaser.GameObjects.Graphics, x: number, y: number, s: number): void {
-    const bulb = (bx: number, by: number, k: number) => {
-      g.fillStyle(0xe9e2cf, 1);
-      g.fillEllipse(bx, by, 50 * k, 46 * k);
-      g.fillStyle(0xffffff, 0.5);
-      g.fillEllipse(bx - 9 * k, by - 6 * k, 16 * k, 16 * k);
-      g.lineStyle(2.5 * k, 0xc9c0a8, 1);
-      g.lineBetween(bx, by - 20 * k, bx - 6 * k, by + 16 * k);
-      g.lineBetween(bx, by - 20 * k, bx + 10 * k, by + 16 * k);
-      g.fillStyle(0xe9e2cf, 1);
-      g.fillTriangle(bx - 6 * k, by - 18 * k, bx + 6 * k, by - 18 * k, bx, by - 36 * k);
-      g.lineStyle(2, INK, 0.8);
-      g.strokeEllipse(bx, by, 50 * k, 46 * k);
-    };
-    bulb(x - 28 * s, y + 14 * s, s);
-    bulb(x + 28 * s, y + 14 * s, s);
-    bulb(x, y - 14 * s, 1.1 * s);
   }
 
   private buy(item: Item, x: number, y: number): void {

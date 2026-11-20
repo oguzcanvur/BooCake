@@ -88,6 +88,7 @@ export const STATION_SPRITES = [
   'tray',
   'trash',
   'trash_lid',
+  'garlic',
 ] as const;
 export type StationSprite = (typeof STATION_SPRITES)[number];
 export const stationKey = (n: StationSprite): string => `st_${n}`;
