@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { BG_MAP } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, H, INK, W } from '../config';
 import { CONFIG, DAY_COUNT } from '../data/gameConfig';
@@ -10,17 +11,20 @@ import { MONSTER_CARDS, T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
 
-/** Where the day stops sit on the map (a winding road from left to right). */
+/**
+ * Where the day stops sit (a winding road through the night sky, from left to right, above the bakery in the
+ * middle of the background picture so it stays visible).
+ */
 const STOPS = [
-  { x: 190, y: 520 },
-  { x: 480, y: 360 },
-  { x: 790, y: 520 },
-  { x: 1080, y: 350 },
+  { x: 210, y: 420 },
+  { x: 470, y: 270 },
+  { x: 800, y: 330 },
+  { x: 1070, y: 220 },
 ];
 const NODE_R = 52;
 
 /**
- * "Monster Town": the days as stops on a winding road. The current day has a cupcake marker on it; after the
+ * "Monster Town": the days as stops on a winding road over the team's picture of the town at night. The current day has a cupcake marker on it; after the
  * shop's "Next day" the marker walks along the road from the finished day to the next one. Clicking an open
  * stop starts that day. While the game is being tested (CONFIG.unlockAllDays) every day is open.
  */
@@ -89,63 +93,21 @@ export class MapScene extends Phaser.Scene {
     makeButton(this, 110, H - 52, 170, 60, T.back, () => fadeOutThen(this, () => this.scene.start('Menu')), { color: 'grey', fontSize: 26, depth: DEPTH.hud });
   }
 
-  /** Night sky, moon, stars and rolling hills. */
+  /** The team's picture of the town at night, with the bakery, scaled to fill the screen. */
   private drawLand(): void {
-    const g = this.add.graphics().setDepth(DEPTH.wall);
-    g.fillGradientStyle(0x2d2150, 0x2d2150, 0x5a3f7a, 0x5a3f7a, 1);
-    g.fillRect(0, 0, W, H);
-    g.fillStyle(0xfff3c4, 1);
-    g.fillCircle(1150, 110, 46);
-    g.fillStyle(0x2d2150, 1);
-    g.fillCircle(1170, 96, 40);
-    g.fillStyle(0xffffff, 0.8);
-    for (let i = 0; i < 40; i++) g.fillCircle((i * 331) % W, 20 + ((i * 97) % 230), i % 5 === 0 ? 2.4 : 1.4);
-    // hills, back to front
-    const hills: [number, number, number, number][] = [
-      [200, 760, 900, 520],
-      [900, 760, 1000, 560],
-      [640, 800, 1500, 520],
-    ];
-    const colors = [0x4b3a6e, 0x55437a, 0x6a5590];
-    hills.forEach(([x, y, w, h], i) => {
-      g.fillStyle(colors[i], 1);
-      g.fillEllipse(x, y, w, h);
-    });
-    // a few trees and pumpkins along the way
-    for (const [tx, ty] of [
-      [70, 430],
-      [330, 600],
-      [640, 450],
-      [940, 610],
-      [1220, 470],
-    ] as [number, number][]) {
-      g.fillStyle(0x3a2c55, 1);
-      g.fillTriangle(tx - 26, ty, tx + 26, ty, tx, ty - 70);
-      g.fillRect(tx - 4, ty, 8, 14);
-    }
-    for (const [px, py] of [
-      [300, 470],
-      [640, 330],
-      [930, 420],
-    ] as [number, number][]) {
-      g.fillStyle(0xf0a24a, 1);
-      g.fillEllipse(px, py, 34, 26);
-      g.lineStyle(2, INK, 1);
-      g.strokeEllipse(px, py, 34, 26);
-      g.fillStyle(0x6e8a3a, 1);
-      g.fillRect(px - 2, py - 18, 4, 7);
-    }
+    const bg = this.add.image(W / 2, H / 2, BG_MAP).setDepth(DEPTH.wall);
+    bg.setScale(Math.max(W / bg.width, H / bg.height));
   }
 
   /** The road: a soft wide band with a dotted center line. */
   private drawRoad(road: Phaser.Curves.Spline): void {
     const g = this.add.graphics().setDepth(DEPTH.deco);
     const pts = road.getPoints(120);
-    g.lineStyle(34, 0x3a2c55, 0.6);
+    g.lineStyle(30, 0x2b1d4f, 0.45);
     g.strokePoints(pts);
-    g.lineStyle(26, 0xe9d3b4, 1);
+    g.lineStyle(22, 0xf6e3c4, 0.92);
     g.strokePoints(pts);
-    g.fillStyle(0xb98f6a, 1);
+    g.fillStyle(0xc99a6a, 1);
     for (const p of road.getSpacedPoints(48)) g.fillCircle(p.x, p.y, 3.5);
   }
 

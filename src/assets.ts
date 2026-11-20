@@ -56,6 +56,8 @@ export function queueLogo(scene: Phaser.Scene): void {
 
 /** Shop interior painting behind the counter (the team's background art). */
 export const BG_SHOP = 'bg_shop';
+/** Night view of the town with the bakery (the team's picture), behind the day map. */
+export const BG_MAP = 'bg_map';
 
 /** Workbench station pictures (the team's drawings, cut out of one sheet). */
 export const STATION_SPRITES = [
@@ -119,6 +121,7 @@ export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 /** Queue every asset the game uses. Call from a scene's preload(). */
 export function queueAssets(scene: Phaser.Scene): void {
   scene.load.image(BG_SHOP, binaryUrl('bg/shop.webp'));
+  scene.load.image(BG_MAP, binaryUrl('bg/map.webp'));
   for (const n of CHAR_SPRITES) for (const f of ['happy', 'neutral', 'angry'] as const) scene.load.image(charKey(n, f), binaryUrl(`chars/${n}${CHAR_FILE[f]}.webp`));
   scene.load.image(THIEF_KEYS.stand, binaryUrl('chars/thief.webp'));
   scene.load.image(THIEF_KEYS.hold, binaryUrl('chars/thief_hold.webp'));
