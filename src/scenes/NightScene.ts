@@ -222,7 +222,7 @@ export class NightScene extends Phaser.Scene {
     // ovens (the 2nd one is locked until it is bought in the shop)
     const owned = ovenCount();
     STATION_X.oven.forEach((x, i) => {
-      if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOven(slot)));
+      if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOvenDown(slot)));
       else createLockedOven(this, x);
     });
 
@@ -326,6 +326,7 @@ export class NightScene extends Phaser.Scene {
     sfx(this, 'ui_click', 0.4);
     // drop whatever is being dragged back where it was
     this.drag = null;
+    this.ovens.forEach((o) => (o.held = false));
     this.dragGfx.setVisible(false);
     this.refreshItems();
     this.scene.pause();
@@ -335,8 +336,9 @@ export class NightScene extends Phaser.Scene {
   // ---------------------------------------------------------------- drag and drop
 
   /**
-   * A finished cupcake can be dragged from the plate or the tray and dropped on a customer, on a free tray
-   * slot or on the trash can. A short press without moving is still a normal click (select, then click a target).
+   * A cupcake can be dragged from a plate, the tray or an oven (once baked) and dropped on a customer, a free
+   * tray slot, a free plate or the trash can. A short press without moving is still a normal click
+   * (an oven cake then goes to a free plate).
    */
   private setupDrag(): void {
     this.input.on('pointerdown', (p: Phaser.Input.Pointer) => {
@@ -354,6 +356,7 @@ export class NightScene extends Phaser.Scene {
         this.dragGfx.clear();
         drawCupcake(this.dragGfx, 0, 0, d.item, 1.1);
         this.dragGfx.setVisible(true);
+        if (d.loc.kind === 'oven') this.ovens[d.loc.i].held = true;
         this.refreshItems();
       }
       this.dragGfx.setPosition(p.worldX, p.worldY + 20);
@@ -362,7 +365,13 @@ export class NightScene extends Phaser.Scene {
       const d = this.drag;
       this.drag = null;
       this.dragGfx.setVisible(false);
-      if (!d || !d.moving) return;
+      if (!d) return;
+      if (!d.moving) {
+        // a plain click on a baked oven cake: move it to a free plate
+        if (d.loc.kind === 'oven') this.onOven(this.ovens[d.loc.i]);
+        return;
+      }
+      if (d.loc.kind === 'oven') this.ovens[d.loc.i].held = false;
       this.refreshItems();
       if (this.blocked() || this.peek(d.loc) !== d.item) return;
       this.dropAt(d.loc, p.worldX, p.worldY);
@@ -374,8 +383,10 @@ export class NightScene extends Phaser.Scene {
     return this.plates.findIndex((_c, i) => Math.abs(x - PLATES[i].x) < 66 && y > PLATES[i].bottom - 110 && y < PLATES[i].bottom + 4);
   }
 
-  /** The plate or tray cupcake under a point, if any. */
+  /** The plate, tray or (baked) oven cupcake under a point, if any. */
   private cupcakeAt(x: number, y: number): Loc | null {
+    const oven = this.ovens.findIndex((o) => o.cupcake && o.cupcake.bake !== 'raw' && Math.abs(x - o.x) < 55 && Math.abs(y - o.y) < 80);
+    if (oven >= 0) return { kind: 'oven', i: oven };
     const p = this.plateAt(x, y);
     if (p >= 0 && this.plates[p]) return { kind: 'plate', i: p };
     for (let i = 0; i < this.tray.length; i++) {
@@ -387,6 +398,12 @@ export class NightScene extends Phaser.Scene {
   /** Drop a dragged cupcake: serve a customer, put it on a free tray slot or plate, or throw it away. */
   private dropAt(loc: Loc, x: number, y: number): void {
     const customer = this.customers.find((c) => c && Math.abs(x - c.x) < 110 && y < LAYOUT.counterTop + 30);
+    if (customer && loc.kind === 'oven') {
+      // straight from the oven it is never finished
+      const burnt = this.peek(loc)?.bake === 'burnt';
+      this.hint(burnt ? T.burntNoServe : T.notFinished, customer.x, customer.y - 10);
+      return;
+    }
     if (customer) {
       this.select(loc);
       this.onCustomer(customer);
@@ -394,14 +411,7 @@ export class NightScene extends Phaser.Scene {
     }
     const slot = STATION_X.tray.findIndex((tx, i) => !this.tray[i] && Math.abs(x - tx) < 60 && Math.abs(y - LAYOUT.trayY) < 60);
     if (slot >= 0) {
-      if (loc.kind === 'tray') {
-        // move between tray slots
-        this.tray[slot] = this.removeFrom(loc);
-        this.select(null);
-        sfx(this, 'place', 0.45);
-        return;
-      }
-      this.onTray(slot);
+      this.putOnTray(loc, slot);
       return;
     }
     if (Math.abs(x - STATION_X.trash) < 50 && Math.abs(y - LAYOUT.trayY) < 60) {
@@ -514,6 +524,12 @@ export class NightScene extends Phaser.Scene {
     slot.start(id);
   }
 
+  /** Mouse down on an oven: a baked cake waits for the release (click = to a plate, drag = anywhere). */
+  private onOvenDown(slot: OvenSlot): void {
+    if (slot.cupcake && slot.cupcake.bake !== 'raw') return;
+    this.onOven(slot);
+  }
+
   private onOven(slot: OvenSlot): void {
     if (this.blocked()) return;
     const c = slot.cupcake;
@@ -530,7 +546,9 @@ export class NightScene extends Phaser.Scene {
         this.select({ kind: 'oven', i: index });
         this.hint(T.burntSelected, slot.x, slot.y - 96);
       } else {
-        this.hint(T.plateFull, slot.x, slot.y - 96);
+        // a baked cake can wait on the tray: select it so a click on a free tray slot takes it
+        this.select({ kind: 'oven', i: index });
+        this.hint(T.plateFullTray, slot.x, slot.y - 96);
       }
       return;
     }
@@ -546,13 +564,14 @@ export class NightScene extends Phaser.Scene {
       this.select({ kind: 'plate', i });
       return;
     }
-    // an empty plate: the selected plate or tray cupcake moves onto it
-    if (this.selected && this.selected.kind !== 'oven') this.moveToPlate(this.selected, i);
+    // an empty plate: the selected cupcake moves onto it
+    if (this.selected) this.moveToPlate(this.selected, i);
   }
 
-  /** Move a plate or tray cupcake onto an empty plate (it stays selected). */
+  /** Move a cupcake (plate, tray or baked oven one) onto an empty plate (it stays selected). */
   private moveToPlate(from: Loc, i: number): void {
-    if (from.kind === 'oven' || this.plates[i] || !this.peek(from)) return;
+    const c = this.peek(from);
+    if (this.plates[i] || !c || c.bake === 'raw') return;
     this.plates[i] = this.removeFrom(from);
     sfx(this, 'place', 0.45);
     this.select({ kind: 'plate', i });
@@ -616,15 +635,22 @@ export class NightScene extends Phaser.Scene {
       this.select({ kind: 'tray', i });
       return;
     }
+    // an empty slot: the selected cake goes there (plain ones too); otherwise the first finished plate cupcake
+    if (this.selected && this.peek(this.selected)) return this.putOnTray(this.selected, i);
     const p = this.finishedPlate();
-    if (p >= 0) {
-      sfx(this, 'place', 0.45);
-      this.tray[i] = this.plates[p];
-      this.plates[p] = null;
-      this.select(null);
-      return;
-    }
+    if (p >= 0) return this.putOnTray({ kind: 'plate', i: p }, i);
     this.hint(T.trayNeedsFinished, x, LAYOUT.trayY - 70);
+  }
+
+  /** Park a cake on a free tray slot to wait (finished or not; burnt ones only go to the trash). */
+  private putOnTray(from: Loc, slot: number): void {
+    const c = this.peek(from);
+    if (!c || this.tray[slot]) return;
+    if (c.bake === 'burnt') return this.hint(T.burntNoTray, STATION_X.tray[slot], LAYOUT.trayY - 70);
+    if (c.bake === 'raw') return;
+    this.tray[slot] = this.removeFrom(from);
+    sfx(this, 'place', 0.45);
+    this.select(null);
   }
 
   private onTrash(): void {

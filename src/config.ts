@@ -78,7 +78,7 @@ export const STATION_X = {
   oven: [335, 460],
   frosting: [838, 910, 982],
   topping: [1062, 1134, 1206],
-  tray: [150, 270],
+  tray: [112, 232],
   trash: 1196,
   guard: 1088,
 };
