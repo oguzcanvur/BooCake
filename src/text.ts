@@ -96,7 +96,7 @@ export const T = {
   garlicScares: 'Garlic!',
   ghostDrop: 'Oops!',
   thiefStole: 'The thief stole it!',
-  thiefEmpty: 'Nothing to steal!',
+  thiefWaiting: 'Hmm... waiting for a cupcake',
   thiefCaught: 'Thief caught!',
   dayOver: 'DAY OVER!',
   allStars: '3 STARS!',
@@ -155,5 +155,5 @@ export const T = {
 export const MONSTER_CARDS: Record<SpecialId, { name: string; text: string }> = {
   vampire: { name: 'Vampire', text: 'New customer: Vampire! Bites you, but is scared of garlic.' },
   ghost: { name: 'Ghost', text: 'New customer: Ghost! Drops the cake right through, but still pays.' },
-  thief: { name: 'Thief', text: 'New customer: Thief! Grabs the cakes on the ready tray. A security guard catches him.' },
+  thief: { name: 'Thief', text: 'New customer: Thief! When a cupcake waits on the ready tray, he comes and grabs it. A security guard catches him.' },
 };

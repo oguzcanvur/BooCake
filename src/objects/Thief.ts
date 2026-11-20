@@ -3,8 +3,8 @@ import { THIEF_FRAME, THIEF_KEYS } from '../assets';
 import { DEPTH, LAYOUT, W } from '../config';
 import { drawCupcake, type CupcakeData } from './cupcake';
 
-/** What happens when the thief reaches the ready tray. */
-export type ThiefOutcome = 'steal' | 'empty' | 'caught';
+/** What happens when the thief tries to grab: he steals, gets caught, or waits because nothing is ready yet. */
+export type ThiefOutcome = 'steal' | 'wait' | 'caught';
 
 /** Height of the thief on screen (world pixels; his legs are hidden behind the counter) and the stolen cupcake's size. */
 const HEIGHT = 270;
@@ -14,7 +14,9 @@ const FEET_BELOW_COUNTER = 118;
 
 /**
  * The thief comes to the counter like a customer (he sneaks in behind it to a free seat), looks around for a
- * moment, then grabs the cupcakes waiting on the ready tray and runs off holding one of them. If a security
+ * moment, then grabs the cupcakes on the ready tray and runs off holding one of them. He only shows up when a
+ * cupcake is waiting on the tray; if it is gone by the time he arrives he waits, looking around, until there is
+ * one again (he never leaves empty-handed). If a security
  * guard is there, he gets caught instead. It uses the team's drawings (standing / holding a cupcake); the
  * cupcake in his hand is drawn in code.
  */
@@ -25,6 +27,8 @@ export class Thief {
   private readonly cup: Phaser.GameObjects.Graphics;
   private readonly hand: Phaser.GameObjects.Image;
   private done = false;
+  /** The "waiting for a cupcake" line was already shown. */
+  saidWaiting = false;
 
   constructor(private readonly scene: Phaser.Scene) {
     const s = HEIGHT / THIEF_FRAME.h;
@@ -82,18 +86,22 @@ export class Thief {
     });
   }
 
-  /** Grab (or get caught), then run off by the nearest side. */
+  /** Grab (or get caught), then run off by the nearest side. Nothing ready yet: look around and try again soon. */
   private act(decide: () => ThiefOutcome, exitX: number, onDone: () => void): void {
     if (this.done) return;
     const root = this.root;
     const outcome = decide();
+    if (outcome === 'wait') {
+      if (Math.random() < 0.35) this.scene.tweens.add({ targets: this.inner, angle: { from: -5, to: 5 }, duration: 240, yoyo: true, onComplete: () => this.inner.setAngle(0) });
+      this.scene.time.delayedCall(500, () => this.act(decide, exitX, onDone));
+      return;
+    }
     if (outcome === 'caught') {
       // caught: wiggle in place, then vanish with a poof
       this.shake();
       this.scene.time.delayedCall(900, () => this.finish(onDone));
       return;
     }
-    if (outcome === 'empty') this.shake();
     this.scene.time.delayedCall(380, () => {
       const hops = this.scene.time.addEvent({ delay: 150, loop: true, callback: () => this.hop(12, 75) });
       // the drawing faces left; running right he turns around

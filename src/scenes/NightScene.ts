@@ -207,8 +207,12 @@ export class NightScene extends Phaser.Scene {
     for (const p of this.plan) {
       if (p.done || this.elapsed < p.at) continue;
       if (p.id === 'thief') {
-        // he needs a free seat at the counter; if the counter is full he waits for one
-        if (this.spawnThief()) p.done = true;
+        // he comes when a cupcake is waiting on the ready tray, needs a free seat at the counter (if it is full
+        // he waits for one) and never comes together with the vampire
+        if (this.tray.some(Boolean) && !this.vampireHere() && this.spawnThief()) p.done = true;
+      } else if (p.id === 'vampire' && this.thieves.length > 0) {
+        // the vampire waits until the thief is gone
+        continue;
       } else if (this.trySpawn(p.id)) {
         p.done = true;
         // a special monster takes the next regular customer's turn
@@ -930,7 +934,7 @@ export class NightScene extends Phaser.Scene {
     let kind: SpecialId | undefined = special;
     if (!kind) {
       // now and then a special monster joins the regular crowd (the thief never takes a seat)
-      const pool = this.day.specials.filter((s) => s !== 'thief');
+      const pool = this.day.specials.filter((s) => s !== 'thief' && !(s === 'vampire' && this.thieves.length > 0));
       if (pool.length > 0 && Math.random() < CONFIG.extraSpecialChance) kind = Phaser.Utils.Array.GetRandom(pool);
     }
     const def = kind ? pickSpecial(kind) : pickNormal();
@@ -995,6 +999,11 @@ export class NightScene extends Phaser.Scene {
   }
 
   /** The thief runs in front of the counter. It takes everything on the tray, unless the guard is there. */
+  /** Is a vampire at the counter right now? (The thief and the vampire never come at the same time.) */
+  private vampireHere(): boolean {
+    return this.customers.some((c) => c?.kind === 'vampire');
+  }
+
   /** The thief comes to a free seat at the counter (kept free for him until he leaves). False if none is free. */
   private spawnThief(): boolean {
     const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
@@ -1017,15 +1026,22 @@ export class NightScene extends Phaser.Scene {
           sfx(this, 'serve_ok', 0.5);
           return 'caught';
         }
-        const loot = this.tray.flatMap((c, i) => (c ? [{ c, i }] : []));
+        // everything waiting on the ready tray
+        const loot: { c: CupcakeData; loc: Loc }[] = this.tray.flatMap((c, i) => (c ? [{ c, loc: { kind: 'tray', i } as Loc }] : []));
         if (loot.length === 0) {
-          floatText(this, thief.x, thief.y - 90, T.thiefEmpty, '#ffd166');
-          return 'empty';
+          // nothing ready yet: he waits at the counter until there is (says so once)
+          if (!thief.saidWaiting) {
+            thief.saidWaiting = true;
+            floatText(this, thief.x, thief.y - 90, T.thiefWaiting, '#ffd166');
+          }
+          return 'wait';
         }
-        loot.forEach(({ c, i }) => this.flyCupcake(c, { x: STATION_X.tray[i], y: LAYOUT.trayY }, { x: thief.x, y: thief.y - 20 }, 320));
+        for (const { c, loc } of loot) {
+          this.flyCupcake(c, this.locPos(loc), { x: thief.x, y: thief.y - 20 }, 320);
+          this.removeFrom(loc);
+        }
         this.time.delayedCall(320, () => thief.holdCupcake(loot[0].c));
-        this.tray = this.tray.map(() => null);
-        if (this.selected?.kind === 'tray') this.select(null);
+        if (this.selected && loot.some(({ loc }) => loc.kind === this.selected?.kind && loc.i === this.selected?.i)) this.select(null);
         else this.refreshItems();
         this.stats.stolen += loot.length;
         sfx(this, 'nope', 0.5, 0.7);
