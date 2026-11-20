@@ -5,6 +5,7 @@ import type { MonsterDef, MonsterKind } from '../data/monsters';
 import { doughInfo, frostingInfo, toppingInfo, type Order } from '../data/recipes';
 import { drawCupcake, drawTopping } from './cupcake';
 import { MonsterView } from './MonsterView';
+import { unsoftened } from '../softStyle';
 
 export type CustomerMood = 'happy' | 'uneasy' | 'angry';
 
@@ -195,19 +196,28 @@ export class Customer {
     // an icon for each part (the names are text objects next to them)
     const ix = cx + 2;
     const rows = [cy - 26, cy - 4, cy + 18];
-    // dough: a little round of batter
-    g.fillStyle(doughInfo(o.dough).baked, 1);
-    g.fillCircle(ix, rows[0], 7);
-    g.lineStyle(2, INK, 1);
-    g.strokeCircle(ix, rows[0], 7);
-    // frosting: a mini swirl
-    const fc = frostingInfo(o.frosting).color;
-    g.fillStyle(fc, 1);
-    g.fillEllipse(ix, rows[1] + 3, 15, 8);
-    g.fillEllipse(ix, rows[1] - 2, 10, 7);
-    g.lineStyle(1.8, INK, 1);
-    g.strokeEllipse(ix, rows[1] + 3, 15, 8);
-    g.strokeEllipse(ix, rows[1] - 2, 10, 7);
+    // dough and frosting icons use the exact colors of the bowl and bag pictures (no softening)
+    unsoftened(() => {
+      // dough: a little round of batter
+      g.fillStyle(doughInfo(o.dough).icon, 1);
+      g.fillCircle(ix, rows[0], 7);
+      g.lineStyle(2, INK, 1);
+      g.strokeCircle(ix, rows[0], 7);
+      // frosting: one piped dollop (round base, pointed tip, a swirl line)
+      const dollop: Phaser.Math.Vector2[] = [];
+      for (let k = 0; k <= 36; k++) {
+        const t = (k / 36) * Math.PI * 2;
+        dollop.push(new Phaser.Math.Vector2(ix + 8.5 * Math.sin(t) * Math.sin(t / 2), rows[1] + Math.min(5, -9 * Math.cos(t))));
+      }
+      g.fillStyle(frostingInfo(o.frosting).icon, 1);
+      g.fillPoints(dollop, true);
+      g.lineStyle(1.8, INK, 1);
+      g.strokePoints(dollop, true, true);
+      g.lineStyle(1.4, INK, 0.55);
+      g.beginPath();
+      g.arc(ix, rows[1] - 1, 4.5, Math.PI * 0.15, Math.PI * 0.85, false);
+      g.strokePath();
+    });
     // topping: the topping itself, small
     drawTopping(g, ix, rows[2], o.topping, 0.52);
 

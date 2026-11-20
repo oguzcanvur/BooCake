@@ -100,15 +100,30 @@ function softenCss(css: unknown): unknown {
 const num = (c: unknown, f: (n: number) => number): unknown => (typeof c === 'number' ? f(c) : c);
 
 /** Patch Phaser once so every Graphics, Shape and Text color is drawn in the soft style. */
+let bypass = false;
+
+/**
+ * Draw with the exact colors given (no softening) inside fn. Used where a drawn color must match one of the
+ * team's pictures, which are never softened (e.g. the order ticket's ingredient icons vs. the bowls and bags).
+ */
+export function unsoftened(fn: () => void): void {
+  bypass = true;
+  try {
+    fn();
+  } finally {
+    bypass = false;
+  }
+}
+
 export function installSoftStyle(): void {
   const gfx = Phaser.GameObjects.Graphics.prototype as unknown as Record<string, (...a: unknown[]) => unknown>;
   const fillStyle = gfx.fillStyle;
   gfx.fillStyle = function (this: unknown, color: unknown, ...rest: unknown[]) {
-    return fillStyle.call(this, num(color, soften), ...rest);
+    return fillStyle.call(this, bypass ? color : num(color, soften), ...rest);
   };
   const lineStyle = gfx.lineStyle;
   gfx.lineStyle = function (this: unknown, width: unknown, color: unknown, ...rest: unknown[]) {
-    return lineStyle.call(this, width, num(color, softenLine), ...rest);
+    return lineStyle.call(this, width, bypass ? color : num(color, softenLine), ...rest);
   };
   const gradient = gfx.fillGradientStyle;
   gfx.fillGradientStyle = function (this: unknown, tl: unknown, tr: unknown, bl: unknown, br: unknown, ...rest: unknown[]) {
