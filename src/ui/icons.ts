@@ -97,3 +97,26 @@ export function drawPill(g: G, x: number, y: number, w: number, h: number, fill:
   g.lineStyle(2.5, edge, 1);
   g.strokeRoundedRect(x, y, w, h, h / 2);
 }
+
+/** Full-screen sign: four corner brackets pointing out (or in, when already full screen). */
+export function drawFullscreen(g: G, x: number, y: number, exit: boolean, color = 0xffffff): void {
+  const s = 9;
+  const l = 6;
+  g.lineStyle(3, color, 1);
+  for (const [dx, dy] of [
+    [-1, -1],
+    [1, -1],
+    [-1, 1],
+    [1, 1],
+  ]) {
+    // corner point; brackets point outward normally, inward when exiting
+    const cx = x + dx * s;
+    const cy = y + dy * s;
+    const ix = exit ? -dx : dx;
+    const iy = exit ? -dy : dy;
+    const px = exit ? x + dx * (s - l) : cx;
+    const py = exit ? y + dy * (s - l) : cy;
+    g.lineBetween(px, py, px - ix * l, py);
+    g.lineBetween(px, py, px, py - iy * l);
+  }
+}
