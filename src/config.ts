@@ -88,7 +88,8 @@ export const GUARD = { x: 92, y: 322, scale: 0.72 };
 export const DOUGH_TABLES = { x: 128, w: 236, bottoms: [700, 576] };
 
 /** The two frosting pockets (3 piping bags each), side by side. */
-export const POCKETS = { xs: [822, 980], h: 170, bottom: 700 };
+/** The frosting pocket (one wide cloth with all 6 piping bags, the team's drawing): center x, width, bottom edge. */
+export const POCKET = { x: 901, w: 318, bottom: 700 };
 
 /** Topping jars: 3 columns, 2 rows (bottom row first). */
 export const JARS = { xs: [1098, 1166, 1234], bottoms: [700, 580], h: 112 };

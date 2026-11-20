@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
-import { doughInfo, frostingInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { doughInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 import { drawTopping } from './cupcake';
 import { plateColor } from '../data/decor';
 import { CONFIG } from '../data/gameConfig';
@@ -60,12 +60,16 @@ const BOWL_SPOTS = [
   { cx: 152.5, cy: 53 },
   { cx: 244.5, cy: 53 },
 ];
+/** Where the 6 bags hang in the frosting pocket (centers, in the pocket picture's own 700 x 350 pixels). */
 const BAG_SPOTS = [
-  { cx: 45, cy: 106.5 },
-  { cx: 130, cy: 93.5 },
-  { cx: 214, cy: 105 },
+  { cx: 77.7, cy: 145.4 },
+  { cx: 187.8, cy: 144.6 },
+  { cx: 295.9, cy: 145.4 },
+  { cx: 402.1, cy: 145.6 },
+  { cx: 511.8, cy: 145.2 },
+  { cx: 620.3, cy: 145.8 },
 ];
-/** The new flavors' pictures are recolored copies of the team's strawberry bowl and pink bag. */
+/** The new doughs' bowls are recolored copies of the team's strawberry bowl. */
 const BOWL: Record<DoughId, StationSprite> = {
   vanilla: 'bowl_vanilla',
   chocolate: 'bowl_chocolate',
@@ -176,20 +180,18 @@ export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.I
   return finish(scene, withTag(scene, pic, doughInfo(id).name, 0.76, 10), w, h, lockedUntil, onClick);
 }
 
-/** A cloth pocket the piping bags hang in. */
-export function createFrostingPocket(scene: Phaser.Scene, cx: number, h: number, bottom: number): Phaser.GameObjects.Image {
-  return addPicture(scene, cx, 'frosting_pocket', { h }, bottom);
+/** The cloth pocket all piping bags hang in (one wide picture). */
+export function createFrostingPocket(scene: Phaser.Scene, cx: number, w: number, bottom: number): Phaser.GameObjects.Image {
+  return addPicture(scene, cx, 'frosting_pocket', { w }, bottom);
 }
 
-/** One piping bag in a pocket (`spot` 0..2), with a flavor tag stuck over the color name written on the drawing. */
+/** One piping bag in the pocket (`spot` 0..5). The team's bags carry their English flavor names, so no tag. */
 export function createPipingBag(scene: Phaser.Scene, pocket: Phaser.GameObjects.Image, spot: number, id: FrostingId, lockedUntil: number, onClick: () => void): Spot {
   const b = BAG_SPOTS[spot];
   const pic = addPart(scene, pocket, BAG[id], b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
-  // the drawing's color name sits about 37% down from the top of the bag; long flavors go on two lines
-  const name = frostingInfo(id).name.replace(/(berry|chio|late)$/, '-\n$1');
-  return finish(scene, withTag(scene, pic, name, 0.37, 10), w, h, lockedUntil, onClick);
+  return finish(scene, withTag(scene, pic, '', 0, 10), w, h, lockedUntil, onClick);
 }
 
 /** Glass jar of toppings with a cork lid and a label. */

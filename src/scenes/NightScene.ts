@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio';
-import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKETS, STATION_X, TRASH, W } from '../config';
+import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKET, STATION_X, TRASH, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
 import { THIEF_KEYS } from '../assets';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
@@ -280,11 +280,10 @@ export class NightScene extends Phaser.Scene {
       else createLockedPlate(this, p.x, p.bottom);
     });
 
-    // frostings: two pockets with 3 bags each
-    const pockets = POCKETS.xs.map((x) => createFrostingPocket(this, x, POCKETS.h, POCKETS.bottom));
-    if (lock('frosting', true) > 0) pockets[1].setVisible(false);
+    // frostings: one wide pocket with 6 bags (the new flavors' bags stay hidden until their day)
+    const pocket = createFrostingPocket(this, POCKET.x, POCKET.w, POCKET.bottom);
     FROSTINGS.forEach((f, i) => {
-      const spot = createPipingBag(this, pockets[Math.floor(i / 3)], i % 3, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y));
+      const spot = createPipingBag(this, pocket, i, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y));
       this.bags.push(spot);
     });
     // toppings: jars in 3 columns, bottom row first
