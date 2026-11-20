@@ -89,7 +89,24 @@ export const stationKey = (n: StationSprite): string => `st_${n}`;
 /** Customer pictures (the team's character drawings, cut out of one sheet). */
 export const CHAR_SPRITES = ['wolf', 'vampire', 'ghost', 'witch', 'mummy', 'zombie'] as const;
 export type CharSprite = (typeof CHAR_SPRITES)[number];
-export const charKey = (n: CharSprite): string => `char_${n}`;
+/** A character has three pictures, one per face: happy (the plain name), neutral (uneasy) and angry. */
+export type CharFace = 'happy' | 'neutral' | 'angry';
+export const charKey = (n: CharSprite, face: CharFace = 'happy'): string => (face === 'happy' ? `char_${n}` : `char_${n}_${face}`);
+const CHAR_FILE: Record<CharFace, string> = { happy: '', neutral: '_neutral', angry: '_angry' };
+/** The pictures are drawn at this many times the size they are shown at (sharp on the 2x canvas). */
+export const CHAR_TEX_K = 2;
+/**
+ * Where each character stands in its pictures (all three faces share one frame, so they line up):
+ * ox/oy = anchor (bottom center of the body, as a share of the picture), bodyW/bodyH = body size in picture pixels.
+ */
+export const CHAR_FRAME: Record<CharSprite, { ox: number; oy: number; bodyW: number; bodyH: number }> = {
+  witch: { ox: 0.4987, oy: 0.9753, bodyW: 379.6, bodyH: 474.0 },
+  wolf: { ox: 0.4956, oy: 0.9924, bodyW: 412.1, bodyH: 470.0 },
+  zombie: { ox: 0.5003, oy: 0.9877, bodyW: 277.1, bodyH: 492.0 },
+  mummy: { ox: 0.5078, oy: 0.9515, bodyW: 239.4, bodyH: 430.0 },
+  ghost: { ox: 0.5059, oy: 0.996, bodyW: 286.0, bodyH: 430.0 },
+  vampire: { ox: 0.5008, oy: 0.9964, bodyW: 282.3, bodyH: 438.0 },
+};
 
 export const fxKey = (n: FxName): string => `fx_${n}`;
 export const sfxKey = (n: SfxName): string => `sfx_${n}`;
@@ -97,7 +114,7 @@ export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 /** Queue every asset the game uses. Call from a scene's preload(). */
 export function queueAssets(scene: Phaser.Scene): void {
   scene.load.image(BG_SHOP, binaryUrl('bg/shop.webp'));
-  for (const n of CHAR_SPRITES) scene.load.image(charKey(n), binaryUrl(`chars/${n}.png`));
+  for (const n of CHAR_SPRITES) for (const f of ['happy', 'neutral', 'angry'] as const) scene.load.image(charKey(n, f), binaryUrl(`chars/${n}${CHAR_FILE[f]}.webp`));
   for (const n of STATION_SPRITES) scene.load.image(stationKey(n), binaryUrl(`stations/${n}.png`));
   for (const n of FX_NAMES) scene.load.image(fxKey(n), binaryUrl(`fx/${n}.png`));
   for (const n of SFX_NAMES) scene.load.audio(sfxKey(n), binaryUrl(`audio/${n}.ogg`));

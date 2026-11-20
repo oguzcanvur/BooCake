@@ -3,13 +3,14 @@ import { sfx } from '../audio';
 import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKETS, STATION_X, TRASH, W } from '../config';
 import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
-import { DOUGHS, FROSTINGS, TOPPINGS, frostingInfo, randomOrder, type DoughId, type FrostingId, type IngredientGroup, type OpenExtras, type ToppingId } from '../data/recipes';
+import { DOUGHS, FROSTINGS, TOPPINGS, doughInfo, frostingInfo, toppingInfo, randomOrder, type DoughId, type FrostingId, type IngredientGroup, type OpenExtras, type ToppingId } from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
 import { drawCupcake, isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
 import { MonsterView } from '../objects/MonsterView';
 import { OvenSlot } from '../objects/OvenSlot';
 import { Shop } from '../objects/Shop';
+import { TutorialGuide, type TutorialBox, type TutorialPointer, type TutorialStep } from '../objects/Tutorial';
 import {
   createDoughBowl,
   createDoughTable,
@@ -76,6 +77,14 @@ export class NightScene extends Phaser.Scene {
   private customers: (Customer | null)[] = [];
   private ovens: OvenSlot[] = [];
   private bowls: Spot[] = [];
+  private bags: Spot[] = [];
+  private jars: Spot[] = [];
+  /** First-order guide (Day 1, only the very first time): the guide, the customer it follows and whether the player began. */
+  private trashFlap: () => void = () => {};
+  private tutorialOn = false;
+  private tutorialGuide: TutorialGuide | null = null;
+  private tutorialCustomer: Customer | null = null;
+  private tutorialStarted = false;
   private thieves: Thief[] = [];
   private guard: MonsterView | null = null;
   /** Each special monster is scheduled at least once per day. */
@@ -107,6 +116,12 @@ export class NightScene extends Phaser.Scene {
     this.customers = LAYOUT.customerSlotsX.map(() => null);
     this.ovens = [];
     this.bowls = [];
+    this.bags = [];
+    this.jars = [];
+    this.tutorialOn = gameState.day === 0 && !gameState.seenCards.includes('tutorial');
+    this.tutorialGuide = null;
+    this.tutorialCustomer = null;
+    this.tutorialStarted = false;
     this.thieves = [];
     this.guard = null;
     this.drag = null;
@@ -123,7 +138,7 @@ export class NightScene extends Phaser.Scene {
     fadeIn(this);
     this.shop = new Shop(this);
     if (gameState.upgrades.garlic) this.shop.showGarlic();
-    this.hud = new Hud(this, this.day.goal, gameState.day + 1);
+    this.hud = new Hud(this, this.day.goal, gameState.day + 1, this.day.length);
     this.hud.onStar = (_i, x, y) => {
       sfx(this, 'star', 0.5);
       burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
@@ -132,6 +147,7 @@ export class NightScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-P', () => this.pause());
     this.input.keyboard?.on('keydown-ESC', () => this.pause());
     this.createStations();
+    if (this.tutorialOn) this.tutorialGuide = new TutorialGuide(this);
     this.itemsGfx = this.add.graphics().setDepth(DEPTH.items);
     this.dragGfx = this.add.graphics().setDepth(DEPTH.hand).setVisible(false);
     this.setupDrag();
@@ -162,15 +178,20 @@ export class NightScene extends Phaser.Scene {
   update(_time: number, delta: number): void {
     if (this.phase !== 'playing') return;
     const dt = Math.min(delta, 100) / 1000;
-    this.elapsed += dt;
+    // while the first-order guide runs, the day clock and new customers wait for the player
+    const tutorial = this.tutorialCustomer !== null;
+    if (!tutorial) this.elapsed += dt;
 
-    for (const oven of this.ovens) oven.update(dt);
+    // the ovens run at half speed during the first-order guide, so the first cupcake can be read about and caught in time
+    for (const oven of this.ovens) oven.update(tutorial ? dt * 0.5 : dt);
 
     // regular customers, a little faster as the day goes on
-    this.spawnIn -= dt;
-    if (this.spawnIn <= 0) {
-      const gap = this.day.interval + Phaser.Math.FloatBetween(-CONFIG.intervalJitter, CONFIG.intervalJitter);
-      this.spawnIn = this.trySpawn() ? Math.max(2, gap) : 1.5;
+    if (!tutorial) {
+      this.spawnIn -= dt;
+      if (this.spawnIn <= 0) {
+        const gap = this.day.interval + Phaser.Math.FloatBetween(-CONFIG.intervalJitter, CONFIG.intervalJitter);
+        this.spawnIn = this.trySpawn() ? Math.max(2, gap) : 1.5;
+      }
     }
 
     // scheduled special monsters (each open one arrives at least once)
@@ -196,8 +217,10 @@ export class NightScene extends Phaser.Scene {
       }
     });
 
-    const left = CONFIG.dayLengthSec - this.elapsed;
-    this.shop.update(this.elapsed / CONFIG.dayLengthSec);
+    if (this.tutorialCustomer) this.updateTutorial(this.tutorialCustomer);
+
+    const left = this.day.length - this.elapsed;
+    this.shop.update(this.elapsed / this.day.length);
     this.hud.update(left, this.earned);
     this.shop.setJar(this.earned / (this.day.goal * CONFIG.stars[CONFIG.stars.length - 1]));
 
@@ -222,6 +245,8 @@ export class NightScene extends Phaser.Scene {
 
     // dough bowls: 3 on each table (the extra ones on the top table)
     const tables = DOUGH_TABLES.bottoms.map((bottom) => createDoughTable(this, DOUGH_TABLES.x, DOUGH_TABLES.w, bottom));
+    // the extra table / pocket stay completely empty (picture hidden too) until their day
+    if (lock('dough', true) > 0) tables[1].setVisible(false);
     DOUGHS.forEach((d, i) => {
       const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, lock('dough', d.extra), () => this.onDough(d.id));
       this.bowls.push(spot);
@@ -242,17 +267,20 @@ export class NightScene extends Phaser.Scene {
 
     // frostings: two pockets with 3 bags each
     const pockets = POCKETS.xs.map((x) => createFrostingPocket(this, x, POCKETS.h, POCKETS.bottom));
+    if (lock('frosting', true) > 0) pockets[1].setVisible(false);
     FROSTINGS.forEach((f, i) => {
       const spot = createPipingBag(this, pockets[Math.floor(i / 3)], i % 3, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y));
+      this.bags.push(spot);
     });
     // toppings: jars in 3 columns, bottom row first
     TOPPINGS.forEach((t, i) => {
       const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, lock('topping', t.extra), () => this.onTopping(t.id, spot.x, spot.y));
+      this.jars.push(spot);
     });
 
     // tray (above the ovens) and trash can
     createTray(this, STATION_X.tray, ty, (i) => this.onTray(i));
-    createTrash(this, TRASH.x, TRASH.y, TRASH.h, () => this.onTrash());
+    this.trashFlap = createTrash(this, TRASH.x, TRASH.y, TRASH.h, () => this.onTrash());
 
     // the security guard stands behind the counter, at its left end
     if (gameState.upgrades.guard) {
@@ -577,6 +605,7 @@ export class NightScene extends Phaser.Scene {
     }
     sfx(this, 'bake_start', 0.5);
     slot.start(id);
+    this.tutorialStarted = true;
   }
 
   /** Mouse down on an oven: a baked cake waits for the release (click = to a plate, drag = anywhere). */
@@ -717,6 +746,7 @@ export class NightScene extends Phaser.Scene {
     this.removeFrom(loc);
     this.select(null);
     sfx(this, 'trash', 0.5);
+    this.trashFlap();
     burst(this, TRASH.x, TRASH.y - 20, 'smoke_05', { count: 5, tint: 0x9aa0b4, gravity: -30, speed: [20, 70], scale: [0.2, 0.5], additive: false });
   }
 
@@ -796,6 +826,82 @@ export class NightScene extends Phaser.Scene {
 
   // ---------------------------------------------------------------- customers and special monsters
 
+  // ---------------------------------------------------------------- first-order guide (Day 1, once)
+
+  /** Run the guide for the tutorial customer; it ends as soon as that customer is served (or gone). */
+  private updateTutorial(tc: Customer): void {
+    if (!this.customers.includes(tc)) {
+      this.tutorialGuide?.hide();
+      this.tutorialCustomer = null;
+      this.tutorialOn = false;
+      if (!gameState.seenCards.includes('tutorial')) gameState.seenCards.push('tutorial');
+      // the next customer comes soon after the lesson
+      this.spawnIn = Math.min(this.spawnIn, 4);
+      if (this.stats.served > 0) floatText(this, W / 2, 330, T.tutorialDone, '#7dffb0', 30);
+      return;
+    }
+    this.tutorialGuide?.show(this.tutorialStep(tc));
+  }
+
+  /** A glowing outline around the open (first three) items of a group of stations. */
+  private groupBox(spots: Spot[], padX: number): TutorialBox {
+    const open = spots.slice(0, 3);
+    const x0 = Math.max(4, Math.min(...open.map((s) => s.x)) - padX);
+    const x1 = Math.min(W - 4, Math.max(...open.map((s) => s.x)) + padX);
+    const y0 = Math.min(...open.map((s) => s.y)) - 70;
+    const y1 = Math.min(H - 4, Math.max(...open.map((s) => s.y)) + 62);
+    return { x: x0, y: y0, w: x1 - x0, h: y1 - y0 };
+  }
+
+  /** What the player should do next for the tutorial customer's order, worked out from what is on the table. */
+  private tutorialStep(tc: Customer): TutorialStep {
+    const o = tc.order;
+    const bowl = this.bowls[DOUGHS.findIndex((d) => d.id === o.dough)];
+    const bag = this.bags[FROSTINGS.findIndex((f) => f.id === o.frosting)];
+    const jar = this.jars[TOPPINGS.findIndex((t) => t.id === o.topping)];
+    const trash = (text: string): TutorialPointer => ({ tx: TRASH.x, ty: TRASH.y - 48, text });
+
+    // a cupcake is already on a plate or the tray
+    const item = this.plates.find((p) => p) ?? this.tray.find((p) => p) ?? null;
+    if (item) {
+      if (item.bake === 'burnt') return { key: 'burnt-plate', pointers: [trash(T.tutBurntPlate)] };
+      const wrong = item.dough !== o.dough || (!!item.frosting && item.frosting !== o.frosting) || (!!item.topping && item.topping !== o.topping);
+      if (wrong) return { key: 'wrong', pointers: [trash(T.tutWrong)] };
+      if (!item.frosting) {
+        return {
+          key: 'frosting',
+          pointers: [{ tx: bag.x, ty: bag.y - 64, text: T.tutFrosting(frostingInfo(o.frosting).name) }],
+          boxes: [this.groupBox(this.bags, 50)],
+        };
+      }
+      if (!item.topping) {
+        return {
+          key: 'topping',
+          pointers: [{ tx: jar.x, ty: jar.y - 64, text: T.tutTopping(toppingInfo(o.topping).name) }],
+          boxes: [this.groupBox(this.jars, 42)],
+        };
+      }
+      return { key: 'serve', pointers: [{ tx: tc.x, ty: tc.y - 92, text: T.tutServe }] };
+    }
+
+    // something is in the oven
+    const oven = this.ovens.find((ov) => ov.cupcake);
+    if (oven?.cupcake) {
+      const here = (text: string): TutorialPointer => ({ tx: oven.x, ty: oven.y - 84, text });
+      if (oven.cupcake.bake === 'burnt') return { key: 'burnt-oven', pointers: [here(T.tutBurntOven), trash(T.tutTrashAfter)] };
+      if (oven.cupcake.bake === 'raw') return { key: 'bake', pointers: [here(T.tutBake), trash(T.tutTrashInfo)] };
+      return { key: 'ready', pointers: [here(T.tutReady)] };
+    }
+
+    // nothing yet: read the order, then pick the dough
+    const dough: TutorialPointer = { tx: bowl.x, ty: bowl.y - 56, text: T.tutDough(doughInfo(o.dough).name) };
+    const boxes = [this.groupBox(this.bowls, 60)];
+    if (!this.tutorialStarted) {
+      return { key: 'order', pointers: [{ tx: tc.x + LAYOUT.bubbleDX, ty: LAYOUT.bubbleY - 62, text: T.tutOrder }, dough], boxes };
+    }
+    return { key: 'dough', pointers: [dough], boxes };
+  }
+
   /** Seat a new customer. `special` forces a special monster (for the daily guarantee). */
   private trySpawn(special?: SpecialId): boolean {
     const free = this.customers.flatMap((c, i) => (c ? [] : [i]));
@@ -812,6 +918,11 @@ export class NightScene extends Phaser.Scene {
     sfx(this, 'customer_arrive', 0.35);
     const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(this.extrasOpen()), (cust) => this.onCustomer(cust));
     this.customers[slot] = customer;
+    // the very first regular customer of the very first day is the one the guide follows
+    if (this.tutorialOn && !this.tutorialCustomer && !kind) {
+      this.tutorialCustomer = customer;
+      customer.frozen = true;
+    }
     if (def.kind === 'vampire') this.time.delayedCall(700, () => this.vampireArrives(customer));
     return true;
   }

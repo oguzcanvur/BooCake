@@ -4,6 +4,8 @@
 export type SpecialId = 'vampire' | 'ghost' | 'thief';
 
 export interface DayConfig {
+  /** Length of this day in seconds. */
+  length: number;
   /** Money to earn during this day (not the running total). */
   goal: number;
   /** Seconds between customers (the real gap is randomized by +/- intervalJitter). */
@@ -15,9 +17,6 @@ export interface DayConfig {
 }
 
 export const CONFIG = {
-  /** Length of one day in seconds (2.5 minutes). */
-  dayLengthSec: 150,
-
   /** Price of a correct cupcake, plus a tip that depends on the customer's mood when served. */
   price: 5,
   tips: { happy: 5, uneasy: 2, angry: 0 },
@@ -60,11 +59,12 @@ export const CONFIG = {
 
   /** The 4 days. */
   days: [
-    // day 1 is a gentle start: lower goal, more patient customers who come a little slower
-    { goal: 45, interval: 13, patience: 36, specials: [] },
-    { goal: 90, interval: 10, patience: 27, specials: ['vampire', 'ghost'] },
-    { goal: 120, interval: 8, patience: 24, specials: ['vampire', 'ghost', 'thief'] },
-    { goal: 150, interval: 7, patience: 22, specials: ['vampire', 'ghost', 'thief'] },
+    // day 1 is a gentle start for first-time players: 2 minutes, lower goal, slower customers who wait longer
+    { length: 120, goal: 35, interval: 15, patience: 45, specials: [] },
+    // patience was raised by about 25% on every day (customers got angry too fast); every day lasts 2 minutes
+    { length: 120, goal: 90, interval: 10, patience: 34, specials: ['vampire', 'ghost'] },
+    { length: 120, goal: 120, interval: 8, patience: 30, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 150, interval: 7, patience: 28, specials: ['vampire', 'ghost', 'thief'] },
   ] as DayConfig[],
 };
 

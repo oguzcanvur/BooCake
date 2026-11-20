@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { COLORS, H, W } from '../config';
 import { LOGO, queueAssets } from '../assets';
 import { applySavedMute } from '../audio';
+import { startMusic } from '../music';
 import { fadeOutThen, setupCamera } from '../fx';
 
 /** How long the opening logo stays on screen at least (loading is usually faster than this). */
@@ -49,6 +50,7 @@ export class PreloadScene extends Phaser.Scene {
 
   create(): void {
     applySavedMute(this);
+    startMusic(this);
     // Make sure the web font is ready before any text is drawn, so the first screen looks right.
     const fonts = [document.fonts.load('600 24px Fredoka'), document.fonts.load('700 24px Fredoka')];
     void Promise.allSettled(fonts).then(() => {
