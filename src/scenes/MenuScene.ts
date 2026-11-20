@@ -52,7 +52,7 @@ export class MenuScene extends Phaser.Scene {
     if (canContinue()) {
       // a saved game: continue it, or start over (asks for a second click so progress is not lost by accident)
       makeButton(this, W / 2 - 175, 500, 330, 86, T.continueDay(gameState.day + (progress.resumeAt === 'shop' ? 2 : 1)), () => {
-        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'UpgradeShop' : 'Map'));
+        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'Decorate' : 'Map'));
       }, { color: 'green', fontSize: 34, depth: DEPTH.hud });
       this.newGameButton(false);
     } else {
@@ -75,7 +75,7 @@ export class MenuScene extends Phaser.Scene {
       fontSize: 30,
       depth: DEPTH.hud,
     });
-    makeButton(this, W / 2 + 150, 606, 280, 72, T.decorate, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'Menu' })), {
+    makeButton(this, W / 2 + 150, 606, 280, 72, T.shopTitle, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'Menu' })), {
       color: 'yellow',
       fontSize: 30,
       depth: DEPTH.hud,

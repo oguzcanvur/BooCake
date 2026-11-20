@@ -108,7 +108,7 @@ export class SummaryScene extends Phaser.Scene {
     const depth = DEPTH.hud + 2;
     if (won) {
       const last = isLastDay();
-      makeButton(this, cx, bottom - 100, 320, 70, last ? T.finish : T.toShop, () => this.go(last ? 'Final' : 'UpgradeShop'), { color: 'green', depth, fontSize: 32 });
+      makeButton(this, cx, bottom - 100, 320, 70, last ? T.finish : T.toShop, () => this.go(last ? 'Final' : 'Decorate'), { color: 'green', depth, fontSize: 32 });
     } else {
       makeButton(this, cx, bottom - 100, 320, 70, T.retry, () => this.go('Night'), { color: 'red', depth, fontSize: 32 });
     }

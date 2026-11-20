@@ -118,6 +118,8 @@ export const T = {
 
   // shop
   shopTitle: 'Shop',
+  tabUpgrades: 'Upgrades',
+  tabDecorate: 'Decorate',
   wallet: (m: number) => `Your money: $${m}`,
   buy: 'Buy',
   owned: 'Owned',
