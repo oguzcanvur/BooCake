@@ -87,6 +87,7 @@ export const STATION_SPRITES = [
   'jar_empty',
   'tray',
   'trash',
+  'trash_lid',
 ] as const;
 export type StationSprite = (typeof STATION_SPRITES)[number];
 export const stationKey = (n: StationSprite): string => `st_${n}`;

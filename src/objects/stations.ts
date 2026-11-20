@@ -52,6 +52,9 @@ function makeIngredient(scene: Phaser.Scene, pic: Movable, onClick: () => void, 
   });
 }
 
+/** The trash can drawing (in its own pixels before scaling): full height, where the can starts and the lid ends. */
+const TRASH_PIC = { h: 890, canTop: 262, lidBottom: 274 };
+
 /** Where each part sits on its base picture (center, in the base picture's pixels; measured when cutting). */
 const BOWL_SPOTS = [
   { cx: 62, cy: 53 },
@@ -224,29 +227,16 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
  */
 export function createTrash(scene: Phaser.Scene, x: number, y: number, height: number, onClick: () => void): () => void {
   const bottom = y + height / 2;
-  const pic = addPicture(scene, x, 'trash', { h: height }, bottom);
+  // the team's drawing, split in two: the can and its lid (the lid's bottom edge overlaps the can's rim a little)
+  const s = height / TRASH_PIC.h;
+  const pic = addPicture(scene, x, 'trash', { h: (TRASH_PIC.h - TRASH_PIC.canTop) * s }, bottom);
   const pw = pic.displayWidth;
   const box = scene.add.container(x, bottom).setDepth(DEPTH.station);
   pic.setPosition(0, 0);
-  const shadow = scene.add.ellipse(2, 1, pw * 1.05, 11, 0x4a2a2e, 0.22);
-  // lid: hinged on its left end, rim of the can is about 14% below the picture top
-  const lw = pw * 1.04;
-  const hingeX = -lw / 2;
-  const hingeY = -height * 0.86;
-  const lid = scene.add.container(hingeX, hingeY);
-  const g = scene.add.graphics();
-  g.fillStyle(0x8f8ba3, 1);
-  g.fillRoundedRect(0, -8, lw, 10, 5);
-  g.fillStyle(0xb9b5cc, 1);
-  g.fillRoundedRect(3, -7, lw - 6, 3.5, 2);
-  g.lineStyle(2.5, INK, 1);
-  g.strokeRoundedRect(0, -8, lw, 10, 5);
-  // handle
-  g.fillStyle(0x8f8ba3, 1);
-  g.fillRoundedRect(lw / 2 - 9, -15, 18, 8, 4);
-  g.lineStyle(2.5, INK, 1);
-  g.strokeRoundedRect(lw / 2 - 9, -15, 18, 8, 4);
-  lid.add(g);
+  const shadow = scene.add.ellipse(2, 1, pw * 0.9, 11, 0x4a2a2e, 0.22);
+  // lid: hinged on its left end
+  const lid = scene.add.container(-pw / 2, -(TRASH_PIC.h - TRASH_PIC.lidBottom) * s);
+  lid.add(scene.add.image(0, 0, stationKey('trash_lid')).setOrigin(0, 1).setScale(pic.scaleX));
   box.add([shadow, pic, lid]);
   const restY = box.y;
   let open = false;

@@ -95,7 +95,7 @@ export const POCKET = { x: 901, w: 318, bottom: 700 };
 export const JARS = { xs: [1098, 1166, 1234], bottoms: [700, 580], h: 112 };
 
 /** Trash can (center), on the top row above the second frosting pocket. */
-export const TRASH = { x: 1000, y: 494, h: 72 };
+export const TRASH = { x: 1000, y: 498, h: 84 };
 
 /**
  * The plates (preparation spots). x = center, bottom = where the plate picture stands.
