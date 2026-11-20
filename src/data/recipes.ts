@@ -1,6 +1,6 @@
 // Cupcake ingredients. An order is one dough + one frosting + one topping.
-// The first three of each list are there from day 1; the `extra` ones join on the day CONFIG.extrasFromDay
-// gives for their group (6 x 6 x 6 = 216 combinations once all are open). Names are shown to the player; colors are used by the drawing code.
+// The first three of each list are there from night 1; an `extra` one joins on the night whose
+// `newIngredients` (data/gameConfig.ts) lists it, one at a time. Names are shown to the player; colors are used by the drawing code.
 
 export const DOUGHS = [
   // raw = batter color, baked = right out of the oven, over = just before burning,
@@ -57,14 +57,26 @@ export function toppingInfo(id: ToppingId) {
 
 export type IngredientGroup = 'dough' | 'frosting' | 'topping';
 
-/** Which groups have their extra ingredients open today. */
-export type OpenExtras = Record<IngredientGroup, boolean>;
+/** Is this ingredient on the table tonight? (The first three of each group always are.) */
+export type IsOpen = (id: string) => boolean;
 
-/** A random order. A group whose extras are not open yet only uses its first three ingredients. */
-export function randomOrder(open: OpenExtras, rand: () => number = Math.random): Order {
-  const pick = <T extends { extra: boolean }>(list: readonly T[], withExtras: boolean): T => {
-    const pool = withExtras ? list : list.filter((x) => !x.extra);
+/** A random order made only of ingredients that are on the table. */
+export function randomOrder(open: IsOpen, rand: () => number = Math.random): Order {
+  const pick = <T extends { id: string; extra: boolean }>(list: readonly T[]): T => {
+    const pool = list.filter((x) => !x.extra || open(x.id));
     return pool[Math.floor(rand() * pool.length)];
   };
-  return { dough: pick(DOUGHS, open.dough).id, frosting: pick(FROSTINGS, open.frosting).id, topping: pick(TOPPINGS, open.topping).id };
+  return { dough: pick(DOUGHS).id, frosting: pick(FROSTINGS).id, topping: pick(TOPPINGS).id };
+}
+
+/** Name of any ingredient (dough, frosting or topping) by id. */
+export function ingredientName(id: string): string {
+  return ([...DOUGHS, ...FROSTINGS, ...TOPPINGS] as readonly { id: string; name: string }[]).find((x) => x.id === id)?.name ?? id;
+}
+
+/** Which group an ingredient belongs to. */
+export function ingredientGroup(id: string): IngredientGroup {
+  if (DOUGHS.some((d) => d.id === id)) return 'dough';
+  if (FROSTINGS.some((f) => f.id === id)) return 'frosting';
+  return 'topping';
 }

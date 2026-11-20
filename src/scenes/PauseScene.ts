@@ -30,7 +30,7 @@ export class PauseScene extends Phaser.Scene {
 
     const d = DEPTH.hud;
     makeButton(this, W / 2, cy - 40, 300, 66, T.resume, () => this.resume(), { color: 'green', fontSize: 28, depth: d });
-    makeButton(this, W / 2, cy + 44, 300, 62, T.restartDay, () => this.leave((night) => night.scene.restart()), { color: 'yellow', fontSize: 24, depth: d });
+    makeButton(this, W / 2, cy + 44, 300, 62, T.restartDay, () => this.leave((night) => night.scene.restart(night.sys.settings.data)), { color: 'yellow', fontSize: 24, depth: d });
     makeButton(this, W / 2, cy + 122, 300, 62, T.mainMenu, () => this.leave((night) => night.scene.start('Menu')), { color: 'grey', fontSize: 24, depth: d });
 
     // P or Esc also resumes

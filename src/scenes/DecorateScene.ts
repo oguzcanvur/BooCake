@@ -110,10 +110,12 @@ export class DecorateScene extends Phaser.Scene {
           fadeOutThen(this, () => this.scene.start('Menu'));
           return;
         }
-        gameState.day++;
+        // on to the newest open night (the marker walks there from the night just played)
+        const from = gameState.day;
+        gameState.day = gameState.unlocked;
         progress.resumeAt = 'night';
         saveGame();
-        fadeOutThen(this, () => this.scene.start('Map', { walkFrom: gameState.day - 1 }));
+        fadeOutThen(this, () => this.scene.start('Map', { walkFrom: from }));
       },
       { color: 'green', fontSize: between ? 26 : 30, depth: d + 3 },
     );

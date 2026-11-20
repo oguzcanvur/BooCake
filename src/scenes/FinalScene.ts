@@ -2,10 +2,10 @@ import Phaser from 'phaser';
 import { LOGO } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, H, W } from '../config';
-import { DAY_COUNT } from '../data/gameConfig';
+import { NIGHT_COUNT as DAY_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
-import { gameState, resetGame } from '../systems/GameState';
+import { nightStars } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
@@ -51,26 +51,25 @@ export class FinalScene extends Phaser.Scene {
 
     // stars earned over all days
     let total = 0;
-    for (let d = 0; d < DAY_COUNT; d++) total += gameState.stars[d] ?? 0;
+    for (let d = 0; d < DAY_COUNT; d++) total += nightStars(d);
     const row = this.add.container(0, 80);
     panel.add(row);
     for (let d = 0; d < DAY_COUNT; d++) {
       // one star per day: gold if the day was completed
       const s = this.add.graphics().setPosition((d - (DAY_COUNT - 1) / 2) * 90, 0);
-      drawStar(s, 0, 0, 26, (gameState.stars[d] ?? 0) > 0, 3);
+      drawStar(s, 0, 0, 26, (nightStars(d)) > 0, 3);
       s.setAlpha(0);
       row.add(s);
       this.tweens.add({ targets: s, alpha: 1, scale: { from: 1.8, to: 1 }, delay: 500 + d * 250, duration: 350, ease: 'Back.easeOut' });
-      row.add(this.add.text((d - (DAY_COUNT - 1) / 2) * 90, 36, `${gameState.stars[d] ?? 0}/3`, { fontFamily: FONT, fontSize: '18px', color: '#c9bdf0', fontStyle: 'bold' }).setOrigin(0.5));
+      row.add(this.add.text((d - (DAY_COUNT - 1) / 2) * 90, 36, `${nightStars(d)}/3`, { fontFamily: FONT, fontSize: '18px', color: '#c9bdf0', fontStyle: 'bold' }).setOrigin(0.5));
     }
     panel.add(this.add.text(0, 150, `${total}/${DAY_COUNT * 3}`, { fontFamily: FONT, fontSize: '26px', color: '#ffd166', fontStyle: 'bold' }).setOrigin(0.5));
 
     this.tweens.add({ targets: title, scale: { from: 0.7, to: 1 }, duration: 600, ease: 'Back.easeOut' });
     this.confetti();
 
-    makeButton(this, W / 2 - 170, cy + 235 + 40, 300, 66, T.playAgain, () => {
-      resetGame();
-      fadeOutThen(this, () => this.scene.start('Night'));
+    makeButton(this, W / 2 - 170, cy + 235 + 40, 300, 66, T.league, () => {
+      fadeOutThen(this, () => this.scene.start('Night', { mode: 'league' }));
     }, { color: 'green', fontSize: 30, depth: DEPTH.hud + 2 });
     makeButton(this, W / 2 + 170, cy + 235 + 40, 300, 66, T.menu, () => fadeOutThen(this, () => this.scene.start('Menu')), {
       color: 'blue',

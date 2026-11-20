@@ -2,32 +2,34 @@ import Phaser from 'phaser';
 import { BG_MAP } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, H, INK, W } from '../config';
-import { CONFIG, DAY_COUNT } from '../data/gameConfig';
+import { CONFIG, NIGHT_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
 import { drawCupcake } from '../objects/cupcake';
 import { unsoftened } from '../softStyle';
-import { gameState } from '../systems/GameState';
+import { gameState, record } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
+import { ingredientName } from '../data/recipes';
 import { MONSTER_CARDS, T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
 
 /**
- * Where the day stops sit (a winding road through the night sky, from left to right, above the bakery in the
+ * Where the night stops sit (a winding road through the night sky, from left to right, above the bakery in the
  * middle of the background picture so it stays visible).
  */
 const STOPS = [
-  { x: 210, y: 420 },
-  { x: 470, y: 270 },
-  { x: 800, y: 330 },
-  { x: 1070, y: 220 },
+  { x: 170, y: 420 },
+  { x: 395, y: 275 },
+  { x: 640, y: 298 },
+  { x: 885, y: 240 },
+  { x: 1105, y: 372 },
 ];
 const NODE_R = 52;
 
 /**
- * "Monster Town": the days as stops on a winding road over the team's picture of the town at night. The current day has a cupcake marker on it; after the
- * shop's "Next day" the marker walks along the road from the finished day to the next one. Clicking an open
- * stop starts that day. While the game is being tested (CONFIG.unlockAllDays) every day is open.
+ * "Monster Town": the nights as stops on a winding road over the team's picture of the town at night. The newest open
+ * night has a cupcake marker on it; after the shop's "Next night" the marker walks along the road from the night just
+ * played to it. Nights open one after another; an open stop can be clicked to play (or replay) it.
  */
 export class MapScene extends Phaser.Scene {
   constructor() {
@@ -48,15 +50,9 @@ export class MapScene extends Phaser.Scene {
       .text(W / 2, 112, T.mapPick, { fontFamily: FONT, fontSize: '24px', color: '#efe4ff', fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 5 })
       .setOrigin(0.5)
       .setDepth(DEPTH.hud);
-    if (CONFIG.unlockAllDays) {
-      this.add
-        .text(W - 20, H - 18, T.mapTestNote, { fontFamily: FONT, fontSize: '16px', color: '#ffd166', fontStyle: 'bold' })
-        .setOrigin(1, 1)
-        .setDepth(DEPTH.hud);
-    }
 
-    const current = Math.min(gameState.day, DAY_COUNT - 1);
-    for (let i = 0; i < DAY_COUNT; i++) this.drawStop(i, current);
+    const current = Math.min(gameState.unlocked, NIGHT_COUNT - 1);
+    for (let i = 0; i < NIGHT_COUNT; i++) this.drawStop(i, current);
 
     // the cupcake marker: walks from the finished day to the current one, or simply waits on the current one
     const marker = this.add.graphics().setDepth(DEPTH.hud + 2);
@@ -65,7 +61,8 @@ export class MapScene extends Phaser.Scene {
       const p = road.getPoint(t);
       marker.setPosition(p.x, p.y - NODE_R - 26);
     };
-    const tOf = (i: number) => i / (DAY_COUNT - 1);
+    // the stops are evenly spread along the road, so stop i sits at i / (count - 1)
+    const tOf = (i: number) => i / (NIGHT_COUNT - 1);
     const bob = () => this.tweens.add({ targets: marker, y: marker.y - 8, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     const from = data.walkFrom;
     if (from !== undefined && from >= 0 && from < current) {
@@ -124,13 +121,14 @@ export class MapScene extends Phaser.Scene {
     });
   }
 
-  /** One day stop: badge with the day number, goal, new monsters and stars. Click to play it if it is open. */
+  /** One night stop: badge with the night number and goal, stars, name, new monster and best money. Click to play it if open. */
   private drawStop(i: number, current: number): void {
     const { x, y } = STOPS[i];
-    const day = CONFIG.days[i];
-    const done = (gameState.stars[i] ?? 0) > 0;
+    const day = CONFIG.nights[i];
+    const rec = record(i);
+    const done = rec.stars > 0;
     const reached = i <= current;
-    const open = reached || CONFIG.unlockAllDays;
+    const open = reached;
     const d = DEPTH.hud;
 
     if (i === current) {
@@ -151,18 +149,22 @@ export class MapScene extends Phaser.Scene {
     stop.add(this.add.text(0, 14, T.goal(day.goal), { fontFamily: FONT, fontSize: '17px', color: '#7a5a4a', fontStyle: 'bold' }).setOrigin(0.5));
 
     // stars earned on this day
-    const stars = gameState.stars[i] ?? 0;
+    const stars = rec.stars;
     const sg = this.add.graphics();
     for (let k = 0; k < 3; k++) drawStar(sg, -30 + k * 30, NODE_R + 18, 12, k < stars, 2);
     stop.add(sg);
 
-    // monsters that show up for the first time on this day
-    const prev = i > 0 ? CONFIG.days[i - 1].specials : [];
-    const fresh = day.specials.filter((s) => !prev.includes(s));
-    if (fresh.length > 0) {
+    // the night's name, then what is new on it (a monster or a flavor) and the best money so far
+    const label = { fontFamily: FONT, fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 4 };
+    stop.add(this.add.text(0, NODE_R + 44, day.name, { ...label, fontSize: '18px', color: '#fff1fa' }).setOrigin(0.5));
+    const seenBefore = CONFIG.nights.slice(0, i).flatMap((n) => n.specials.map((s) => s.id));
+    const fresh = [...new Set(day.specials.map((s) => s.id))].filter((s) => !seenBefore.includes(s));
+    const info = [...fresh.map((s) => `+ ${MONSTER_CARDS[s].name}`), ...day.newIngredients.map((id) => `+ ${ingredientName(id)}`)];
+    if (rec.bestMoney > 0) info.push(T.mapBest(rec.bestMoney));
+    if (info.length > 0) {
       stop.add(
         this.add
-          .text(0, NODE_R + 46, `+ ${fresh.map((s) => MONSTER_CARDS[s].name).join(', ')}`, {
+          .text(0, NODE_R + 68, info.join('  ·  '), {
             fontFamily: FONT,
             fontSize: '16px',
             color: '#ffd6ec',
@@ -193,7 +195,7 @@ export class MapScene extends Phaser.Scene {
       gameState.day = i;
       progress.resumeAt = 'night';
       saveGame();
-      fadeOutThen(this, () => this.scene.start('Night'));
+      fadeOutThen(this, () => this.scene.start('Night', { mode: 'campaign' }));
     });
   }
 }
