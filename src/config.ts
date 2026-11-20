@@ -85,11 +85,11 @@ export const STATION_X = {
 
 /**
  * The plates (preparation spots). x = center, bottom = where the plate picture stands.
- * The first two are on the workbench; the two bought in the shop sit just above them, in the tray row.
+ * The first two are on the workbench; the two bought in the shop sit right above them, in the same columns.
  */
 export const PLATES: { x: number; bottom: number }[] = [
   { x: 588, bottom: 700 },
   { x: 718, bottom: 700 },
-  { x: 588, bottom: 536 },
-  { x: 718, bottom: 536 },
+  { x: 588, bottom: 586 },
+  { x: 718, bottom: 586 },
 ];

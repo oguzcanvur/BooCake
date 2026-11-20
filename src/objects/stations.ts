@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
 import { doughInfo, frostingInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { CONFIG } from '../data/gameConfig';
 import { T } from '../text';
 
 // The workbench stations use the team's drawings (src/assets/stations/, cut out of one sheet). The pictures
@@ -148,7 +149,7 @@ export function createPlate(scene: Phaser.Scene, x: number, bottom: number, onCl
 /** A plate place the player has not bought yet: a faded plate with a "buy in shop" tag. */
 export function createLockedPlate(scene: Phaser.Scene, x: number, bottom: number): void {
   const pic = addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station).setAlpha(0.4);
-  withTag(scene, pic, T.ovenLocked, 0.45, 10);
+  withTag(scene, pic, `$${CONFIG.shop.plate}\n${T.ovenLocked}`, 0.4, 11);
 }
 
 /** The ready tray: a silver tray with handles, one click zone per slot. */
