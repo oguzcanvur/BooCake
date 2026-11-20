@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { BG_SHOP, fxKey } from '../assets';
 import { COLORS, DEPTH, FONT, H, INK, LAYOUT, W } from '../config';
+import { clothColors, hasDecoration } from '../data/decor';
 
 const TOP = LAYOUT.counterTop;
 /** Y of the counter edge inside the background painting (in the painting's own pixels). */
@@ -9,7 +10,6 @@ const JAR_X = 1228;
 const BEAM_Y = LAYOUT.hudH;
 /** Warm palette for wood. */
 const WOOD = { dark: 0x4a2c22, mid: 0x6e4430, light: 0x8d5a3d, top: 0xa66f4b };
-const CLOTH = { base: 0x6b3fa0, dark: 0x4e2b7a, trim: 0xd9a84e };
 
 /**
  * The bakery interior, layered back to front: the painted background (walls, window, shelves, display case),
@@ -31,6 +31,7 @@ export class Shop {
     this.drawPumpkin(52, TOP);
     this.drawCandle(450, TOP);
     this.drawCandle(830, TOP);
+    this.drawDecorations();
     this.jar = scene.add.graphics().setDepth(DEPTH.counterDeco);
     this.drawJarShell(JAR_X, TOP);
     this.setJar(0);
@@ -143,7 +144,8 @@ export class Shop {
     g.lineStyle(2, INK, 1);
     g.lineBetween(0, TOP, W, TOP);
     g.lineBetween(0, TOP + 13, W, TOP + 13);
-    // purple runner with gold trim and a scalloped hem hanging over the front
+    // runner (color chosen in Decorate) with a trim and a scalloped hem hanging over the front
+    const CLOTH = clothColors();
     const cloth = this.scene.add.graphics().setDepth(DEPTH.counter + 1);
     cloth.fillStyle(CLOTH.base, 1);
     cloth.fillRect(0, TOP + 13, W, 16);
@@ -279,6 +281,122 @@ export class Shop {
       .text(x, baseY - 31, 'TIPS', { fontFamily: FONT, fontSize: '11px', color: '#2a1a3a', fontStyle: 'bold' })
       .setOrigin(0.5)
       .setDepth(DEPTH.counterDeco + 2);
+  }
+
+  // ------------------------------------------------------------------ decorations (chosen in Decorate)
+
+  private drawDecorations(): void {
+    if (hasDecoration('webs')) this.drawWebs();
+    if (hasDecoration('garland')) this.drawGarland();
+    if (hasDecoration('lights')) this.drawLights();
+    if (hasDecoration('pumpkin')) this.drawPumpkin(1146, TOP);
+  }
+
+  /** Cobwebs in the two top corners of the window, with a little spider on a thread. */
+  private drawWebs(): void {
+    const s = this.scene;
+    const g = s.add.graphics().setDepth(DEPTH.deco);
+    const web = (cx: number, cy: number, dir: 1 | -1) => {
+      const r = 78;
+      const angles = [0, 0.4, 0.8, 1.2, 1.57].map((a) => (dir === 1 ? a : Math.PI - a));
+      g.lineStyle(1.6, 0xffffff, 0.75);
+      for (const a of angles) g.lineBetween(cx, cy, cx + Math.cos(a) * r, cy + Math.sin(a) * r);
+      for (const k of [0.3, 0.55, 0.8, 1]) {
+        g.beginPath();
+        angles.forEach((a, i) => {
+          const px = cx + Math.cos(a) * r * k;
+          const py = cy + Math.sin(a) * r * k;
+          if (i === 0) g.moveTo(px, py);
+          else g.lineTo(px, py);
+        });
+        g.strokePath();
+      }
+    };
+    web(290, BEAM_Y + 4, 1);
+    web(990, BEAM_Y + 4, -1);
+    // spider hanging from the right web, bobbing slowly
+    const spider = s.add.container(950, BEAM_Y + 90).setDepth(DEPTH.deco + 1);
+    const thread = s.add.graphics();
+    thread.lineStyle(1.2, 0xffffff, 0.7);
+    thread.lineBetween(0, -90, 0, -8);
+    const body = s.add.graphics();
+    body.lineStyle(1.6, INK, 1);
+    for (const side of [-1, 1]) for (const dy of [-3, 0, 3]) body.lineBetween(0, dy, side * 11, dy + 4);
+    body.fillStyle(0x2a1d33, 1);
+    body.fillCircle(0, 0, 7);
+    body.fillStyle(0xffffff, 1);
+    body.fillCircle(-2.5, -2, 2);
+    body.fillCircle(2.5, -2, 2);
+    spider.add([thread, body]);
+    s.tweens.add({ targets: spider, y: spider.y + 26, duration: 1800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+  }
+
+  /** A bunting across the window: purple and orange pennants, with a little bat on every third one. */
+  private drawGarland(): void {
+    const g = this.scene.add.graphics().setDepth(DEPTH.deco + 1);
+    const x0 = 300;
+    const x1 = 980;
+    // below the painted pumpkin lanterns that hang from the top of the window
+    const y0 = BEAM_Y + 60;
+    const sag = 22;
+    const at = (t: number) => ({ x: x0 + (x1 - x0) * t, y: y0 + Math.sin(t * Math.PI) * sag });
+    g.lineStyle(2, INK, 1);
+    g.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const p = at(i / 40);
+      if (i === 0) g.moveTo(p.x, p.y);
+      else g.lineTo(p.x, p.y);
+    }
+    g.strokePath();
+    const n = 13;
+    for (let i = 1; i < n; i++) {
+      const p = at(i / n);
+      const color = i % 2 ? 0x8a5cc8 : 0xff9a3c;
+      g.fillStyle(color, 1);
+      g.fillTriangle(p.x - 16, p.y, p.x + 16, p.y, p.x, p.y + 30);
+      g.lineStyle(2, INK, 1);
+      g.strokeTriangle(p.x - 16, p.y, p.x + 16, p.y, p.x, p.y + 30);
+      if (i % 3 === 0) {
+        // tiny bat stamped on the pennant
+        g.fillStyle(0x1a1230, 1);
+        g.fillEllipse(p.x, p.y + 10, 5, 6);
+        g.fillTriangle(p.x - 1, p.y + 9, p.x - 9, p.y + 6, p.x - 6, p.y + 12);
+        g.fillTriangle(p.x + 1, p.y + 9, p.x + 9, p.y + 6, p.x + 6, p.y + 12);
+      }
+    }
+  }
+
+  /** A string of twinkling colored bulbs hanging across the window. */
+  private drawLights(): void {
+    const s = this.scene;
+    const g = s.add.graphics().setDepth(DEPTH.deco + 1);
+    const x0 = 230;
+    const x1 = 1050;
+    const y0 = BEAM_Y + 132;
+    const sag = 18;
+    const at = (t: number) => ({ x: x0 + (x1 - x0) * t, y: y0 + Math.sin(t * Math.PI) * sag });
+    g.lineStyle(1.8, 0x3a2a2a, 1);
+    g.beginPath();
+    for (let i = 0; i <= 40; i++) {
+      const p = at(i / 40);
+      if (i === 0) g.moveTo(p.x, p.y);
+      else g.lineTo(p.x, p.y);
+    }
+    g.strokePath();
+    const colors = [0xffd166, 0xff8fc7, 0x8fffd0, 0xb98cff, 0xff9a3c];
+    for (let i = 1; i < 18; i++) {
+      const p = at(i / 18);
+      const c = colors[i % colors.length];
+      g.fillStyle(c, 1);
+      g.fillEllipse(p.x, p.y + 8, 9, 12);
+      g.lineStyle(1.5, INK, 1);
+      g.strokeEllipse(p.x, p.y + 8, 9, 12);
+      g.fillStyle(0x5a4a4a, 1);
+      g.fillRect(p.x - 3, p.y, 6, 4);
+      const glow = s.add.image(p.x, p.y + 8, fxKey('light_01')).setDepth(DEPTH.deco + 2).setTint(c).setScale(0.22).setAlpha(0.5);
+      glow.setBlendMode(Phaser.BlendModes.ADD);
+      s.tweens.add({ targets: glow, alpha: 0.15, duration: Phaser.Math.Between(500, 1100), yoyo: true, repeat: -1, delay: i * 90 });
+    }
   }
 
   // ------------------------------------------------------------------ ambience

@@ -76,6 +76,11 @@ export class UpgradeShopScene extends Phaser.Scene {
     ITEMS.forEach((item, i) => this.drawCard(item, W / 2 + (i - (ITEMS.length - 1) / 2) * CARD_GAP, cy + 20));
     this.refresh();
 
+    makeButton(this, W / 2 - 290, cy + panelH / 2 + 46, 220, 64, T.decorate, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'UpgradeShop' })), {
+      color: 'yellow',
+      fontSize: 26,
+      depth: DEPTH.hud + 2,
+    });
     makeButton(this, W / 2, cy + panelH / 2 + 46, 320, 72, T.nextDay, () => {
       gameState.day++;
       fadeOutThen(this, () => this.scene.start('Night'));

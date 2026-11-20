@@ -3,6 +3,7 @@ import { sfx } from '../audio';
 import { DEPTH, FONT, H, W } from '../config';
 import { burst, fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
+import { decor } from '../data/decor';
 import { currentDay, gameState, isLastDay, starsFor } from '../systems/GameState';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
@@ -38,6 +39,8 @@ export class SummaryScene extends Phaser.Scene {
     const stars = starsFor(this.earned, day.goal);
     const won = stars > 0;
     if (won) {
+      // a better result than before on this day adds the new stars to the decoration stars
+      decor.stars += Math.max(0, stars - (gameState.stars[gameState.day] ?? 0));
       gameState.stars[gameState.day] = Math.max(gameState.stars[gameState.day] ?? 0, stars);
       gameState.wallet += this.earned;
     }

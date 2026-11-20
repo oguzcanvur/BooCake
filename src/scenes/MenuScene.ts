@@ -60,9 +60,14 @@ export class MenuScene extends Phaser.Scene {
       },
       { color: 'green', fontSize: 42, depth: DEPTH.hud },
     );
-    makeButton(this, W / 2, 606, 340, 72, T.howTo, () => fadeOutThen(this, () => this.scene.start('HowTo')), {
+    makeButton(this, W / 2 - 150, 606, 280, 72, T.howTo, () => fadeOutThen(this, () => this.scene.start('HowTo')), {
       color: 'blue',
-      fontSize: 32,
+      fontSize: 30,
+      depth: DEPTH.hud,
+    });
+    makeButton(this, W / 2 + 150, 606, 280, 72, T.decorate, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'Menu' })), {
+      color: 'yellow',
+      fontSize: 30,
       depth: DEPTH.hud,
     });
 

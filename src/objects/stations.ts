@@ -3,6 +3,7 @@ import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
 import { doughInfo, frostingInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 import { drawTopping } from './cupcake';
+import { plateColor } from '../data/decor';
 import { CONFIG } from '../data/gameConfig';
 import { T } from '../text';
 
@@ -201,7 +202,8 @@ export const PLATE_W = 116;
 
 /** A plate: a preparation spot. The cupcake itself is drawn by the scene. */
 export function createPlate(scene: Phaser.Scene, x: number, bottom: number, onClick: () => void): void {
-  addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station);
+  // tinted with the player's plate color (decoration)
+  addPicture(scene, x, 'plate', { w: PLATE_W }, bottom).setDepth(DEPTH.station).setTint(plateColor());
   scene.add.zone(x, bottom - 48, PLATE_W + 6, 104).setInteractive({ useHandCursor: true }).on('pointerdown', onClick);
 }
 

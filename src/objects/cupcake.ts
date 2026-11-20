@@ -1,4 +1,5 @@
 import type Phaser from 'phaser';
+import { wrapperColor } from '../data/decor';
 import { doughInfo, frostingInfo, type DoughId, type FrostingId, type Order, type ToppingId } from '../data/recipes';
 
 export type BakeState = 'raw' | 'ready' | 'burnt';
@@ -198,7 +199,8 @@ export function drawCupcake(g: G, x: number, y: number, c: CupcakeData, s = 1): 
   const dough = doughInfo(c.dough);
   const cakeBase = c.bake === 'raw' ? dough.raw : c.bake === 'ready' ? blend(dough.baked, dough.over, c.tone) : 0x2b2522;
   const burnt = c.bake === 'burnt';
-  const wrap = burnt ? 0x2f2f33 : 0x3b2560;
+  // the wrapper color is the player's decoration choice
+  const wrap = burnt ? 0x2f2f33 : wrapperColor();
 
   // soft shadow, then the wrapper (the cake and frosting spill over its rim)
   g.fillStyle(0x000000, 0.22);
