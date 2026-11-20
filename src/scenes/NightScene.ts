@@ -191,7 +191,9 @@ export class NightScene extends Phaser.Scene {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
         const gap = this.day.interval + Phaser.Math.FloatBetween(-CONFIG.intervalJitter, CONFIG.intervalJitter);
-        this.spawnIn = this.trySpawn() ? Math.max(2, gap) : 1.5;
+        // when the counter is full, the next customer waits half a gap after a seat frees up (they used to
+        // walk in the moment one was served, so customers seemed to come non-stop)
+        this.spawnIn = this.trySpawn() ? Math.max(2, gap) : this.day.interval * 0.5;
       }
     }
 
@@ -203,6 +205,8 @@ export class NightScene extends Phaser.Scene {
         this.spawnThief();
       } else if (this.trySpawn(p.id)) {
         p.done = true;
+        // a special monster takes the next regular customer's turn
+        this.spawnIn = Math.max(this.spawnIn, this.day.interval * 0.6);
       }
     }
 
@@ -915,7 +919,7 @@ export class NightScene extends Phaser.Scene {
   /** Seat a new customer. `special` forces a special monster (for the daily guarantee). */
   private trySpawn(special?: SpecialId): boolean {
     const free = this.customers.flatMap((c, i) => (c ? [] : [i]));
-    if (free.length === 0) return false;
+    if (free.length === 0 || this.customers.length - free.length >= this.day.seats) return false;
 
     let kind: SpecialId | undefined = special;
     if (!kind) {

@@ -12,6 +12,8 @@ export interface DayConfig {
   interval: number;
   /** Seconds a customer waits before leaving. */
   patience: number;
+  /** Most customers at the counter at the same time (there are 3 seats). */
+  seats: number;
   /** Special monsters that can show up on this day. */
   specials: SpecialId[];
 }
@@ -64,11 +66,11 @@ export const CONFIG = {
 
   days: [
     // day 1 is a gentle start for first-time players: 2 minutes, lower goal, slower customers who wait longer
-    { length: 120, goal: 35, interval: 17, patience: 65, specials: [] },
+    { length: 120, goal: 30, interval: 22, patience: 80, seats: 2, specials: [] },
     // all days were made easier: customers come less often and wait longer, goals lowered to match; 2 minutes each
-    { length: 120, goal: 60, interval: 13, patience: 56, specials: ['vampire', 'ghost'] },
-    { length: 120, goal: 75, interval: 11, patience: 50, specials: ['vampire', 'ghost', 'thief'] },
-    { length: 120, goal: 85, interval: 10, patience: 46, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 45, interval: 18, patience: 70, seats: 3, specials: ['vampire', 'ghost'] },
+    { length: 120, goal: 55, interval: 15, patience: 62, seats: 3, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 62, interval: 13, patience: 56, seats: 3, specials: ['vampire', 'ghost', 'thief'] },
   ] as DayConfig[],
 };
 
