@@ -6,6 +6,8 @@ import '@fontsource/fredoka/latin-ext-700.css';
 import Phaser from 'phaser';
 import { H, RES, W } from './config';
 import { GUARD_MONSTER, NORMAL_MONSTERS, SPECIAL_VARIANTS } from './data/monsters';
+import { BootScene } from './scenes/BootScene';
+import { DecorateScene } from './scenes/DecorateScene';
 import { FinalScene } from './scenes/FinalScene';
 import { HowToScene } from './scenes/HowToScene';
 import { MenuScene } from './scenes/MenuScene';
@@ -14,9 +16,12 @@ import { PauseScene } from './scenes/PauseScene';
 import { PreloadScene } from './scenes/PreloadScene';
 import { SummaryScene } from './scenes/SummaryScene';
 import { UpgradeShopScene } from './scenes/UpgradeShopScene';
+import { loadGame } from './systems/save';
 import { addPaperGrain, installSoftStyle, softenTextStyle } from './softStyle';
 
 installSoftStyle();
+// pick up where the player left off (browser storage)
+loadGame();
 addPaperGrain();
 
 // Every text is rendered at RES x resolution so it stays sharp after the camera zoom (see config.RES).
@@ -41,7 +46,7 @@ const game = new Phaser.Game({
     mode: Phaser.Scale.FIT,
     autoCenter: Phaser.Scale.CENTER_BOTH,
   },
-  scene: [PreloadScene, MenuScene, HowToScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, FinalScene],
+  scene: [BootScene, PreloadScene, MenuScene, HowToScene, NightScene, PauseScene, SummaryScene, UpgradeShopScene, DecorateScene, FinalScene],
 });
 
 // Dev-only handle so the game can be inspected/tested from the browser console.

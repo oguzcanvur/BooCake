@@ -1,10 +1,12 @@
 import Phaser from 'phaser';
+import { LOGO } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, H, W } from '../config';
 import { DAY_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
 import { gameState, resetGame } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
@@ -17,6 +19,9 @@ export class FinalScene extends Phaser.Scene {
   }
 
   create(): void {
+    // the run is complete: the menu offers a new game instead of Continue (stars and decoration stay)
+    progress.finished = true;
+    saveGame();
     fadeIn(this, 600);
     new Shop(this).update(1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0618, 0.55).setDepth(DEPTH.bubble);
@@ -28,14 +33,21 @@ export class FinalScene extends Phaser.Scene {
     drawPanel(g, 860, 470);
     panel.add(g);
     const title = this.add
-      .text(0, -140, T.finalTitle, { fontFamily: FONT, fontSize: '88px', color: '#ffd166', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
+      .text(0, -92, T.finalTitle, { fontFamily: FONT, fontSize: '76px', color: '#ffd166', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 12 })
       .setOrigin(0.5);
     panel.add(title);
     panel.add(
       this.add
-        .text(0, -30, T.finalText, { fontFamily: FONT, fontSize: '36px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: 760 } })
+        .text(0, -14, T.finalText, { fontFamily: FONT, fontSize: '36px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: 760 } })
         .setOrigin(0.5),
     );
+
+    // the game logo sits on the top edge of the panel
+    const logo = this.add.image(W / 2, cy - 236, LOGO).setDepth(DEPTH.hud + 1);
+    const logoScale = 170 / logo.height;
+    logo.setScale(logoScale * 0.5);
+    this.tweens.add({ targets: logo, scale: logoScale, duration: 650, ease: 'Back.easeOut' });
+    this.tweens.add({ targets: logo, y: logo.y - 6, duration: 1400, yoyo: true, repeat: -1, ease: 'Sine.easeInOut', delay: 650 });
 
     // stars earned over all days
     let total = 0;

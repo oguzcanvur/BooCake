@@ -4,9 +4,12 @@ import { COLORS, DEPTH, FONT, H, W } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import { GUARD_MONSTER } from '../data/monsters';
 import { fadeIn, fadeOutThen, floatText } from '../fx';
+import { stationKey } from '../assets';
+import { drawCupcake } from '../objects/cupcake';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
-import { gameState, MAX_EXTRA_OVENS, type Upgrades } from '../systems/GameState';
+import { gameState, MAX_EXTRA_OVENS, MAX_EXTRA_PLATES, type Upgrades } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawPanel } from '../ui/panel';
@@ -30,9 +33,14 @@ const ITEMS: Item[] = [
   { key: 'garlic', name: T.garlicName, desc: T.garlicDesc, price: CONFIG.shop.garlic, max: 1 },
   { key: 'guard', name: T.guardName, desc: T.guardDesc, price: CONFIG.shop.guard, max: 1 },
   { key: 'ovens', name: T.ovenName, desc: T.ovenDesc, price: CONFIG.shop.oven, max: MAX_EXTRA_OVENS },
+  { key: 'plates', name: T.plateName, desc: T.plateDesc, price: CONFIG.shop.plate, max: MAX_EXTRA_PLATES },
 ];
 
-/** Between days: spend the wallet on permanent upgrades (garlic, security guard, extra ovens). */
+/** Distance between the card centers, and a card's width. */
+const CARD_GAP = 262;
+const CARD_W = 244;
+
+/** Between days: spend the wallet on permanent upgrades (garlic, security guard, an extra oven, extra plates). */
 export class UpgradeShopScene extends Phaser.Scene {
   private walletText!: Phaser.GameObjects.Text;
   /** Everything that must be rebuilt when the money or the owned items change (buy buttons / status texts). */
@@ -66,11 +74,18 @@ export class UpgradeShopScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(DEPTH.hud + 1);
 
-    ITEMS.forEach((item, i) => this.drawCard(item, W / 2 + (i - 1) * 340, cy + 20));
+    ITEMS.forEach((item, i) => this.drawCard(item, W / 2 + (i - (ITEMS.length - 1) / 2) * CARD_GAP, cy + 20));
     this.refresh();
 
+    makeButton(this, W / 2 - 290, cy + panelH / 2 + 46, 220, 64, T.decorate, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'UpgradeShop' })), {
+      color: 'yellow',
+      fontSize: 26,
+      depth: DEPTH.hud + 2,
+    });
     makeButton(this, W / 2, cy + panelH / 2 + 46, 320, 72, T.nextDay, () => {
       gameState.day++;
+      progress.resumeAt = 'night';
+      saveGame();
       fadeOutThen(this, () => this.scene.start('Night'));
     }, { color: 'green', fontSize: 32, depth: DEPTH.hud + 2 });
   }
@@ -80,20 +95,21 @@ export class UpgradeShopScene extends Phaser.Scene {
     const d = DEPTH.hud + 1;
     const g = this.add.graphics().setDepth(d);
     g.fillStyle(0x000000, 0.22);
-    g.fillRoundedRect(x - 150, y - 170, 300, 350, 22);
+    g.fillRoundedRect(x - CARD_W / 2, y - 170, CARD_W, 350, 22);
     g.fillStyle(0xffffff, 0.07);
-    g.fillRoundedRect(x - 150, y - 176, 300, 350, 22);
+    g.fillRoundedRect(x - CARD_W / 2, y - 176, CARD_W, 350, 22);
 
     const icon = this.add.graphics().setDepth(d + 1);
     if (item.key === 'garlic') this.drawGarlicIcon(icon, x, y - 90);
     else if (item.key === 'ovens') this.drawOvenIcon(icon, x, y - 90);
+    else if (item.key === 'plates') this.drawPlateIcon(x, y - 90, d + 1);
     else {
       const guard = new MonsterView(this, x, y - 118, GUARD_MONSTER);
       guard.root.setDepth(d + 1).setScale(0.5);
     }
 
-    this.add.text(x, y - 6, item.name, { fontFamily: FONT, fontSize: '25px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: 270 } }).setOrigin(0.5).setDepth(d + 1);
-    this.add.text(x, y + 38, item.desc, { fontFamily: FONT, fontSize: '19px', color: '#c9bdf0', align: 'center', wordWrap: { width: 260 } }).setOrigin(0.5).setDepth(d + 1);
+    this.add.text(x, y - 6, item.name, { fontFamily: FONT, fontSize: '25px', color: '#ffffff', fontStyle: 'bold', align: 'center', wordWrap: { width: CARD_W - 24 } }).setOrigin(0.5).setDepth(d + 1);
+    this.add.text(x, y + 38, item.desc, { fontFamily: FONT, fontSize: '19px', color: '#c9bdf0', align: 'center', wordWrap: { width: CARD_W - 30 } }).setOrigin(0.5).setDepth(d + 1);
     this.add.text(x, y + 88, `$${item.price}`, { fontFamily: FONT, fontSize: '32px', color: '#ffd166', fontStyle: 'bold' }).setOrigin(0.5).setDepth(d + 1);
     this.cardPos[item.key] = { x, y: y + 140 };
   }
@@ -119,7 +135,7 @@ export class UpgradeShopScene extends Phaser.Scene {
       if (owned > 0) {
         const t = this.add
           // top-right corner of the card
-          .text(x + 128, y - 300, `${owned}/${item.max}`, { fontFamily: FONT, fontSize: '22px', color: '#7dffb0', fontStyle: 'bold' })
+          .text(x + CARD_W / 2 - 18, y - 300, `${owned}/${item.max}`, { fontFamily: FONT, fontSize: '22px', color: '#7dffb0', fontStyle: 'bold' })
           .setOrigin(1, 0)
           .setDepth(DEPTH.hud + 3);
         this.dynamic.push({ destroy: () => t.destroy() });
@@ -129,7 +145,7 @@ export class UpgradeShopScene extends Phaser.Scene {
         this,
         x,
         y,
-        240,
+        200,
         58,
         affordable ? T.buy : T.notEnough,
         () => this.buy(item, x, y),
@@ -146,13 +162,22 @@ export class UpgradeShopScene extends Phaser.Scene {
       return;
     }
     gameState.wallet -= item.price;
-    if (item.key === 'ovens') gameState.upgrades.ovens++;
+    if (item.key === 'ovens' || item.key === 'plates') gameState.upgrades[item.key]++;
     else gameState.upgrades[item.key] = true;
+    saveGame();
     sfx(this, 'coin', 0.5);
     sfx(this, 'serve_ok', 0.4);
     floatText(this, x, y - 40, T.owned, '#7dffb0', 26);
     // rebuild on the next frame so the clicked button is not destroyed while it handles the click
     this.time.delayedCall(0, () => this.refresh());
+  }
+
+  /** The team's plate drawing with a little cupcake on it. */
+  private drawPlateIcon(x: number, y: number, depth: number): void {
+    const plate = this.add.image(x, y + 46, stationKey('plate')).setOrigin(0.5, 1).setDepth(depth);
+    plate.setScale(150 / plate.width);
+    const g = this.add.graphics().setDepth(depth + 1);
+    drawCupcake(g, x, y - 4, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'mint', topping: 'sprinkles' }, 1);
   }
 
   private drawGarlicIcon(g: Phaser.GameObjects.Graphics, x: number, y: number): void {

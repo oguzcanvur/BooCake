@@ -3,7 +3,9 @@ import { sfx } from '../audio';
 import { DEPTH, FONT, H, W } from '../config';
 import { burst, fadeIn, fadeOutThen } from '../fx';
 import { Shop } from '../objects/Shop';
+import { decor } from '../data/decor';
 import { currentDay, gameState, isLastDay, starsFor } from '../systems/GameState';
+import { progress, saveGame } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
 import { drawStar } from '../ui/icons';
@@ -38,9 +40,14 @@ export class SummaryScene extends Phaser.Scene {
     const stars = starsFor(this.earned, day.goal);
     const won = stars > 0;
     if (won) {
+      // a better result than before on this day adds the new stars to the decoration stars
+      decor.stars += Math.max(0, stars - (gameState.stars[gameState.day] ?? 0));
       gameState.stars[gameState.day] = Math.max(gameState.stars[gameState.day] ?? 0, stars);
       gameState.wallet += this.earned;
     }
+    // a won day continues in the shop (the last one goes to the final screen); a lost day is replayed
+    progress.resumeAt = won && !isLastDay() ? 'shop' : 'night';
+    saveGame();
 
     new Shop(this).update(1);
     this.add.rectangle(W / 2, H / 2, W, H, 0x0a0618, 0.62).setDepth(DEPTH.bubble);

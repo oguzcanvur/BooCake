@@ -48,6 +48,12 @@ export const SFX_NAMES = [
 export type FxName = (typeof FX_NAMES)[number];
 export type SfxName = (typeof SFX_NAMES)[number];
 
+/** Game logo (the team's art, background cut away). Loaded first by BootScene so the splash screen can show it. */
+export const LOGO = 'logo';
+export function queueLogo(scene: Phaser.Scene): void {
+  scene.load.image(LOGO, binaryUrl('ui/logo.webp'));
+}
+
 /** Shop interior painting behind the counter (the team's background art). */
 export const BG_SHOP = 'bg_shop';
 
@@ -57,6 +63,9 @@ export const STATION_SPRITES = [
   'bowl_vanilla',
   'bowl_chocolate',
   'bowl_strawberry',
+  'bowl_redvelvet',
+  'bowl_lemon',
+  'bowl_matcha',
   'oven',
   'oven_locked',
   'plate',
@@ -64,9 +73,13 @@ export const STATION_SPRITES = [
   'bag_pink',
   'bag_mint',
   'bag_lilac',
+  'bag_vanilla',
+  'bag_chocolate',
+  'bag_caramel',
   'jar_sprinkles',
   'jar_eyes',
   'jar_spiders',
+  'jar_empty',
   'tray',
   'trash',
 ] as const;

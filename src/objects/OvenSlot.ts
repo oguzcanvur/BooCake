@@ -24,6 +24,8 @@ export class OvenSlot {
   elapsed = 0;
   /** Highlighted by the player (a burnt cupcake waiting for the trash can). */
   selected = false;
+  /** The cupcake is being dragged out with the mouse: the oven does not draw it. */
+  held = false;
   /** What was drawn last time, so the drawing is only rebuilt when it changes. */
   private lastKey = '';
 
@@ -102,6 +104,7 @@ export class OvenSlot {
     this.cupcake = null;
     this.elapsed = 0;
     this.selected = false;
+    this.held = false;
     this.smoke.stop();
     this.steam.stop();
     this.redraw();
@@ -151,7 +154,7 @@ export class OvenSlot {
 
     // the vector drawing is only rebuilt when something visible changed
     const frac = this.cupcake ? Math.min(this.elapsed / this.burnSec, 1) : -1;
-    const key = `${state}|${Math.round(frac * 120)}|${this.selected}`;
+    const key = `${state}|${Math.round(frac * 120)}|${this.selected}|${this.held}`;
     if (key === this.lastKey) return;
     this.lastKey = key;
     dyn.clear();
@@ -168,7 +171,7 @@ export class OvenSlot {
       dyn.fillStyle(0xff9a3c, 0.45);
       dyn.fillEllipse(x, cy + 16, 56, 10);
     }
-    if (this.cupcake) drawCupcake(dyn, x, cy + 12, this.cupcake, 0.48);
+    if (this.cupcake && !this.held) drawCupcake(dyn, x, cy + 12, this.cupcake, 0.48);
     if (this.selected) {
       dyn.lineStyle(4, 0xffffff, 0.95);
       dyn.strokeRoundedRect(wx - 6, wy - 6, WIN.w + 12, WIN.h + 12, 9);

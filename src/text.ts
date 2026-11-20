@@ -6,7 +6,19 @@ import type { SpecialId } from './data/gameConfig';
 export const T = {
   tagline: 'Bake cupcakes for monsters before they get angry!',
   play: 'Play',
+  continueDay: (n: number) => `Continue: Day ${n}`,
+  newGame: 'New game',
+  newGameSure: 'Sure? Click again',
   howTo: 'How to Play',
+  decorate: 'Decorate',
+  decorateTitle: 'Decorate your shop',
+  decorStars: (n: number) => `${n} stars`,
+  decorHint: 'Earn stars to unlock more. Just for looks!',
+  decorWrapper: 'Cupcake wrapper',
+  decorPlates: 'Plates',
+  decorCloth: 'Counter cloth',
+  decorItems: 'Decorations',
+  done: 'Done',
   back: 'Back',
   menu: 'Menu',
 
@@ -20,20 +32,25 @@ export const T = {
   plate: 'PLATE',
   frosting: 'FROSTING',
   topping: 'TOPPING',
-  tray: 'READY TRAY',
+  tray: 'TRAY',
   trash: 'TRASH',
   ovenLocked: 'Buy in shop',
+  /** Tag on an ingredient that opens on a later day. */
+  fromDay: (n: number) => `Day ${n}`,
 
   // day intro
   dayIntro: (n: number) => `Day ${n}`,
   goal: (g: number) => `Goal: $${g}`,
-  openShop: 'Open shop',
+  startDay: 'Start day',
   newCustomer: 'New customer',
+  /** Day intro card when a group of extra ingredients opens. */
+  newFlavors: (group: 'dough' | 'frosting' | 'topping', names: string[]) =>
+    `New flavors! ${{ dough: 'Doughs', frosting: 'Frostings', topping: 'Toppings' }[group]}: ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}.`,
 
   // hints and messages during play
   ovenFull: 'Oven is full!',
   stillBaking: 'Baking...',
-  plateFull: 'Plate is full!',
+  plateFull: 'All plates are full!',
   plateEmpty: 'Take a cake from the oven first',
   burntNoDecorate: "Can't decorate a burnt cake. Trash it!",
   alreadyFrosted: 'Already frosted',
@@ -42,10 +59,12 @@ export const T = {
   nothingToServe: 'No cupcake in hand',
   notFinished: 'Add frosting and a topping first',
   burntNoServe: "Can't serve a burnt cake",
-  trayNeedsFinished: 'Only finished cupcakes go on the tray',
+  trayNeedsFinished: 'Pick a cake first',
+  burntNoTray: 'Burnt cakes go in the trash',
+  plateFullTray: 'Plates are full: drag it to the tray',
   trayFull: 'Tray is full',
   nothingToTrash: 'Pick something to throw away',
-  burntSelected: 'Plate is full: burnt cake picked, click the trash',
+  burntSelected: 'Plates are full: burnt cake picked, click the trash',
   ready: 'Ready!',
   burnt: 'Burnt!',
   wrongOrder: 'Wrong cupcake!',
@@ -89,7 +108,9 @@ export const T = {
   guardName: 'Security Guard',
   guardDesc: 'Catches the thief, who leaves +$5.',
   ovenName: 'Extra Oven',
-  ovenDesc: 'Bake one more cake at a time (up to 3 ovens).',
+  ovenDesc: 'Bake two cakes at a time.',
+  plateName: 'Extra Plate',
+  plateDesc: 'Room for one more cupcake (up to 4 plates).',
 
   // final
   finalTitle: 'You won!',
@@ -101,7 +122,7 @@ export const T = {
   howToSteps: [
     'Pick a dough: it bakes in 5 seconds. Leave it past 10 seconds and it burns!',
     'Move the baked cake to the plate, then add frosting and a topping.',
-    'Give (or drag) the right cupcake to the customer. The faster, the bigger the tip! Ready cupcakes can wait on the tray.',
+    'Give (or drag) the right cupcake to the customer. The faster, the bigger the tip! Cakes can wait on the tray, even plain ones.',
     'Watch out for special monsters: the vampire bites, the thief steals cakes. Buy protection in the shop!',
   ],
 };
