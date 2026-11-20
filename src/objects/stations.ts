@@ -85,18 +85,21 @@ const BAG: Record<FrostingId, StationSprite> = {
 /** The team's jars; the new toppings use an emptied copy of the sprinkles jar with the candies drawn inside. */
 const JAR: Partial<Record<ToppingId, StationSprite>> = { sprinkles: 'jar_sprinkles', eye: 'jar_eyes', spider: 'jar_spiders' };
 /**
- * Where the drawn candies sit inside the empty jar (in its own 74 x 124 pixels: the glass is about x 10-64,
- * y 38-110, with the label over y 60-86). Kept well inside the glass so nothing sticks out of the jar.
+ * The drawn candies inside the empty jar, like the team's own jars: big candies filling the glass, two at the
+ * top peeking out above the label and a little pile at the bottom (in the jar's own 74 x 124 pixels; the glass
+ * is about x 10-64, y 38-110, the label covers y 60-86). Listed back to front.
  */
 const JAR_FILL = [
-  [27, 50],
-  [47, 50],
-  [24, 98],
-  [37, 101],
-  [50, 98],
+  [26, 58],
+  [48, 57],
+  [29, 92],
+  [46, 93],
+  [21, 102],
+  [37, 104],
+  [53, 102],
 ];
-/** Size of each drawn candy in the jar (the bat is the widest, ~34 units). */
-const JAR_CANDY = 0.46;
+/** Size of each drawn candy in the jar; the bat is wider than the others, so it is drawn smaller. */
+const JAR_CANDY: Partial<Record<ToppingId, number>> = { bat: 0.6, cherry: 0.85, ghost: 0.9 };
 
 /** Faded and not clickable: an ingredient that joins on a later day. */
 
@@ -186,7 +189,13 @@ export function createToppingJar(scene: Phaser.Scene, x: number, bottom: number,
     // fill the empty jar with the topping itself (positions are in the picture's own pixels)
     const s = pic.scaleX;
     const g = scene.add.graphics();
-    for (const [px, py] of JAR_FILL) drawTopping(g, (px - pic.width / 2) * s, (py - pic.height) * s, id, JAR_CANDY * s);
+    const k = (JAR_CANDY[id] ?? 0.8) * s;
+    for (const [px, py] of JAR_FILL) drawTopping(g, (px - pic.width / 2) * s, (py - pic.height) * s, id, k);
+    // the glass in front of the candies: a light tint and a shine stripe, so they look inside the jar
+    g.fillStyle(0xe6f2f2, 0.22);
+    g.fillRoundedRect((12 - pic.width / 2) * s, (40 - pic.height) * s, 50 * s, 68 * s, 10 * s);
+    g.fillStyle(0xffffff, 0.45);
+    g.fillRoundedRect((15 - pic.width / 2) * s, (44 - pic.height) * s, 4 * s, 56 * s, 2 * s);
     extra.push(g);
   }
   // the jar's paper label is about 60% down

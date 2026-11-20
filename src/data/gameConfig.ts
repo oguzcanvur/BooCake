@@ -63,11 +63,11 @@ export const CONFIG = {
 
   days: [
     // day 1 is a gentle start for first-time players: 2 minutes, lower goal, slower customers who wait longer
-    { length: 120, goal: 35, interval: 15, patience: 45, specials: [] },
-    // patience was raised by about 25% on every day (customers got angry too fast); every day lasts 2 minutes
-    { length: 120, goal: 90, interval: 10, patience: 34, specials: ['vampire', 'ghost'] },
-    { length: 120, goal: 120, interval: 8, patience: 30, specials: ['vampire', 'ghost', 'thief'] },
-    { length: 120, goal: 150, interval: 7, patience: 28, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 35, interval: 17, patience: 48, specials: [] },
+    // all days were made easier: customers come less often and wait longer, goals lowered to match; 2 minutes each
+    { length: 120, goal: 60, interval: 13, patience: 40, specials: ['vampire', 'ghost'] },
+    { length: 120, goal: 75, interval: 11, patience: 36, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 85, interval: 10, patience: 34, specials: ['vampire', 'ghost', 'thief'] },
   ] as DayConfig[],
 };
 
