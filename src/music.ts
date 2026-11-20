@@ -2,69 +2,56 @@ import type Phaser from 'phaser';
 
 /**
  * Background music, made in code with the Web Audio API (no audio file, so nothing to license).
- * An original, cute-spooky Halloween tune in D minor: a bouncy swung "monster march" with a plucked walking
- * bass, a woody skeleton-xylophone melody with creepy half-step slides, soft off-beat chord stabs, and in the
- * second half a wobbly theremin-like "ghost" voice that glides between long notes. 16 bars (about 29 s), looped.
+ * An original, soft Halloween lullaby in D minor: a slow, gentle celesta (music-box) arpeggio and a velvet
+ * bass, with a ghost choir singing "ooo" on top (a voice-like tone shaped by "oo" vowel filters, swelling in
+ * slowly and gliding between notes), and now and then a soft wind breath. 16 bars (about 42 s), looped.
  * It plays through Phaser's sound manager, so the sound button (mute) silences it too.
  */
 
-const BPM = 132;
+const BPM = 92;
 const BEAT = 60 / BPM;
-/** Swing: the second eighth of each beat comes late (a lazy, bouncy triplet feel). */
-const SWING = 0.64;
-const VOLUME = 0.2;
-const LOOKAHEAD = 2.5; // schedule this far ahead (seconds)
+const VOLUME = 0.22;
+const LOOKAHEAD = 3; // schedule this far ahead (seconds)
 
 const hz = (midi: number): number => 440 * Math.pow(2, (midi - 69) / 12);
 
 interface Bar {
-  /** Bass root and fifth (low octave). */
-  root: number;
-  fifth: number;
-  /** Chord tones for the soft off-beat stabs. */
+  /** Bass note (low octave). */
+  bass: number;
+  /** Chord tones for the celesta arpeggio. */
   chord: number[];
 }
 
-const DM: Bar = { root: 38, fifth: 45, chord: [62, 65, 69] };
-const GM: Bar = { root: 43, fifth: 50, chord: [62, 67, 70] };
-const A7: Bar = { root: 45, fifth: 52, chord: [61, 64, 67] };
-const BB: Bar = { root: 46, fifth: 53, chord: [62, 65, 70] };
-const EDIM: Bar = { root: 40, fifth: 46, chord: [64, 67, 70] };
+const DM: Bar = { bass: 38, chord: [62, 65, 69, 74] };
+const BB: Bar = { bass: 34, chord: [62, 65, 70, 74] };
+const GM: Bar = { bass: 43, chord: [62, 67, 70, 74] };
+const A: Bar = { bass: 45, chord: [61, 64, 69, 73] };
+const EDIM: Bar = { bass: 40, chord: [64, 67, 70, 76] };
 
-const BARS: Bar[] = [
-  DM, DM, GM, A7, DM, BB, GM, A7, // phrase A: the xylophone tune
-  DM, BB, GM, A7, DM, BB, EDIM, A7, // phrase B: the ghost voice
-];
+const BARS: Bar[] = [DM, BB, GM, A, DM, BB, EDIM, A, DM, BB, GM, A, DM, GM, A, DM];
 
-/** Phrase A melody: 8 eighth notes per bar (0 = rest). */
-const XYLO: number[][] = [
-  [62, 0, 65, 0, 69, 68, 69, 0],
-  [74, 0, 72, 0, 69, 0, 65, 0],
-  [67, 0, 70, 0, 74, 73, 74, 0],
-  [73, 0, 70, 0, 67, 0, 64, 0],
-  [62, 0, 65, 0, 69, 68, 69, 0],
-  [70, 0, 74, 0, 77, 0, 74, 0],
-  [79, 77, 74, 70, 67, 0, 64, 0],
-  [69, 0, 0, 0, 61, 0, 0, 0],
-];
-
-/** Phrase B ghost voice: [note, length in beats] per bar (it glides from one note to the next). */
-const GHOST: [number, number][][] = [
-  [[74, 2], [77, 2]],
-  [[74, 4]],
-  [[79, 2], [77, 2]],
-  [[76, 3], [73, 1]],
-  [[74, 2], [81, 2]],
-  [[77, 4]],
+/** The ghost choir's "ooo" line: [note, length in beats] per bar, 0 = silence. It glides into each note. */
+const OOO: [number, number][][] = [
+  [[0, 4]],
+  [[74, 2], [72, 2]],
+  [[70, 3], [69, 1]],
+  [[69, 4]],
+  [[0, 2], [74, 2]],
+  [[77, 2], [74, 2]],
   [[76, 2], [70, 2]],
   [[73, 4]],
+  [[74, 4]],
+  [[81, 2], [77, 2]],
+  [[79, 3], [77, 1]],
+  [[76, 4]],
+  [[74, 2], [77, 2]],
+  [[79, 2], [74, 2]],
+  [[73, 4]],
+  [[74, 4]],
 ];
 
-/** Little xylophone answers under the ghost voice (beat index -> note), so phrase B keeps its bounce. */
-const ANSWERS: Record<number, number>[] = [
-  { 3: 69 }, { 2: 70, 3: 69 }, { 3: 70 }, { 2: 69, 3: 67 },
-  { 3: 69 }, { 2: 74, 3: 72 }, { 3: 70 }, { 1: 61, 2: 64, 3: 67 },
-];
+/** Bars that start with a soft wind breath. */
+const WIND_BARS = new Set([0, 8]);
 
 let started = false;
 
@@ -79,92 +66,162 @@ export function startMusic(scene: Phaser.Scene): void {
   master.gain.value = VOLUME;
   master.connect(sm.destination);
 
-  /** An envelope-shaped oscillator; returns the oscillator so callers can bend its pitch. */
-  const voice = (freq: number, when: number, type: OscillatorType, peak: number, decay: number, attack = 0.005): OscillatorNode => {
+  // a little echo (feedback delay) makes everything sound far away and dreamy
+  const echo = ctx.createDelay();
+  echo.delayTime.value = BEAT * 0.75;
+  const feedback = ctx.createGain();
+  feedback.gain.value = 0.32;
+  const echoOut = ctx.createGain();
+  echoOut.gain.value = 0.35;
+  echo.connect(feedback);
+  feedback.connect(echo);
+  echo.connect(echoOut);
+  echoOut.connect(master);
+
+  /** A tone with a soft attack and a long fade, sent to the master and (a little) to the echo. */
+  const tone = (freq: number, when: number, type: OscillatorType, peak: number, decay: number, attack = 0.01, wet = 0.5): void => {
     const g = ctx.createGain();
     g.gain.setValueAtTime(0.0001, when);
     g.gain.linearRampToValueAtTime(peak, when + attack);
     g.gain.exponentialRampToValueAtTime(0.0001, when + decay);
     g.connect(master);
+    const send = ctx.createGain();
+    send.gain.value = wet;
+    g.connect(send);
+    send.connect(echo);
     const o = ctx.createOscillator();
     o.type = type;
-    o.frequency.setValueAtTime(freq, when);
+    o.frequency.value = freq;
     o.connect(g);
     o.start(when);
     o.stop(when + decay + 0.05);
-    return o;
   };
 
-  /** Plucked bass: a quick triangle thump with a tiny pitch drop, like a plucked string. */
-  const bass = (midi: number, when: number): void => {
-    const o = voice(hz(midi) * 1.02, when, 'triangle', 0.6, 0.32);
-    o.frequency.exponentialRampToValueAtTime(hz(midi), when + 0.04);
+  /** Celesta: a pure tone plus a faint bell partial, fading slowly. */
+  const celesta = (midi: number, when: number, peak = 0.11): void => {
+    tone(hz(midi), when, 'sine', peak, 1.6, 0.008);
+    tone(hz(midi) * 4, when, 'sine', peak * 0.12, 0.35, 0.004);
   };
 
-  /** Skeleton xylophone: a short woody tone plus a bright knock on top. */
-  const xylo = (midi: number, when: number, peak = 0.26): void => {
-    voice(hz(midi), when, 'triangle', peak, 0.28);
-    voice(hz(midi) * 4, when, 'sine', peak * 0.25, 0.06);
-  };
+  /** Velvet bass: a low sine that swells in and fades. */
+  const bass = (midi: number, when: number): void => tone(hz(midi), when, 'sine', 0.42, BEAT * 3.6, 0.12, 0.1);
 
-  /** Soft chord stab (quiet, short). */
-  const stab = (chord: number[], when: number): void => {
-    for (const n of chord) voice(hz(n), when, 'square', 0.022, 0.12);
-  };
-
-  /** The ghost voice: a sine with a slow wobble (vibrato) that slides into each note. */
-  const ghost = (notes: [number, number][], start: number): void => {
-    const total = notes.reduce((s, [, len]) => s + len, 0) * BEAT;
-    const g = ctx.createGain();
-    g.gain.setValueAtTime(0.0001, start);
-    g.gain.linearRampToValueAtTime(0.16, start + 0.18);
-    g.gain.setValueAtTime(0.16, start + total - 0.25);
-    g.gain.exponentialRampToValueAtTime(0.0001, start + total);
-    g.connect(master);
-    const o = ctx.createOscillator();
-    o.type = 'sine';
-    const lfo = ctx.createOscillator();
-    const depth = ctx.createGain();
-    lfo.frequency.value = 5.5;
-    depth.gain.value = 7;
-    lfo.connect(depth);
-    depth.connect(o.frequency);
+  /**
+   * The ghost choir: two slightly detuned sawtooth voices through "oo" vowel filters (formants near 320 and
+   * 800 Hz), with a slow vibrato. It swells in, glides into each new note and fades out at the end of the phrase.
+   */
+  const ooo = (notes: [number, number][], start: number): void => {
     let t = start;
-    o.frequency.setValueAtTime(hz(notes[0][0]) * 0.94, t);
+    // split the bar into sung stretches (consecutive notes) separated by silences
+    const groups: { at: number; notes: [number, number][] }[] = [];
     for (const [n, len] of notes) {
-      // the eerie slide: a short glide up into each note
-      o.frequency.exponentialRampToValueAtTime(hz(n), t + 0.12);
+      if (n === 0) {
+        t += len * BEAT;
+        continue;
+      }
+      const last = groups[groups.length - 1];
+      if (last && Math.abs(last.at + last.notes.reduce((s, [, l]) => s + l, 0) * BEAT - t) < 1e-6) last.notes.push([n, len]);
+      else groups.push({ at: t, notes: [[n, len]] });
       t += len * BEAT;
-      o.frequency.setValueAtTime(hz(n), t - 0.02);
     }
-    o.connect(g);
-    o.start(start);
-    lfo.start(start);
-    o.stop(start + total + 0.05);
-    lfo.stop(start + total + 0.05);
+    for (const grp of groups) {
+      const total = grp.notes.reduce((s, [, l]) => s + l, 0) * BEAT;
+      const at = grp.at;
+      const env = ctx.createGain();
+      env.gain.setValueAtTime(0.0001, at);
+      env.gain.linearRampToValueAtTime(0.9, at + 0.45);
+      env.gain.setValueAtTime(0.9, at + total - 0.5);
+      env.gain.exponentialRampToValueAtTime(0.0001, at + total + 0.4);
+      env.connect(master);
+      const send = ctx.createGain();
+      send.gain.value = 0.6;
+      env.connect(send);
+      send.connect(echo);
+
+      // "oo" vowel: two band-pass formant filters in parallel
+      const f1 = ctx.createBiquadFilter();
+      f1.type = 'bandpass';
+      f1.frequency.value = 400;
+      f1.Q.value = 2.5;
+      const f2 = ctx.createBiquadFilter();
+      f2.type = 'bandpass';
+      f2.frequency.value = 880;
+      f2.Q.value = 4;
+      const f2gain = ctx.createGain();
+      f2gain.gain.value = 0.35;
+      f1.connect(env);
+      f2.connect(f2gain);
+      f2gain.connect(env);
+
+      const lfo = ctx.createOscillator();
+      lfo.frequency.value = 4.8;
+      const end = at + total + 0.5;
+      for (const detune of [-7, 7]) {
+        const o = ctx.createOscillator();
+        o.type = 'sawtooth';
+        o.detune.value = detune;
+        const depth = ctx.createGain();
+        depth.gain.value = 5;
+        lfo.connect(depth);
+        depth.connect(o.frequency);
+        // start a little below the first note and slide up into it ("ooOOO"), then glide note to note
+        let tt = at;
+        // the choir sings an octave below the written line, where the "oo" vowel sounds full
+        const sung = (n: number) => hz(n - 12);
+        o.frequency.setValueAtTime(sung(grp.notes[0][0]) * 0.89, tt);
+        for (const [n, len] of grp.notes) {
+          o.frequency.exponentialRampToValueAtTime(sung(n), tt + 0.3);
+          tt += len * BEAT;
+          o.frequency.setValueAtTime(sung(n), tt - 0.05);
+        }
+        // the phrase ends with a small falling sigh
+        o.frequency.exponentialRampToValueAtTime(sung(grp.notes[grp.notes.length - 1][0]) * 0.92, end);
+        const voiceGain = ctx.createGain();
+        voiceGain.gain.value = 0.5;
+        o.connect(voiceGain);
+        voiceGain.connect(f1);
+        voiceGain.connect(f2);
+        o.start(at);
+        o.stop(end + 0.05);
+      }
+      lfo.start(at);
+      lfo.stop(end + 0.05);
+    }
   };
 
-  /** Time of an eighth note within the bar (every second eighth is swung late). */
-  const eighthAt = (t: number, i: number): number => t + Math.floor(i / 2) * BEAT + (i % 2) * BEAT * SWING;
+  /** A soft wind breath: filtered noise that rises and falls. */
+  const wind = (when: number): void => {
+    const len = BEAT * 6;
+    const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * len), ctx.sampleRate);
+    const data = buf.getChannelData(0);
+    for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1;
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    const filter = ctx.createBiquadFilter();
+    filter.type = 'bandpass';
+    filter.Q.value = 3;
+    filter.frequency.setValueAtTime(400, when);
+    filter.frequency.linearRampToValueAtTime(1100, when + len * 0.5);
+    filter.frequency.linearRampToValueAtTime(500, when + len);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.0001, when);
+    g.gain.linearRampToValueAtTime(0.09, when + len * 0.45);
+    g.gain.linearRampToValueAtTime(0.0001, when + len);
+    src.connect(filter);
+    filter.connect(g);
+    g.connect(master);
+    src.start(when);
+    src.stop(when + len);
+  };
 
   const scheduleBar = (index: number, t: number): void => {
     const b = BARS[index];
-    const next = BARS[(index + 1) % BARS.length];
-    // walking bass: root, fifth, root, then a step toward the next bar's root
-    const approach = next.root + (next.root > b.root ? -1 : 1);
-    [b.root, b.fifth, b.root + 12, approach].forEach((n, beat) => bass(n, t + beat * BEAT));
-    // off-beat chord stabs on the "and" of beats 2 and 4
-    for (const beat of [1, 3]) stab(b.chord, eighthAt(t, beat * 2 + 1));
-
-    if (index < 8) {
-      XYLO[index].forEach((n, i) => {
-        if (n > 0) xylo(n, eighthAt(t, i));
-      });
-    } else {
-      const k = index - 8;
-      ghost(GHOST[k], t);
-      for (const [beat, n] of Object.entries(ANSWERS[k])) xylo(n - 12, t + Number(beat) * BEAT + BEAT * SWING, 0.16);
-    }
+    bass(b.bass, t);
+    // gentle celesta arpeggio: up and back down, one note per eighth
+    const [c1, c2, c3, c4] = b.chord;
+    [c1, c2, c3, c4, c3 + 12, c4, c3, c2].forEach((n, i) => celesta(n + 12, t + i * BEAT * 0.5, i === 0 ? 0.12 : 0.08));
+    ooo(OOO[index], t);
+    if (WIND_BARS.has(index)) wind(t);
   };
 
   let bar = 0;
