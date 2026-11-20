@@ -1,10 +1,24 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio';
 import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKET, STATION_X, TRASH, W } from '../config';
-import { CONFIG, type DayConfig, type SpecialId } from '../data/gameConfig';
+import { CONFIG, WAVE_SPLIT, type SpecialId, type SpecialVisit, type Waves } from '../data/gameConfig';
 import { THIEF_KEYS } from '../assets';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
-import { DOUGHS, FROSTINGS, TOPPINGS, doughInfo, frostingInfo, toppingInfo, randomOrder, type DoughId, type FrostingId, type IngredientGroup, type OpenExtras, type ToppingId } from '../data/recipes';
+import {
+  DOUGHS,
+  FROSTINGS,
+  TOPPINGS,
+  doughInfo,
+  frostingInfo,
+  ingredientGroup,
+  ingredientName,
+  toppingInfo,
+  randomOrder,
+  type DoughId,
+  type FrostingId,
+  type IsOpen,
+  type ToppingId,
+} from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
 import { drawCupcake, isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
@@ -24,7 +38,9 @@ import {
   type Spot,
 } from '../objects/stations';
 import { Thief, type ThiefOutcome } from '../objects/Thief';
-import { currentDay, gameState, ovenCount, plateCount } from '../systems/GameState';
+import { gameState, ovenCount, plateCount } from '../systems/GameState';
+import { LEAGUE_STREAM, league, leagueSeed, leagueSpecials } from '../systems/league';
+import { between, pick, stream, type Rand } from '../systems/rng';
 import { MONSTER_CARDS, T } from '../text';
 import { makeButton } from '../ui/button';
 import { Hud } from '../ui/Hud';
@@ -40,13 +56,47 @@ const ON_PLATE = 60;
 
 export interface DayStats {
   served: number;
+  /** Customers served while still happy (league bonus). */
+  happy: number;
   wrong: number;
   left: number;
   burnt: number;
   stolen: number;
   bites: number;
   caught: number;
+  /** Longest run of correct cupcakes in a row (a wrong cupcake or a lost customer breaks it). */
+  bestStreak: number;
 }
+
+export type PlayMode = 'campaign' | 'league';
+
+/** What the scene is started with: a campaign night (the current gameState.day) or a league run with its seed. */
+export interface NightStart {
+  mode?: PlayMode;
+  seed?: number;
+}
+
+/** Everything one run needs, from a campaign night or from the league settings. */
+interface RunSetup {
+  length: number;
+  goal: number;
+  patience: number;
+  seats: number;
+  waves: Waves;
+  specials: SpecialVisit[];
+  open: IsOpen;
+  gear: { ovens: number; plates: number; garlic: boolean; guard: boolean };
+}
+
+/** Data handed to the Summary scene. */
+export interface NightEnd {
+  mode: PlayMode;
+  seed: number;
+  earned: number;
+  stats: DayStats;
+}
+
+type Wave = 0 | 1 | 2;
 
 /**
  * One day in the shop: the core gameplay loop.
@@ -59,7 +109,16 @@ export interface DayStats {
  * Scene events used: 'cupcake-ready', 'cupcake-burned'.
  */
 export class NightScene extends Phaser.Scene {
-  private day!: DayConfig;
+  private day!: RunSetup;
+  private mode: PlayMode = 'campaign';
+  private seed = 0;
+  /** Seeded random streams (the league uses its seed, so every player gets the same night). */
+  private rand!: { customers: Rand; orders: Rand; seats: Rand; gaps: Rand };
+  /** Which wave the night is in (0 calm, 1 middle, 2 rush), to show a banner when it changes. */
+  private wave: Wave = 0;
+  private streak = 0;
+  /** Banners on screen right now (each new one goes below the others). */
+  private banners = 0;
   private phase: Phase = 'intro';
   private elapsed = 0;
   private earned = 0;
@@ -88,9 +147,9 @@ export class NightScene extends Phaser.Scene {
   /** The counter seat the thief is standing at (no customer takes it until he leaves). */
   private thiefSeat: number | null = null;
   private guard: MonsterView | null = null;
-  /** Each special monster is scheduled at least once per day. */
-  private plan: { id: SpecialId; at: number; done: boolean }[] = [];
-  private stats: DayStats = { served: 0, wrong: 0, left: 0, burnt: 0, stolen: 0, bites: 0, caught: 0 };
+  /** The planned special monsters of this night (a warning banner comes first). */
+  private plan: { id: SpecialId; at: number; warned: boolean; done: boolean }[] = [];
+  private stats: DayStats = NightScene.emptyStats();
 
   private shop!: Shop;
   private hud!: Hud;
@@ -103,15 +162,62 @@ export class NightScene extends Phaser.Scene {
     super('Night');
   }
 
-  init(): void {
-    this.day = currentDay();
+  private static emptyStats(): DayStats {
+    return { served: 0, happy: 0, wrong: 0, left: 0, burnt: 0, stolen: 0, bites: 0, caught: 0, bestStreak: 0 };
+  }
+
+  /** The settings of this run: the current campaign night, or the league (same kitchen for everyone). */
+  private setup(): RunSetup {
+    if (this.mode === 'league') {
+      const L = CONFIG.league;
+      return {
+        length: L.length,
+        goal: L.par,
+        patience: L.patience,
+        seats: L.seats,
+        waves: L.waves,
+        specials: leagueSpecials(this.seed),
+        open: (id) => L.ingredients.includes(id),
+        gear: { ...L.gear },
+      };
+    }
+    const night = CONFIG.nights[gameState.day];
+    // every flavor that joined on this night or an earlier one is on the table
+    const opened = CONFIG.nights.slice(0, gameState.day + 1).flatMap((n) => n.newIngredients);
+    const u = gameState.upgrades;
+    return {
+      length: night.length,
+      goal: night.goal,
+      patience: night.patience,
+      seats: night.seats,
+      waves: night.waves,
+      specials: night.specials,
+      open: (id) => opened.includes(id),
+      gear: { ovens: ovenCount(), plates: plateCount(), garlic: u.garlic, guard: u.guard },
+    };
+  }
+
+  init(data: NightStart = {}): void {
+    this.mode = data.mode ?? 'campaign';
+    // the league seed is the challenge; a campaign night just needs some seed
+    this.seed = this.mode === 'league' ? (data.seed ?? leagueSeed()) : Math.floor(Math.random() * 2 ** 31);
+    this.rand = {
+      customers: stream(this.seed, LEAGUE_STREAM.customers),
+      orders: stream(this.seed, LEAGUE_STREAM.orders),
+      seats: stream(this.seed, LEAGUE_STREAM.seats),
+      gaps: stream(this.seed, LEAGUE_STREAM.gaps),
+    };
+    this.day = this.setup();
+    this.wave = 0;
+    this.streak = 0;
+    this.banners = 0;
     this.phase = 'intro';
     this.elapsed = 0;
     this.earned = 0;
     this.spawnIn = CONFIG.firstCustomerSec;
     this.lastTick = -1;
     this.lockUntil = 0;
-    this.plates = new Array(plateCount()).fill(null);
+    this.plates = new Array(this.day.gear.plates).fill(null);
     this.tray = new Array(CONFIG.traySlots).fill(null);
     this.selected = null;
     this.customers = LAYOUT.customerSlotsX.map(() => null);
@@ -119,7 +225,7 @@ export class NightScene extends Phaser.Scene {
     this.bowls = [];
     this.bags = [];
     this.jars = [];
-    this.tutorialOn = gameState.day === 0 && !gameState.seenCards.includes('tutorial');
+    this.tutorialOn = this.mode === 'campaign' && gameState.day === 0 && !gameState.seenCards.includes('tutorial');
     this.tutorialGuide = null;
     this.tutorialCustomer = null;
     this.tutorialStarted = false;
@@ -127,26 +233,33 @@ export class NightScene extends Phaser.Scene {
     this.thiefSeat = null;
     this.guard = null;
     this.drag = null;
-    this.stats = { served: 0, wrong: 0, left: 0, burnt: 0, stolen: 0, bites: 0, caught: 0 };
-    // every open special monster comes at least once, at a random time of the day
-    this.plan = this.day.specials.map((id) => ({
-      id,
-      // as a share of the day's length, so every special monster still fits in a shorter day
-      at: this.day.length * (id === 'thief' ? Phaser.Math.FloatBetween(0.25, 0.8) : Phaser.Math.FloatBetween(0.12, 0.75)),
-      done: false,
-    }));
+    this.stats = NightScene.emptyStats();
+    // special monsters come only at their planned moments (nothing random), each announced a few seconds before
+    this.plan = this.day.specials.map((v) => ({ id: v.id, at: v.at, warned: false, done: false }));
+  }
+
+  /** The wave at a moment of the night: calm start, steady middle, short rush at the end. */
+  private waveAt(t: number): Wave {
+    const f = t / this.day.length;
+    return f >= WAVE_SPLIT.rush ? 2 : f >= WAVE_SPLIT.middle ? 1 : 0;
+  }
+
+  /** Seconds until the next regular customer: the wave's gap with a little (seeded) wobble. */
+  private nextGap(): number {
+    const base = this.day.waves[this.waveAt(this.elapsed)];
+    return Math.max(2, base + between(this.rand.gaps, -CONFIG.intervalJitter, CONFIG.intervalJitter));
   }
 
   create(): void {
     fadeIn(this);
     this.shop = new Shop(this);
-    if (gameState.upgrades.garlic) this.shop.showGarlic();
-    this.hud = new Hud(this, this.day.goal, gameState.day + 1, this.day.length);
+    if (this.day.gear.garlic) this.shop.showGarlic();
+    this.hud = new Hud(this, this.day.goal, this.mode === 'league' ? T.leagueShort : T.day(gameState.day + 1), this.day.length);
     this.hud.onStar = (i, x, y) => {
       sfx(this, 'star', 0.5);
       burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
-      // the third star finishes the day right away (after the star has popped in)
-      if (i === CONFIG.stars.length - 1) this.time.delayedCall(800, () => this.endDay(T.allStars));
+      // the third star does not end the night: the player keeps going for a record
+      if (i === CONFIG.stars.length - 1) floatText(this, W / 2, 300, T.allStarsKeepGoing, '#ffe08a', 30);
     };
     this.hud.onPause = () => this.pause();
     this.input.keyboard?.on('keydown-P', () => this.pause());
@@ -190,31 +303,42 @@ export class NightScene extends Phaser.Scene {
     // the ovens run at half speed during the first-order guide, so the first cupcake can be read about and caught in time
     for (const oven of this.ovens) oven.update(tutorial ? dt * 0.5 : dt);
 
-    // regular customers, a little faster as the day goes on
+    // waves: calm start, steady middle, short rush at the end (a banner says when it changes)
+    const wave = this.waveAt(this.elapsed);
+    if (wave !== this.wave) {
+      this.wave = wave;
+      this.banner(wave === 2 ? T.waveRush : T.waveMiddle, wave === 2 ? '#ffb4b4' : '#ffe08a');
+    }
+
+    // regular customers
     if (!tutorial) {
       this.spawnIn -= dt;
       if (this.spawnIn <= 0) {
-        const gap = this.day.interval + Phaser.Math.FloatBetween(-CONFIG.intervalJitter, CONFIG.intervalJitter);
         // when the counter is full, the next customer waits half a gap after a seat frees up (they used to
         // walk in the moment one was served, so customers seemed to come non-stop)
-        this.spawnIn = this.trySpawn() ? Math.max(2, gap) : this.day.interval * 0.5;
+        const gap = this.nextGap();
+        this.spawnIn = this.trySpawn() ? gap : gap * 0.5;
       }
     }
 
-    // scheduled special monsters (each open one arrives at least once)
+    // planned special monsters: a warning banner first, then they arrive at their moment
     for (const p of this.plan) {
-      if (p.done || this.elapsed < p.at) continue;
+      if (p.done) continue;
+      if (!p.warned && this.elapsed >= p.at - CONFIG.specialWarningSec) {
+        p.warned = true;
+        this.warnSpecial(p.id);
+      }
+      if (this.elapsed < p.at) continue;
       if (p.id === 'thief') {
-        // he comes when a cupcake is waiting on the ready tray, needs a free seat at the counter (if it is full
-        // he waits for one) and never comes together with the vampire
-        if (this.tray.some(Boolean) && !this.vampireHere() && this.spawnThief()) p.done = true;
+        // he needs a free seat at the counter (if it is full he waits for one) and never comes with the vampire
+        if (!this.vampireHere() && this.spawnThief()) p.done = true;
       } else if (p.id === 'vampire' && this.thieves.length > 0) {
         // the vampire waits until the thief is gone
         continue;
       } else if (this.trySpawn(p.id)) {
         p.done = true;
         // a special monster takes the next regular customer's turn
-        this.spawnIn = Math.max(this.spawnIn, this.day.interval * 0.6);
+        this.spawnIn = Math.max(this.spawnIn, this.day.waves[this.wave] * 0.6);
       }
     }
 
@@ -222,10 +346,17 @@ export class NightScene extends Phaser.Scene {
       if (!c) return;
       c.update(dt);
       if (c.expired) {
-        this.stats.left++;
         sfx(this, 'customer_left', 0.4);
-        floatText(this, c.x, c.y - 10, T.leftAngry, '#ff6b6b');
-        c.leave('angry');
+        if (c.kind === 'ghost') {
+          // the ghost is only for laughs: it floats off without counting as a lost customer
+          floatText(this, c.x, c.y - 10, T.ghostBored, '#c9bdf0');
+          c.leave('happy');
+        } else {
+          this.stats.left++;
+          this.breakStreak();
+          floatText(this, c.x, c.y - 10, T.leftAngry, '#ff6b6b');
+          c.leave('angry');
+        }
         this.customers[i] = null;
       }
     });
@@ -252,21 +383,23 @@ export class NightScene extends Phaser.Scene {
     const y = LAYOUT.stationY;
     const ty = LAYOUT.trayY;
 
-    // the extra doughs / frostings / toppings (second table, second pocket, top jar row) open on a later day
-    // 0 = open today, otherwise the day this group's extra ingredients open
-    const lock = (group: IngredientGroup, extra: boolean) => (extra && !this.extrasOpen()[group] ? CONFIG.extrasFromDay[group] : 0);
+    // the extra doughs / frostings / toppings (top table, right half of the pocket, top jar row) join one at a
+    // time on later nights; until then they are hidden (1 = hidden, 0 = on the table)
+    const open = this.day.open;
+    const lock = (item: { id: string; extra: boolean }) => (item.extra && !open(item.id) ? 1 : 0);
+    const anyExtra = (list: readonly { id: string; extra: boolean }[]) => list.some((x) => x.extra && open(x.id));
 
     // dough bowls: 3 on each table (the extra ones on the top table)
     const tables = DOUGH_TABLES.bottoms.map((bottom) => createDoughTable(this, DOUGH_TABLES.x, DOUGH_TABLES.w, bottom));
-    // the extra table / pocket stay completely empty (picture hidden too) until their day
-    if (lock('dough', true) > 0) tables[1].setVisible(false);
+    // the top table stays completely empty (picture hidden too) until its first dough opens
+    if (!anyExtra(DOUGHS)) tables[1].setVisible(false);
     DOUGHS.forEach((d, i) => {
-      const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, lock('dough', d.extra), () => this.onDough(d.id));
+      const spot = createDoughBowl(this, tables[Math.floor(i / 3)], i % 3, d.id, lock(d), () => this.onDough(d.id));
       this.bowls.push(spot);
     });
 
     // ovens and plates: only the ones the player owns are on the workbench (the rest appear once bought)
-    const owned = ovenCount();
+    const owned = this.day.gear.ovens;
     STATION_X.oven.forEach((x, i) => {
       if (i < owned) this.ovens.push(new OvenSlot(this, x, y, CONFIG.oven.cookSec, CONFIG.oven.burnSec, (slot) => this.onOvenDown(slot)));
     });
@@ -277,14 +410,14 @@ export class NightScene extends Phaser.Scene {
     // frostings: one wide pocket with 6 bags (the new flavors' bags stay hidden until their day)
     const pocket = createFrostingPocket(this, POCKET.x, POCKET.w, POCKET.bottom);
     // until the new flavors open, the first 3 bags sit in the middle of the pocket
-    const onlyFirst = lock('frosting', true) > 0;
+    const onlyFirst = !anyExtra(FROSTINGS);
     FROSTINGS.forEach((f, i) => {
-      const spot = createPipingBag(this, pocket, i, f.id, lock('frosting', f.extra), () => this.onFrosting(f.id, spot.x, spot.y), onlyFirst);
+      const spot = createPipingBag(this, pocket, i, f.id, lock(f), () => this.onFrosting(f.id, spot.x, spot.y), onlyFirst);
       this.bags.push(spot);
     });
     // toppings: jars in 3 columns, bottom row first
     TOPPINGS.forEach((t, i) => {
-      const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, lock('topping', t.extra), () => this.onTopping(t.id, spot.x, spot.y));
+      const spot = createToppingJar(this, JARS.xs[i % 3], JARS.bottoms[Math.floor(i / 3)], JARS.h, t.id, lock(t), () => this.onTopping(t.id, spot.x, spot.y));
       this.jars.push(spot);
     });
 
@@ -293,34 +426,46 @@ export class NightScene extends Phaser.Scene {
     this.trashFlap = createTrash(this, TRASH.x, TRASH.y, TRASH.h, () => this.onTrash());
 
     // the security guard stands behind the counter, at its left end
-    if (gameState.upgrades.guard) {
+    if (this.day.gear.guard) {
       this.guard = new MonsterView(this, GUARD.x, GUARD.y, GUARD_MONSTER);
       this.guard.root.setDepth(DEPTH.monster).setScale(GUARD.scale);
     }
   }
 
-  /** Which groups of extra ingredients (doughs, frostings, toppings) are open today. */
-  private extrasOpen(): OpenExtras {
-    const day = gameState.day + 1;
-    const from = CONFIG.extrasFromDay;
-    return { dough: day >= from.dough, frosting: day >= from.frosting, topping: day >= from.topping };
+  /** Clock text (time left, like the HUD shows it) at `t` seconds into the night. */
+  private clockAt(t: number): string {
+    const s = Math.max(0, Math.round(this.day.length - t));
+    return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
   }
 
+  /** The night's intro card: name, goal, the wave rhythm, and what is new tonight (one new thing at most). */
   private showIntro(): void {
     const cx = W / 2;
-    const newOnes = this.day.specials.filter((s) => !gameState.seenCards.includes(s));
-    newOnes.forEach((s) => gameState.seenCards.push(s));
-    // a group of extra ingredients that opens today gets a "New flavors!" card (once)
-    const groups = (['dough', 'frosting', 'topping'] as const).filter(
-      (grp) => CONFIG.extrasFromDay[grp] === gameState.day + 1 && !gameState.seenCards.includes(`flavors-${grp}`),
-    );
-    groups.forEach((grp) => gameState.seenCards.push(`flavors-${grp}`));
+    const isLeague = this.mode === 'league';
+    const night = CONFIG.nights[gameState.day];
+    type Row = { kind: 'monster'; id: SpecialId } | { kind: 'flavors'; ids: string[] } | { kind: 'text'; text: string; color: string };
+    const rows: Row[] = [];
+
+    if (isLeague) {
+      rows.push({ kind: 'text', text: T.leagueRules, color: '#ffffff' });
+      rows.push({ kind: 'text', text: T.leagueScoreRule, color: '#ffe08a' });
+    } else {
+      // special monsters seen for the first time, with the moment they come (so the player can get ready)
+      const ids = [...new Set(this.day.specials.map((s) => s.id))];
+      for (const id of ids) {
+        if (gameState.seenCards.includes(id)) continue;
+        gameState.seenCards.push(id);
+        rows.push({ kind: 'monster', id });
+      }
+      // flavors that join tonight (once)
+      const fresh = night.newIngredients.filter((id) => !gameState.seenCards.includes(`flavor-${id}`));
+      fresh.forEach((id) => gameState.seenCards.push(`flavor-${id}`));
+      if (fresh.length > 0) rows.push({ kind: 'flavors', ids: fresh });
+    }
 
     const rowH = 124;
-    const panelW = 700;
-    const panelH = 190 + (newOnes.length + groups.length) * rowH;
-    // with many new cards (e.g. jumping straight to day 4 from the map) the panel is scaled down to fit the
-    // screen, leaving room for the Start button under it
+    const panelW = 720;
+    const panelH = 236 + rows.length * rowH;
     const fit = Math.min(1, (H - 150) / panelH);
     const shownH = panelH * fit;
     const cy = (H - shownH - 100) / 2 + shownH / 2 + 8;
@@ -331,74 +476,62 @@ export class NightScene extends Phaser.Scene {
     panel.add(g);
 
     const top = -panelH / 2;
+    const title = isLeague ? CONFIG.league.name : T.nightTitle(gameState.day + 1, night.name);
     panel.add(
       this.add
-        .text(0, top + 50, T.dayIntro(gameState.day + 1), { fontFamily: FONT, fontSize: '50px', color: '#ffb4d9', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 7 })
+        .text(0, top + 50, title, { fontFamily: FONT, fontSize: '44px', color: '#ffb4d9', fontStyle: 'bold', stroke: '#140d24', strokeThickness: 7 })
         .setOrigin(0.5),
     );
-    panel.add(this.add.text(0, top + 116, T.goal(this.day.goal), { fontFamily: FONT, fontSize: '32px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5));
+    const sub = isLeague
+      ? T.leagueIntro(this.seed, league.bySeed[String(this.seed)] ?? 0)
+      : `${T.goal(this.day.goal)}   ·   ${this.clockAt(0)}`;
+    panel.add(this.add.text(0, top + 110, sub, { fontFamily: FONT, fontSize: '28px', color: '#ffffff', fontStyle: 'bold' }).setOrigin(0.5));
+    panel.add(
+      this.add
+        .text(0, top + 158, T.waveInfo(this.day.waves), { fontFamily: FONT, fontSize: '20px', color: '#c9bdf0', fontStyle: 'bold', align: 'center', wordWrap: { width: panelW - 80 } })
+        .setOrigin(0.5),
+    );
 
-    newOnes.forEach((id, i) => {
-      const def = SPECIAL_MONSTERS[id];
-      const rowY = top + 178 + i * rowH + rowH / 2 - 10;
+    rows.forEach((row, i) => {
+      const rowY = top + 214 + i * rowH + rowH / 2 - 10;
       const rowBg = this.add.graphics();
       rowBg.fillStyle(0x000000, 0.2);
       rowBg.fillRoundedRect(-panelW / 2 + 24, rowY - rowH / 2 + 8, panelW - 48, rowH - 16, 18);
       panel.add(rowBg);
-      if (id === 'thief') {
-        // the thief is the team's picture, not a code-drawn figure
-        panel.add(this.add.image(-panelW / 2 + 110, rowY - 4, THIEF_KEYS.stand).setScale(0.2));
-      } else {
-        const view = new MonsterView(this, 0, 0, def);
-        panel.add(view.root);
-        view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
+      const textStyle = { fontFamily: FONT, fontSize: '21px', color: '#ffffff', fontStyle: 'bold', wordWrap: { width: panelW - 250 } };
+
+      if (row.kind === 'text') {
+        panel.add(this.add.text(0, rowY, row.text, { ...textStyle, color: row.color, align: 'center', wordWrap: { width: panelW - 90 } }).setOrigin(0.5));
+        return;
       }
-      const card = MONSTER_CARDS[id];
-      panel.add(
-        this.add
-          .text(-panelW / 2 + 190, rowY, card.text, {
-            fontFamily: FONT,
-            fontSize: '22px',
-            color: '#ffffff',
-            fontStyle: 'bold',
-            wordWrap: { width: panelW - 250 },
-          })
-          .setOrigin(0, 0.5),
-      );
-    });
-
-    groups.forEach((grp, k) => {
-      const i = newOnes.length + k;
-      const rowY = top + 178 + i * rowH + rowH / 2 - 10;
-      const rowBg = this.add.graphics();
-      rowBg.fillStyle(0x000000, 0.2);
-      rowBg.fillRoundedRect(-panelW / 2 + 24, rowY - rowH / 2 + 8, panelW - 48, rowH - 16, 18);
-      panel.add(rowBg);
-      // three little cupcakes showing the new ingredients
+      if (row.kind === 'monster') {
+        const id = row.id;
+        if (id === 'thief') {
+          // the thief is the team's picture, not a code-drawn figure
+          panel.add(this.add.image(-panelW / 2 + 110, rowY - 4, THIEF_KEYS.stand).setScale(0.2));
+        } else {
+          const view = new MonsterView(this, 0, 0, SPECIAL_MONSTERS[id]);
+          panel.add(view.root);
+          view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
+        }
+        const times = this.day.specials.filter((s) => s.id === id).map((s) => this.clockAt(s.at));
+        panel.add(this.add.text(-panelW / 2 + 190, rowY, `${MONSTER_CARDS[id].text} ${T.arrivesAt(times)}`, textStyle).setOrigin(0, 0.5));
+        return;
+      }
+      // new flavors: a little cupcake for each, showing the new ingredient
       const icons = this.add.graphics();
-      const list = grp === 'dough' ? DOUGHS : grp === 'frosting' ? FROSTINGS : TOPPINGS;
-      const extras = (list as readonly { id: string; name: string; extra: boolean }[]).filter((x) => x.extra);
-      extras.forEach((x, j) => {
+      row.ids.forEach((id, j) => {
+        const grp = ingredientGroup(id);
         const c: CupcakeData =
           grp === 'dough'
-            ? { dough: x.id as DoughId, bake: 'ready', tone: 0.2 }
+            ? { dough: id as DoughId, bake: 'ready', tone: 0.2 }
             : grp === 'frosting'
-              ? { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: x.id as FrostingId }
-              : { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: x.id as ToppingId };
-        drawCupcake(icons, -panelW / 2 + 72 + j * 38, rowY + 14, c, 0.62);
+              ? { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: id as FrostingId }
+              : { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: id as ToppingId };
+        drawCupcake(icons, -panelW / 2 + 110 + (j - (row.ids.length - 1) / 2) * 40, rowY + 14, c, 0.7);
       });
       panel.add(icons);
-      panel.add(
-        this.add
-          .text(-panelW / 2 + 190, rowY, T.newFlavors(grp, extras.map((x) => x.name)), {
-            fontFamily: FONT,
-            fontSize: '22px',
-            color: '#ffe08a',
-            fontStyle: 'bold',
-            wordWrap: { width: panelW - 250 },
-          })
-          .setOrigin(0, 0.5),
-      );
+      panel.add(this.add.text(-panelW / 2 + 190, rowY, T.newFlavor(row.ids.map(ingredientName)), { ...textStyle, color: '#ffe08a' }).setOrigin(0, 0.5));
     });
 
     panel.setScale(0.85 * fit).setAlpha(0);
@@ -410,7 +543,7 @@ export class NightScene extends Phaser.Scene {
       cy + shownH / 2 + 56,
       300,
       70,
-      T.startDay,
+      isLeague ? T.startRace : T.startDay,
       () => {
         sfx(this, 'night_start', 0.6);
         cover.destroy();
@@ -420,6 +553,60 @@ export class NightScene extends Phaser.Scene {
       },
       { color: 'green', depth: DEPTH.overlay + 2, fontSize: 30 },
     );
+  }
+
+  /** A big line of text across the middle of the screen for a moment (waves, warnings). */
+  private banner(text: string, color: string): void {
+    // two banners at once (a wave change and a warning) stack instead of overlapping
+    const row = this.banners++;
+    const y = 250 + row * 58;
+    const t = this.add
+      .text(W / 2, y, text, { fontFamily: FONT, fontSize: '40px', color, fontStyle: 'bold', stroke: '#140d24', strokeThickness: 8, align: 'center' })
+      .setOrigin(0.5)
+      .setDepth(DEPTH.overlay - 3)
+      .setScale(0.6)
+      .setAlpha(0);
+    this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
+    this.tweens.add({
+      targets: t,
+      alpha: 0,
+      y: y - 20,
+      delay: 2600,
+      duration: 400,
+      onComplete: () => {
+        t.destroy();
+        this.banners--;
+      },
+    });
+  }
+
+  /** A few seconds before a planned special monster: say who is coming and what to do about it. */
+  private warnSpecial(id: SpecialId): void {
+    sfx(this, 'tick', 0.5, 0.7);
+    const g = this.day.gear;
+    const text =
+      id === 'thief'
+        ? g.guard
+          ? T.warnThiefGuard
+          : T.warnThief(CONFIG.specialWarningSec)
+        : id === 'vampire'
+          ? g.garlic
+            ? T.warnVampireGarlic
+            : T.warnVampire(CONFIG.specialWarningSec)
+          : T.warnGhost;
+    this.banner(text, id === 'ghost' ? '#c9bdf0' : '#ffb4b4');
+  }
+
+  /** A correct cupcake: the streak grows (and says so from 3 on). */
+  private addStreak(x: number, y: number): void {
+    this.streak++;
+    this.stats.bestStreak = Math.max(this.stats.bestStreak, this.streak);
+    if (this.streak >= 3) floatText(this, x, y - 70, T.streak(this.streak), '#ffd166', 24);
+  }
+
+  /** A wrong cupcake or a lost customer ends the streak. */
+  private breakStreak(): void {
+    this.streak = 0;
   }
 
   /** Freeze the day (patience, ovens, timers, animations) and open the pause menu on top. */
@@ -795,6 +982,8 @@ export class NightScene extends Phaser.Scene {
       const pay = CONFIG.price + tip;
       this.earned += pay;
       this.stats.served++;
+      if (c.mood === 'happy') this.stats.happy++;
+      this.addStreak(c.x, c.y);
       this.customers[c.slot] = null;
       c.lock();
       if (c.kind === 'ghost') this.serveGhost(c, item, pay, tip);
@@ -802,6 +991,7 @@ export class NightScene extends Phaser.Scene {
     } else {
       // wrong cupcake: it vanishes and the customer loses 20% of their patience (no money penalty)
       this.stats.wrong++;
+      this.breakStreak();
       sfx(this, 'serve_wrong', 0.5);
       this.flyCupcake(item, from, { x: c.x, y: c.y - 10 }, 240, () =>
         burst(this, c.x, c.y - 20, 'smoke_05', { count: 7, tint: 0xff4d6d, gravity: -40, speed: [30, 110], scale: [0.25, 0.6], additive: false }),
@@ -926,16 +1116,13 @@ export class NightScene extends Phaser.Scene {
     const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
     if (free.length === 0 || this.customers.length - free.length >= this.day.seats) return false;
 
-    let kind: SpecialId | undefined = special;
-    if (!kind) {
-      // now and then a special monster joins the regular crowd (the thief never takes a seat)
-      const pool = this.day.specials.filter((s) => s !== 'thief' && !(s === 'vampire' && this.thieves.length > 0));
-      if (pool.length > 0 && Math.random() < CONFIG.extraSpecialChance) kind = Phaser.Utils.Array.GetRandom(pool);
-    }
-    const def = kind ? pickSpecial(kind) : pickNormal();
-    const slot = Phaser.Utils.Array.GetRandom(free);
+    // special monsters only come at their planned moments (no surprise extras), so every night can be learned
+    const kind: SpecialId | undefined = special;
+    // seeded: in the league every player gets the same customers, orders and seats in the same order
+    const def = kind ? pickSpecial(kind, this.rand.customers) : pickNormal(this.rand.customers);
+    const slot = pick(this.rand.seats, free);
     sfx(this, 'customer_arrive', 0.35);
-    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(this.extrasOpen()), (cust) => this.onCustomer(cust));
+    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(this.day.open, this.rand.orders), (cust) => this.onCustomer(cust));
     this.customers[slot] = customer;
     // the very first regular customer of the very first day is the one the guide follows
     if (this.tutorialOn && !this.tutorialCustomer && !kind) {
@@ -949,7 +1136,7 @@ export class NightScene extends Phaser.Scene {
   /** The vampire bites the player on arrival, unless garlic is on the counter. */
   private vampireArrives(c: Customer): void {
     if (this.phase !== 'playing') return;
-    if (gameState.upgrades.garlic) {
+    if (this.day.gear.garlic) {
       c.disgust();
       sfx(this, 'nope', 0.4);
       floatText(this, c.x, c.y - 30, T.garlicScares, '#c9f7a8', 26);
@@ -958,7 +1145,7 @@ export class NightScene extends Phaser.Scene {
     this.bite();
   }
 
-  /** Red screen, "ISIRILDIN!", and no clicking for 5 seconds. The ovens keep running. */
+  /** Red screen, "BITTEN!", and no clicking for a moment (CONFIG.biteSec). The ovens keep running. */
   private bite(): void {
     this.stats.bites++;
     const ms = CONFIG.biteSec * 1000;
@@ -1003,7 +1190,7 @@ export class NightScene extends Phaser.Scene {
   private spawnThief(): boolean {
     const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
     if (free.length === 0) return false;
-    const seat = Phaser.Utils.Array.GetRandom(free);
+    const seat = pick(this.rand.seats, free);
     this.thiefSeat = seat;
     const thief = new Thief(this);
     this.thieves.push(thief);
@@ -1011,7 +1198,7 @@ export class NightScene extends Phaser.Scene {
     thief.run(
       LAYOUT.customerSlotsX[seat],
       (): ThiefOutcome => {
-        if (gameState.upgrades.guard) {
+        if (this.day.gear.guard) {
           this.earned += CONFIG.guardBonus;
           this.stats.caught++;
           this.guard?.hop(22, 160);
@@ -1021,15 +1208,15 @@ export class NightScene extends Phaser.Scene {
           sfx(this, 'serve_ok', 0.5);
           return 'caught';
         }
-        // everything waiting on the ready tray
-        const loot: { c: CupcakeData; loc: Loc }[] = this.tray.flatMap((c, i) => (c ? [{ c, loc: { kind: 'tray', i } as Loc }] : []));
+        // at most one cupcake from the ready tray (a finished one first)
+        const waiting: { c: CupcakeData; loc: Loc }[] = this.tray.flatMap((c, i) => (c ? [{ c, loc: { kind: 'tray', i } as Loc }] : []));
+        waiting.sort((a, b) => Number(isFinished(b.c)) - Number(isFinished(a.c)));
+        const loot = waiting.slice(0, CONFIG.thiefSteals);
         if (loot.length === 0) {
-          // nothing ready yet: he waits at the counter until there is (says so once)
-          if (!thief.saidWaiting) {
-            thief.saidWaiting = true;
-            floatText(this, thief.x, thief.y - 90, T.thiefWaiting, '#ffd166');
-          }
-          return 'wait';
+          // the player emptied the tray after the warning: he leaves with nothing
+          floatText(this, thief.x, thief.y - 90, T.thiefNothing, '#7dffb0', 26);
+          sfx(this, 'nope', 0.4, 1.2);
+          return 'empty';
         }
         for (const { c, loc } of loot) {
           this.flyCupcake(c, this.locPos(loc), { x: thief.x, y: thief.y - 20 }, 320);
@@ -1073,6 +1260,7 @@ export class NightScene extends Phaser.Scene {
       .setDepth(DEPTH.overlay)
       .setScale(0.3);
     this.tweens.add({ targets: t, scale: 1, duration: 450, ease: 'Back.easeOut' });
-    this.time.delayedCall(1500, () => fadeOutThen(this, () => this.scene.start('Summary', { earned: this.earned, stats: this.stats })));
+    const end: NightEnd = { mode: this.mode, seed: this.seed, earned: this.earned, stats: this.stats };
+    this.time.delayedCall(1500, () => fadeOutThen(this, () => this.scene.start('Summary', end)));
   }
 }

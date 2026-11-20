@@ -3,8 +3,11 @@ import { THIEF_FRAME, THIEF_KEYS } from '../assets';
 import { DEPTH, LAYOUT, W } from '../config';
 import { drawCupcake, type CupcakeData } from './cupcake';
 
-/** What happens when the thief tries to grab: he steals, gets caught, or waits because nothing is ready yet. */
-export type ThiefOutcome = 'steal' | 'wait' | 'caught';
+/**
+ * What happens when the thief tries to grab: he steals (one cupcake), finds the tray empty and runs off with
+ * nothing, gets caught by the guard, or waits and tries again.
+ */
+export type ThiefOutcome = 'steal' | 'empty' | 'wait' | 'caught';
 
 /** Height of the thief on screen (world pixels; his legs are hidden behind the counter) and the stolen cupcake's size. */
 const HEIGHT = 270;
@@ -13,11 +16,9 @@ const CUP_SCALE = 0.85;
 const FEET_BELOW_COUNTER = 118;
 
 /**
- * The thief comes to the counter like a customer (he sneaks in behind it to a free seat), looks around for a
- * moment, then grabs the cupcakes on the ready tray and runs off holding one of them. He only shows up when a
- * cupcake is waiting on the tray; if it is gone by the time he arrives he waits, looking around, until there is
- * one again (he never leaves empty-handed). If a security
- * guard is there, he gets caught instead. It uses the team's drawings (standing / holding a cupcake); the
+ * The thief comes to the counter like a customer (he sneaks in behind it to a free seat) at a planned moment,
+ * after a warning banner. He looks around, then grabs one cupcake from the ready tray and runs off holding it; if
+ * the tray is empty he runs off with nothing. If a security guard is there, he gets caught instead. It uses the team's drawings (standing / holding a cupcake); the
  * cupcake in his hand is drawn in code.
  */
 export class Thief {

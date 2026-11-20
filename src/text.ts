@@ -6,7 +6,10 @@ import type { SpecialId } from './data/gameConfig';
 export const T = {
   tagline: 'Bake cupcakes for monsters before they get angry!',
   play: 'Play',
-  continueDay: (n: number) => `Continue: Day ${n}`,
+  continueNight: (n: number) => `Continue: Night ${n}`,
+  campaignMap: 'Night map',
+  league: 'Midnight League',
+  leagueBestShort: (n: number) => `Best: ${n.toLocaleString('en-US')}`,
   newGame: 'New game',
   newGameSure: 'Sure? Click again',
   howTo: 'How to Play',
@@ -25,13 +28,14 @@ export const T = {
 
   // day map
   mapTitle: 'Monster Town',
-  mapPick: 'Pick a day to open the shop',
-  mapTestNote: 'Test mode: every day is open',
+  mapPick: 'Clear a night to open the next one',
+  mapBest: (money: number) => `Best $${money}`,
   locked: 'Locked',
   menu: 'Menu',
 
   // HUD
-  day: (n: number) => `Day ${n}`,
+  day: (n: number) => `Night ${n}`,
+  leagueShort: 'League',
   goalOf: (earned: number, goal: number) => `$${earned} / Goal $${goal}`,
 
   // station titles
@@ -43,17 +47,20 @@ export const T = {
   tray: 'TRAY',
   trash: 'TRASH',
   ovenLocked: 'Buy in shop',
-  /** Tag on an ingredient that opens on a later day. */
-  fromDay: (n: number) => `Day ${n}`,
 
   // day intro
-  dayIntro: (n: number) => `Day ${n}`,
+  nightTitle: (n: number, name: string) => `Night ${n}: ${name}`,
   goal: (g: number) => `Goal: $${g}`,
-  startDay: 'Start day',
+  startDay: 'Start night',
+  startRace: 'Start race',
+  /** The wave rhythm of the night, shown on the intro card. */
+  waveInfo: (w: readonly number[]) => `Calm start (a customer every ~${w[0]} s), busier middle (~${w[1]} s), short rush at the end (~${w[2]} s).`,
+  arrivesAt: (times: string[]) => `Comes when the clock shows ${times.join(' and ')}.`,
+  newFlavor: (names: string[]) => `New flavor${names.length > 1 ? 's' : ''}: ${names.join(', ')}! Watch for ${names.length > 1 ? 'them' : 'it'} in the orders.`,
+  leagueIntro: (seed: number, best: number) => `Challenge #${seed}   ·   ${best > 0 ? `Your best: ${best.toLocaleString('en-US')}` : 'No score yet'}`,
+  leagueRules: 'Same kitchen and the same customers for everyone today: 2 ovens, 4 plates, no garlic, no guard. Specials are announced 5 s before.',
+  leagueScoreRule: 'Score: $ x 100  + happy serves  + best streak  - lost customers  - burnt cakes',
   newCustomer: 'New customer',
-  /** Day intro card when a group of extra ingredients opens. */
-  newFlavors: (group: 'dough' | 'frosting' | 'topping', names: string[]) =>
-    `New flavors! ${{ dough: 'Doughs', frosting: 'Frostings', topping: 'Toppings' }[group]}: ${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}.`,
 
   // hints and messages during play
   ovenFull: 'Oven is full!',
@@ -96,14 +103,24 @@ export const T = {
   garlicScares: 'Garlic!',
   ghostDrop: 'Oops!',
   thiefStole: 'The thief stole it!',
-  thiefWaiting: 'Hmm... waiting for a cupcake',
+  thiefNothing: 'Nothing to steal!',
+  ghostBored: 'Boo... (floats away)',
+  waveMiddle: 'More customers are coming!',
+  waveRush: 'Rush hour! Last push!',
+  warnGhost: 'A ghost is floating in... just for laughs!',
+  warnVampire: (s: number) => `Vampire in ${s} s! A bite freezes you for a moment.`,
+  warnVampireGarlic: 'Vampire coming... your garlic is ready!',
+  warnThief: (s: number) => `Thief in ${s} s! Clear the ready tray!`,
+  warnThiefGuard: 'Thief coming... your guard is watching!',
+  streak: (n: number) => `Streak x${n}!`,
   thiefCaught: 'Thief caught!',
-  dayOver: 'DAY OVER!',
-  allStars: '3 STARS!',
+  dayOver: 'NIGHT OVER!',
+  allStarsKeepGoing: '3 stars! Keep going for a record!',
   oven_hint: 'Oven is full, wait',
 
   // day summary
-  daySummaryWon: (n: number) => `Day ${n} complete!`,
+  daySummaryWon: (n: number) => `Night ${n} cleared!`,
+  leagueOver: 'Race over!',
   daySummaryLost: 'Goal not reached',
   earned: (e: number, g: number) => `Earned: $${e}   (goal $${g})`,
   served: (n: number) => `Customers served: ${n}`,
@@ -112,6 +129,21 @@ export const T = {
   burntCount: (n: number) => `Burnt cakes: ${n}`,
   stolenCount: (n: number) => `Cakes stolen: ${n}`,
   bitesCount: (n: number) => `Times bitten: ${n}`,
+  streakLine: (n: number) => `Best streak: ${n}`,
+  paidFirst: (n: number) => `+$${n} to your wallet`,
+  paidImproved: (n: number) => `New star record: +$${n} to your wallet`,
+  paidNone: 'Replay: beat your star record to earn more money',
+  paidLost: 'Reach the goal to open the next night',
+  records: (list: string[]) => `New record: ${list.join(', ')}!`,
+  recMoney: 'money',
+  recStreak: 'streak',
+  recStars: 'stars',
+  score: (n: number) => `Score: ${n.toLocaleString('en-US')}`,
+  scoreParts: (p: { money: number; happy: number; streak: number; lost: number; burnt: number }) =>
+    `Money ${p.money}  +  Happy ${p.happy}  +  Streak ${p.streak}\n-  Lost ${p.lost}  -  Burnt ${p.burnt}`,
+  leagueNewBest: 'New best for this challenge!',
+  leagueYourBest: (n: number) => `Your best on this challenge: ${n.toLocaleString('en-US')}`,
+  raceAgain: 'Race again',
   retry: 'Try again',
   toShop: 'Shop',
   finish: 'Finish',
@@ -126,13 +158,13 @@ export const T = {
   notEnough: 'Not enough money',
   paused: 'Paused',
   resume: 'Resume',
-  restartDay: 'Restart day',
+  restartDay: 'Restart',
   mainMenu: 'Main menu',
-  nextDay: 'Next day',
+  nextDay: 'Next night',
   garlicName: 'Garlic',
-  garlicDesc: "The vampire can't bite anymore.",
+  garlicDesc: "The vampire can't bite you. He comes from Night 4.",
   guardName: 'Security Guard',
-  guardDesc: 'Catches the thief, who leaves +$5.',
+  guardDesc: 'Catches the thief (+$5). He comes on Night 5.',
   ovenName: 'Extra Oven',
   ovenDesc: 'Bake two cakes at a time.',
   plateName: 'Extra Plate',
@@ -149,13 +181,13 @@ export const T = {
     'Pick a dough: it bakes in 5 seconds. Leave it past 10 seconds and it burns!',
     'Move the baked cake to the plate, then add frosting and a topping.',
     'Give (or drag) the right cupcake to the customer. The faster, the bigger the tip! Cakes can wait on the tray, even plain ones.',
-    'Watch out for special monsters: the vampire bites, the thief steals cakes. Buy protection in the shop!',
+    'Special monsters come at set times, with a warning first: the vampire bites, the thief takes a cake from the tray. Buy garlic and a guard in the shop!',
   ],
 };
 
 /** New-customer cards shown at the start of the day a special monster first appears. */
 export const MONSTER_CARDS: Record<SpecialId, { name: string; text: string }> = {
-  vampire: { name: 'Vampire', text: 'New customer: Vampire! Bites you, but is scared of garlic.' },
-  ghost: { name: 'Ghost', text: 'New customer: Ghost! Drops the cake right through, but still pays.' },
-  thief: { name: 'Thief', text: 'New customer: Thief! When a cupcake waits on the ready tray, he comes and grabs it. A security guard catches him.' },
+  vampire: { name: 'Vampire', text: 'Vampire! His bite freezes you for 2 s. Garlic keeps him off.' },
+  ghost: { name: 'Ghost', text: 'Ghost! Just for laughs: the cake falls through, but it pays in full.' },
+  thief: { name: 'Thief', text: 'Thief! Takes one cake from the ready tray (5 s warning). A guard catches him.' },
 };

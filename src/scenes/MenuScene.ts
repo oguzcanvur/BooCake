@@ -6,6 +6,7 @@ import { fadeIn, fadeOutThen } from '../fx';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
 import { gameState, resetGame } from '../systems/GameState';
+import { league } from '../systems/league';
 import { canContinue, progress } from '../systems/save';
 import { T } from '../text';
 import { makeButton } from '../ui/button';
@@ -49,16 +50,18 @@ export class MenuScene extends Phaser.Scene {
       .setOrigin(0.5)
       .setDepth(DEPTH.bubble + 1);
 
+    // campaign: continue a saved game, open the map of a finished one, or start fresh
+    const hasSave = canContinue() || progress.finished;
     if (canContinue()) {
-      // a saved game: continue it, or start over (asks for a second click so progress is not lost by accident)
-      makeButton(this, W / 2 - 175, 500, 330, 86, T.continueDay(gameState.day + (progress.resumeAt === 'shop' ? 2 : 1)), () => {
-        fadeOutThen(this, () => this.scene.start(progress.resumeAt === 'shop' ? 'Decorate' : 'Map'));
-      }, { color: 'green', fontSize: 34, depth: DEPTH.hud });
-      this.newGameButton(false);
+      makeButton(this, W / 2 - 180, 500, 340, 86, T.continueNight(gameState.unlocked + 1), () => {
+        fadeOutThen(this, () => (progress.resumeAt === 'shop' ? this.scene.start('Decorate', { from: 'between' }) : this.scene.start('Map')));
+      }, { color: 'green', fontSize: 32, depth: DEPTH.hud });
+    } else if (progress.finished) {
+      makeButton(this, W / 2 - 180, 500, 340, 86, T.campaignMap, () => fadeOutThen(this, () => this.scene.start('Map')), { color: 'green', fontSize: 34, depth: DEPTH.hud });
     } else {
       makeButton(
         this,
-        W / 2,
+        W / 2 - 180,
         500,
         340,
         86,
@@ -70,16 +73,28 @@ export class MenuScene extends Phaser.Scene {
         { color: 'green', fontSize: 42, depth: DEPTH.hud },
       );
     }
-    makeButton(this, W / 2 - 150, 606, 280, 72, T.howTo, () => fadeOutThen(this, () => this.scene.start('HowTo')), {
+    // the replayable race (same challenge for everyone today); its best score is shown under it
+    makeButton(this, W / 2 + 180, 500, 340, 86, T.league, () => fadeOutThen(this, () => this.scene.start('Night', { mode: 'league' })), {
       color: 'blue',
-      fontSize: 30,
+      fontSize: 32,
       depth: DEPTH.hud,
     });
-    makeButton(this, W / 2 + 150, 606, 280, 72, T.shopTitle, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'Menu' })), {
+    if (league.best > 0) {
+      this.add
+        .text(W / 2 + 180, 552, T.leagueBestShort(league.best), { fontFamily: FONT, fontSize: '17px', color: '#ffe08a', fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 4 })
+        .setOrigin(0.5)
+        .setDepth(DEPTH.hud);
+    }
+
+    // second row: how to play, shop, and "New game" when there is progress to lose (asks twice)
+    const xs = hasSave ? [W / 2 - 290, W / 2, W / 2 + 290] : [W / 2 - 150, W / 2 + 150];
+    makeButton(this, xs[0], 616, 260, 68, T.howTo, () => fadeOutThen(this, () => this.scene.start('HowTo')), { color: 'blue', fontSize: 28, depth: DEPTH.hud });
+    makeButton(this, xs[1], 616, 260, 68, T.shopTitle, () => fadeOutThen(this, () => this.scene.start('Decorate', { from: 'Menu' })), {
       color: 'yellow',
-      fontSize: 30,
+      fontSize: 28,
       depth: DEPTH.hud,
     });
+    if (hasSave) this.newGameButton(false, xs[2]);
 
     this.add
       .text(W / 2, H - 22, 'v0.3  -  art & sounds by Kenney (CC0), font Fredoka (OFL)', {
@@ -93,14 +108,14 @@ export class MenuScene extends Phaser.Scene {
     this.addFullscreenButton();
   }
 
-  /** "New game" next to Continue. The first click turns it into "Sure?"; a second click within 3 s starts over. */
-  private newGameButton(confirm: boolean): void {
+  /** "New game" in the second row. The first click turns it into "Sure?"; a second click within 3 s starts over. */
+  private newGameButton(confirm: boolean, x: number): void {
     const btn = makeButton(
       this,
-      W / 2 + 175,
-      500,
-      300,
-      86,
+      x,
+      616,
+      260,
+      68,
       confirm ? T.newGameSure : T.newGame,
       () => {
         if (confirm) {
@@ -111,16 +126,16 @@ export class MenuScene extends Phaser.Scene {
         // rebuild on the next frame so the clicked button is not destroyed while it handles the click
         this.time.delayedCall(0, () => {
           btn.destroy();
-          this.newGameButton(true);
+          this.newGameButton(true, x);
         });
       },
-      { color: confirm ? 'red' : 'blue', fontSize: 30, depth: DEPTH.hud },
+      { color: confirm ? 'red' : 'grey', fontSize: confirm ? 22 : 28, depth: DEPTH.hud },
     );
     if (confirm) {
       this.time.delayedCall(3000, () => {
         if (!this.scene.isActive()) return;
         btn.destroy();
-        this.newGameButton(false);
+        this.newGameButton(false, x);
       });
     }
   }

@@ -30,7 +30,7 @@ export class Hud {
   constructor(
     private readonly scene: Phaser.Scene,
     private readonly goal: number,
-    dayNumber: number,
+    label: string,
     dayLength: number,
   ) {
     const d = DEPTH.hud;
@@ -49,7 +49,7 @@ export class Hud {
     // day
     drawPill(g, 14, 10, 150, 36, PANEL);
     drawMoon(g, 38, 28, 11, PANEL);
-    scene.add.text(58, 28, T.day(dayNumber), { ...style, fontSize: '24px', color: '#ffc6e4' }).setOrigin(0, 0.5).setDepth(d + 1);
+    scene.add.text(58, 28, label, { ...style, fontSize: '24px', color: '#ffc6e4' }).setOrigin(0, 0.5).setDepth(d + 1);
 
     // time left (its pill is redrawn when time runs out)
     this.timePill = scene.add.graphics().setDepth(d);
