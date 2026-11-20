@@ -21,7 +21,8 @@ export const CONFIG = {
   price: 5,
   tips: { happy: 5, uneasy: 2, angry: 0 },
   /** Patience above this fraction = happy; above the second = uneasy; below = angry. */
-  mood: { happyAbove: 0.6, uneasyAbove: 0.3 },
+  // customers stay happy for the first half of their patience and only get angry in the last fifth
+  mood: { happyAbove: 0.5, uneasyAbove: 0.2 },
 
   /** A wrong cupcake is thrown away and the customer loses this fraction of their full patience. */
   wrongOrderPatiencePenalty: 0.2,
@@ -63,11 +64,11 @@ export const CONFIG = {
 
   days: [
     // day 1 is a gentle start for first-time players: 2 minutes, lower goal, slower customers who wait longer
-    { length: 120, goal: 35, interval: 17, patience: 48, specials: [] },
+    { length: 120, goal: 35, interval: 17, patience: 65, specials: [] },
     // all days were made easier: customers come less often and wait longer, goals lowered to match; 2 minutes each
-    { length: 120, goal: 60, interval: 13, patience: 40, specials: ['vampire', 'ghost'] },
-    { length: 120, goal: 75, interval: 11, patience: 36, specials: ['vampire', 'ghost', 'thief'] },
-    { length: 120, goal: 85, interval: 10, patience: 34, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 60, interval: 13, patience: 56, specials: ['vampire', 'ghost'] },
+    { length: 120, goal: 75, interval: 11, patience: 50, specials: ['vampire', 'ghost', 'thief'] },
+    { length: 120, goal: 85, interval: 10, patience: 46, specials: ['vampire', 'ghost', 'thief'] },
   ] as DayConfig[],
 };
 
