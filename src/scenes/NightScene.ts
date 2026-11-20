@@ -310,7 +310,11 @@ export class NightScene extends Phaser.Scene {
     const rowH = 124;
     const panelW = 700;
     const panelH = 190 + (newOnes.length + groups.length) * rowH;
-    const cy = H / 2 - 24;
+    // with many new cards (e.g. jumping straight to day 4 from the map) the panel is scaled down to fit the
+    // screen, leaving room for the Start button under it
+    const fit = Math.min(1, (H - 150) / panelH);
+    const shownH = panelH * fit;
+    const cy = (H - shownH - 100) / 2 + shownH / 2 + 8;
     const cover = this.add.rectangle(cx, H / 2, W, H, 0x0a0618, 0.72).setDepth(DEPTH.overlay).setInteractive();
     const panel = this.add.container(cx, cy).setDepth(DEPTH.overlay + 1);
     const g = this.add.graphics();
@@ -388,13 +392,13 @@ export class NightScene extends Phaser.Scene {
       );
     });
 
-    panel.setScale(0.85).setAlpha(0);
-    this.tweens.add({ targets: panel, scale: 1, alpha: 1, duration: 320, ease: 'Back.easeOut' });
+    panel.setScale(0.85 * fit).setAlpha(0);
+    this.tweens.add({ targets: panel, scale: fit, alpha: 1, duration: 320, ease: 'Back.easeOut' });
 
     const btn = makeButton(
       this,
       cx,
-      cy + panelH / 2 + 56,
+      cy + shownH / 2 + 56,
       300,
       70,
       T.startDay,
