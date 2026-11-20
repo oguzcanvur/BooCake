@@ -133,60 +133,61 @@ export class MapScene extends Phaser.Scene {
     const open = reached || CONFIG.unlockAllDays;
     const d = DEPTH.hud;
 
-    const g = this.add.graphics().setDepth(d);
     if (i === current) {
       const glow = this.add.circle(x, y, NODE_R + 14, 0xffb4d9, 0.35).setDepth(d - 1);
       this.tweens.add({ targets: glow, scale: 1.15, alpha: 0.15, duration: 800, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
     }
+    // everything of the stop lives in one container centered on it, so it can grow as a whole on hover
+    const stop = this.add.container(x, y).setDepth(d);
+    const g = this.add.graphics();
     g.fillStyle(0x000000, 0.3);
-    g.fillCircle(x + 3, y + 6, NODE_R);
+    g.fillCircle(3, 6, NODE_R);
     g.fillStyle(done ? 0xffe6a8 : reached ? 0xfff6e6 : 0xd9cfe8, 1);
-    g.fillCircle(x, y, NODE_R);
+    g.fillCircle(0, 0, NODE_R);
     g.lineStyle(done ? 6 : 4, done ? 0xd9a84e : INK, 1);
-    g.strokeCircle(x, y, NODE_R);
-
-    this.add
-      .text(x, y - 12, T.day(i + 1), { fontFamily: FONT, fontSize: '20px', color: '#4a3531', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setDepth(d + 1);
-    this.add
-      .text(x, y + 14, T.goal(day.goal), { fontFamily: FONT, fontSize: '17px', color: '#7a5a4a', fontStyle: 'bold' })
-      .setOrigin(0.5)
-      .setDepth(d + 1);
+    g.strokeCircle(0, 0, NODE_R);
+    stop.add(g);
+    stop.add(this.add.text(0, -12, T.day(i + 1), { fontFamily: FONT, fontSize: '20px', color: '#4a3531', fontStyle: 'bold' }).setOrigin(0.5));
+    stop.add(this.add.text(0, 14, T.goal(day.goal), { fontFamily: FONT, fontSize: '17px', color: '#7a5a4a', fontStyle: 'bold' }).setOrigin(0.5));
 
     // stars earned on this day
     const stars = gameState.stars[i] ?? 0;
-    const sg = this.add.graphics().setDepth(d + 1);
-    for (let k = 0; k < 3; k++) drawStar(sg, x - 30 + k * 30, y + NODE_R + 18, 12, k < stars, 2);
+    const sg = this.add.graphics();
+    for (let k = 0; k < 3; k++) drawStar(sg, -30 + k * 30, NODE_R + 18, 12, k < stars, 2);
+    stop.add(sg);
 
     // monsters that show up for the first time on this day
     const prev = i > 0 ? CONFIG.days[i - 1].specials : [];
     const fresh = day.specials.filter((s) => !prev.includes(s));
     if (fresh.length > 0) {
-      this.add
-        .text(x, y + NODE_R + 46, `+ ${fresh.map((s) => MONSTER_CARDS[s].name).join(', ')}`, {
-          fontFamily: FONT,
-          fontSize: '16px',
-          color: '#ffd6ec',
-          fontStyle: 'bold',
-          stroke: '#2b1d4f',
-          strokeThickness: 4,
-        })
-        .setOrigin(0.5)
-        .setDepth(d + 1);
+      stop.add(
+        this.add
+          .text(0, NODE_R + 46, `+ ${fresh.map((s) => MONSTER_CARDS[s].name).join(', ')}`, {
+            fontFamily: FONT,
+            fontSize: '16px',
+            color: '#ffd6ec',
+            fontStyle: 'bold',
+            stroke: '#2b1d4f',
+            strokeThickness: 4,
+          })
+          .setOrigin(0.5),
+      );
     }
 
     if (!open) {
-      this.add
-        .text(x, y + 36, T.locked, { fontFamily: FONT, fontSize: '14px', color: '#8a7aa8', fontStyle: 'bold' })
-        .setOrigin(0.5)
-        .setDepth(d + 1);
+      stop.add(this.add.text(0, 36, T.locked, { fontFamily: FONT, fontSize: '14px', color: '#8a7aa8', fontStyle: 'bold' }).setOrigin(0.5));
       return;
     }
     const zone = this.add.zone(x, y, NODE_R * 2 + 10, NODE_R * 2 + 10).setInteractive({ useHandCursor: true }).setDepth(d + 2);
-    const parts = [g];
-    zone.on('pointerover', () => this.tweens.add({ targets: parts, y: -4, duration: 100 }));
-    zone.on('pointerout', () => this.tweens.add({ targets: parts, y: 0, duration: 100 }));
+    // hover: the whole stop grows in place (and comes to the front)
+    zone.on('pointerover', () => {
+      stop.setDepth(d + 1);
+      this.tweens.add({ targets: stop, scale: 1.14, duration: 140, ease: 'Back.easeOut' });
+    });
+    zone.on('pointerout', () => {
+      stop.setDepth(d);
+      this.tweens.add({ targets: stop, scale: 1, duration: 120, ease: 'Quad.easeOut' });
+    });
     zone.on('pointerdown', () => {
       sfx(this, 'ui_click', 0.5);
       gameState.day = i;
