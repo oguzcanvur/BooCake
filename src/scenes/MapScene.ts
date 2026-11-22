@@ -46,6 +46,12 @@ export class MapScene extends Phaser.Scene {
       .text(W / 2, 62, T.mapTitle, { fontFamily: FONT, fontSize: '54px', color: '#ffd6ec', fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 9 })
       .setOrigin(0.5)
       .setDepth(DEPTH.hud);
+    if (CONFIG.unlockAllNights) {
+      this.add
+        .text(W - 20, H - 18, T.mapTestNote, { fontFamily: FONT, fontSize: '16px', color: '#ffd166', fontStyle: 'bold' })
+        .setOrigin(1, 1)
+        .setDepth(DEPTH.hud);
+    }
     this.add
       .text(W / 2, 112, T.mapPick, { fontFamily: FONT, fontSize: '24px', color: '#efe4ff', fontStyle: 'bold', stroke: '#2b1d4f', strokeThickness: 5 })
       .setOrigin(0.5)
@@ -128,7 +134,7 @@ export class MapScene extends Phaser.Scene {
     const rec = record(i);
     const done = rec.stars > 0;
     const reached = i <= current;
-    const open = reached;
+    const open = reached || CONFIG.unlockAllNights;
     const d = DEPTH.hud;
 
     if (i === current) {

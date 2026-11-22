@@ -29,6 +29,7 @@ export const T = {
   // day map
   mapTitle: 'Monster Town',
   mapPick: 'Clear a night to open the next one',
+  mapTestNote: 'Test mode: every night is open',
   mapBest: (money: number) => `Best $${money}`,
   locked: 'Locked',
   menu: 'Menu',

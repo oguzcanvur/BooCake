@@ -138,6 +138,11 @@ export const CONFIG = {
 
   /** Nights open one after another (the next one opens when the previous goal is reached). */
   nights: NIGHTS,
+  /**
+   * While the game is being tested: every night on the map can be played without finishing the ones before it
+   * (money and records still work as usual). Set to false before handing the game in.
+   */
+  unlockAllNights: true,
 
   /**
    * Midnight League: a replayable 2-minute race. Everyone gets the same equipment, and the same seed gives the
