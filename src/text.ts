@@ -111,7 +111,8 @@ export const T = {
   warnGhost: 'A ghost is floating in... just for laughs!',
   warnVampire: (s: number) => `Vampire in ${s} s! A bite freezes you for a moment.`,
   warnVampireGarlic: 'Vampire coming... your garlic is ready!',
-  warnThief: (s: number) => `Thief in ${s} s! Clear the ready tray!`,
+  warnThief: 'A thief is sneaking in! Watch your cupcakes!',
+  thiefComes: (n: number) => (n === 1 ? 'He comes once tonight.' : `He comes ${n} times tonight.`),
   warnThiefGuard: 'Thief coming... your guard is watching!',
   streak: (n: number) => `Streak x${n}!`,
   thiefCaught: 'Thief caught!',
@@ -190,5 +191,5 @@ export const T = {
 export const MONSTER_CARDS: Record<SpecialId, { name: string; text: string }> = {
   vampire: { name: 'Vampire', text: 'Vampire! His bite freezes you for 2 s. Garlic keeps him off.' },
   ghost: { name: 'Ghost', text: 'Ghost! Just for laughs: the cake falls through, but it pays in full.' },
-  thief: { name: 'Thief', text: 'Thief! Takes one cake from the ready tray (5 s warning). A guard catches him.' },
+  thief: { name: 'Thief', text: 'Thief! When a cupcake is ready he sneaks in and grabs it (from the tray first). A guard catches him.' },
 };

@@ -324,14 +324,19 @@ export class NightScene extends Phaser.Scene {
     // planned special monsters: a warning banner first, then they arrive at their moment
     for (const p of this.plan) {
       if (p.done) continue;
-      if (!p.warned && this.elapsed >= p.at - CONFIG.specialWarningSec) {
+      // the thief gives no early warning: he shows up when a cupcake is ready (see below)
+      if (!p.warned && p.id !== 'thief' && this.elapsed >= p.at - CONFIG.specialWarningSec) {
         p.warned = true;
         this.warnSpecial(p.id);
       }
       if (this.elapsed < p.at) continue;
       if (p.id === 'thief') {
-        // he needs a free seat at the counter (if it is full he waits for one) and never comes with the vampire
-        if (!this.vampireHere() && this.spawnThief()) p.done = true;
+        // after his moment he waits for a ready cupcake, a free seat, and no vampire at the counter
+        if (this.thiefLoot().length > 0 && !this.vampireHere() && this.spawnThief()) {
+          p.done = true;
+          p.warned = true;
+          this.warnSpecial('thief');
+        }
       } else if (p.id === 'vampire' && this.thieves.length > 0) {
         // the vampire waits until the thief is gone
         continue;
@@ -515,7 +520,9 @@ export class NightScene extends Phaser.Scene {
           view.root.setPosition(-panelW / 2 + 110, rowY - 14).setScale(0.5);
         }
         const times = this.day.specials.filter((s) => s.id === id).map((s) => this.clockAt(s.at));
-        panel.add(this.add.text(-panelW / 2 + 190, rowY, `${MONSTER_CARDS[id].text} ${T.arrivesAt(times)}`, textStyle).setOrigin(0, 0.5));
+        // the thief has no fixed time (he comes when a cupcake is ready), so his card says how often instead
+        const when = id === 'thief' ? T.thiefComes(times.length) : T.arrivesAt(times);
+        panel.add(this.add.text(-panelW / 2 + 190, rowY, `${MONSTER_CARDS[id].text} ${when}`, textStyle).setOrigin(0, 0.5));
         return;
       }
       // new flavors: a little cupcake for each, showing the new ingredient
@@ -588,7 +595,7 @@ export class NightScene extends Phaser.Scene {
       id === 'thief'
         ? g.guard
           ? T.warnThiefGuard
-          : T.warnThief(CONFIG.specialWarningSec)
+          : T.warnThief
         : id === 'vampire'
           ? g.garlic
             ? T.warnVampireGarlic
@@ -1187,6 +1194,14 @@ export class NightScene extends Phaser.Scene {
   }
 
   /** The thief comes to a free seat at the counter (kept free for him until he leaves). False if none is free. */
+  /** What the thief can take: cakes on the ready tray (finished ones first), then finished cupcakes on the plates. */
+  private thiefLoot(): { c: CupcakeData; loc: Loc }[] {
+    const tray = this.tray.flatMap((c, i) => (c && c.bake !== 'burnt' ? [{ c, loc: { kind: 'tray', i } as Loc }] : []));
+    tray.sort((a, b) => Number(isFinished(b.c)) - Number(isFinished(a.c)));
+    const plates = this.plates.flatMap((c, i) => (c && c.bake !== 'burnt' && isFinished(c) ? [{ c, loc: { kind: 'plate', i } as Loc }] : []));
+    return [...tray, ...plates];
+  }
+
   private spawnThief(): boolean {
     const free = this.customers.flatMap((c, i) => (c || i === this.thiefSeat ? [] : [i]));
     if (free.length === 0) return false;
@@ -1208,16 +1223,9 @@ export class NightScene extends Phaser.Scene {
           sfx(this, 'serve_ok', 0.5);
           return 'caught';
         }
-        // at most one cupcake from the ready tray (a finished one first)
-        const waiting: { c: CupcakeData; loc: Loc }[] = this.tray.flatMap((c, i) => (c ? [{ c, loc: { kind: 'tray', i } as Loc }] : []));
-        waiting.sort((a, b) => Number(isFinished(b.c)) - Number(isFinished(a.c)));
-        const loot = waiting.slice(0, CONFIG.thiefSteals);
-        if (loot.length === 0) {
-          // the player emptied the tray after the warning: he leaves with nothing
-          floatText(this, thief.x, thief.y - 90, T.thiefNothing, '#7dffb0', 26);
-          sfx(this, 'nope', 0.4, 1.2);
-          return 'empty';
-        }
+        // at most one ready cupcake; if it was served in the meantime he waits for the next one
+        const loot = this.thiefLoot().slice(0, CONFIG.thiefSteals);
+        if (loot.length === 0) return 'wait';
         for (const { c, loc } of loot) {
           this.flyCupcake(c, this.locPos(loc), { x: thief.x, y: thief.y - 20 }, 320);
           this.removeFrom(loc);

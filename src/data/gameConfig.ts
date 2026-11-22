@@ -86,8 +86,10 @@ const NIGHTS: NightConfig[] = [
     specials: [
       { id: 'ghost', at: 18 },
       { id: 'vampire', at: 40 },
-      { id: 'thief', at: 62 },
+      // the thief comes twice; `at` is the earliest moment, he then waits for a ready cupcake (ekip isteği)
+      { id: 'thief', at: 50 },
       { id: 'ghost', at: 80 },
+      { id: 'thief', at: 85 },
       { id: 'vampire', at: 98 },
     ],
     newIngredients: [],
