@@ -1,13 +1,11 @@
 import Phaser from 'phaser';
-import { stationKey } from '../assets';
+import { GUARD_KEY, stationKey } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, INK, W } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import { CLOTHS, DECORATIONS, PLATE_COLORS, WRAPPERS, decor, plateColor, type ClothOption, type ColorOption, type DecorationItem } from '../data/decor';
-import { GUARD_MONSTER } from '../data/monsters';
 import { fadeIn, fadeOutThen, floatText, setupCamera } from '../fx';
 import { drawCupcake } from '../objects/cupcake';
-import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
 import { gameState, MAX_EXTRA_OVENS, MAX_EXTRA_PLATES, type Upgrades } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
@@ -223,8 +221,8 @@ export class DecorateScene extends Phaser.Scene {
       const cake = this.add.graphics().setDepth(depth + 1);
       drawCupcake(cake, x, y + 2, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'mint', topping: 'sprinkles' }, 0.75);
     } else if (key === 'guard') {
-      const guard = new MonsterView(this, x, y - 12, GUARD_MONSTER);
-      guard.root.setDepth(depth).setScale(0.36);
+      const guard = this.add.image(x, y + 34, GUARD_KEY).setOrigin(0.5, 1).setDepth(depth);
+      guard.setScale(100 / guard.height);
     } else {
       const garlic = this.add.image(x, y + 34, stationKey('garlic')).setOrigin(0.5, 1).setDepth(depth);
       garlic.setScale(70 / garlic.height);

@@ -116,7 +116,11 @@ export const CHAR_FRAME: Record<CharSprite, { ox: number; oy: number; bodyW: num
 };
 
 /** The thief's pictures: standing, holding a cupcake (the cupcake itself is drawn in code), and the hand that goes over it. */
-export const THIEF_KEYS = { stand: 'thief_stand', hold: 'thief_hold', hand: 'thief_hand' } as const;
+export const THIEF_KEYS = { stand: 'thief_stand', hold: 'thief_hold', hand: 'thief_hand', sad: 'thief_sad' } as const;
+/** The security guard (the team's drawing, same picture frame as the thief). */
+export const GUARD_KEY = 'guard_img';
+/** The guard's full-body picture (he stands behind the counter and walks to the thief). */
+export const GUARD_FULL_KEY = 'guard_full';
 /** Picture size, anchor (share of the picture) and where the cupcake sits in his hand (wrapper middle, shares of the picture). */
 export const THIEF_FRAME = { w: 297, h: 440, ox: 0.4968, cupX: 0.391, cupY: 0.585 };
 
@@ -131,6 +135,9 @@ export function queueAssets(scene: Phaser.Scene): void {
   scene.load.image(THIEF_KEYS.stand, binaryUrl('chars/thief.webp'));
   scene.load.image(THIEF_KEYS.hold, binaryUrl('chars/thief_hold.webp'));
   scene.load.image(THIEF_KEYS.hand, binaryUrl('chars/thief_hand.webp'));
+  scene.load.image(THIEF_KEYS.sad, binaryUrl('chars/thief_sad.webp'));
+  scene.load.image(GUARD_KEY, binaryUrl('chars/guard.webp'));
+  scene.load.image(GUARD_FULL_KEY, binaryUrl('chars/guard_full.webp'));
   for (const n of STATION_SPRITES) scene.load.image(stationKey(n), binaryUrl(`stations/${n}.png`));
   for (const n of FX_NAMES) scene.load.image(fxKey(n), binaryUrl(`fx/${n}.png`));
   for (const n of SFX_NAMES) scene.load.audio(sfxKey(n), binaryUrl(`audio/${n}.ogg`));

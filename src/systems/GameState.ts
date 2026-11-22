@@ -114,6 +114,9 @@ export function finishNight(i: number, earned: number, bestStreak: number): Nigh
   rec.bestStreak = Math.max(old.bestStreak, bestStreak);
   gameState.records[i] = rec;
   gameState.wallet += paid;
+  // garlic and the guard work for one night only: after the night they are used up and must be bought again
+  gameState.upgrades.garlic = false;
+  gameState.upgrades.guard = false;
   if (stars > 0) gameState.unlocked = Math.min(NIGHT_COUNT - 1, Math.max(gameState.unlocked, i + 1));
   return {
     stars,

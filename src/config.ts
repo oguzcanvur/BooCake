@@ -81,8 +81,8 @@ export const STATION_X = {
   tray: [316, 436],
 };
 
-/** The security guard stands behind the counter, at the left end (next to the door). */
-export const GUARD = { x: 92, y: 322, scale: 0.72 };
+/** The security guard stands on the shop floor behind the counter, near the door (x = center, y = his feet); h = his full-body height there, far from the counter. */
+export const GUARD = { x: 302, y: 385, h: 240 };
 
 /** The two dough tables (3 bowls each): center x, width, and where each one stands (bottom edge). */
 export const DOUGH_TABLES = { x: 128, w: 236, bottoms: [700, 576] };

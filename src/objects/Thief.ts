@@ -28,6 +28,7 @@ export class Thief {
   private readonly cup: Phaser.GameObjects.Graphics;
   private readonly hand: Phaser.GameObjects.Image;
   private done = false;
+  private doneCb: () => void = () => {};
   /** The "waiting for a cupcake" line was already shown. */
   saidWaiting = false;
 
@@ -68,7 +69,8 @@ export class Thief {
    * Sneak in from the right to `stopX` at the counter, look around for a moment, then ask the scene what
    * happened (`decide` is called once). He leaves by the nearest side. `onDone` runs when he is gone.
    */
-  run(stopX: number, decide: () => ThiefOutcome, onDone: () => void): void {
+  run(stopX: number, decide: () => ThiefOutcome, onDone: () => void, onCaught?: () => void): void {
+    this.doneCb = onDone;
     const root = this.root;
     const hops = this.scene.time.addEvent({ delay: 170, loop: true, callback: () => this.hop(10, 85) });
     const exitX = stopX > W / 2 ? W + 140 : -140;
@@ -82,25 +84,28 @@ export class Thief {
         hops.remove();
         // a sneaky look left and right before grabbing
         this.scene.tweens.add({ targets: this.inner, angle: { from: -6, to: 6 }, duration: 220, yoyo: true, repeat: 1, onComplete: () => this.inner.setAngle(0) });
-        this.scene.time.delayedCall(900, () => this.act(decide, exitX, onDone));
+        this.scene.time.delayedCall(900, () => this.act(decide, exitX, onDone, onCaught));
       },
     });
   }
 
   /** Grab (or get caught), then run off by the nearest side. Nothing ready yet: look around and try again soon. */
-  private act(decide: () => ThiefOutcome, exitX: number, onDone: () => void): void {
+  private act(decide: () => ThiefOutcome, exitX: number, onDone: () => void, onCaught?: () => void): void {
     if (this.done) return;
     const root = this.root;
     const outcome = decide();
     if (outcome === 'wait') {
       if (Math.random() < 0.35) this.scene.tweens.add({ targets: this.inner, angle: { from: -5, to: 5 }, duration: 240, yoyo: true, onComplete: () => this.inner.setAngle(0) });
-      this.scene.time.delayedCall(500, () => this.act(decide, exitX, onDone));
+      this.scene.time.delayedCall(500, () => this.act(decide, exitX, onDone, onCaught));
       return;
     }
     if (outcome === 'caught') {
-      // caught: wiggle in place, then vanish with a poof
-      this.shake();
-      this.scene.time.delayedCall(900, () => this.finish(onDone));
+      // he has the cupcake in his hand; the guard walks over (the scene runs the rest through getCaught / say / vanish)
+      this.scene.time.delayedCall(700, () => {
+        if (this.done) return;
+        if (onCaught) onCaught();
+        else this.vanish();
+      });
       return;
     }
     this.scene.time.delayedCall(380, () => {
@@ -118,6 +123,20 @@ export class Thief {
         },
       });
     });
+  }
+
+  /** Caught: the sad face picture, the cupcake leaves his hand and he trembles a little. */
+  getCaught(): void {
+    if (this.done) return;
+    this.body.setTexture(THIEF_KEYS.sad);
+    this.cup.setVisible(false);
+    this.hand.setVisible(false);
+    this.shake();
+  }
+
+  /** He fades away (then `onDone` of `run` is called). */
+  vanish(): void {
+    this.finish(this.doneCb);
   }
 
   /** Position of the thief (for effects): about his chest. */
