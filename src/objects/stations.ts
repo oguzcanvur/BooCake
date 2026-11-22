@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { stationKey, type StationSprite } from '../assets';
 import { DEPTH, FONT, INK } from '../config';
-import { doughInfo, toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
+import { toppingInfo, type DoughId, type FrostingId, type ToppingId } from '../data/recipes';
 import { drawTopping } from './cupcake';
 import { plateColor } from '../data/decor';
 
@@ -56,10 +56,11 @@ function makeIngredient(scene: Phaser.Scene, pic: Movable, onClick: () => void, 
 const TRASH_PIC = { h: 890, canTop: 262, lidBottom: 274 };
 
 /** Where each part sits on its base picture (center, in the base picture's pixels; measured when cutting). */
+/** Where the 3 bowls stand on a dough table (centers, in the table picture's own 600 x 248 pixels). */
 const BOWL_SPOTS = [
-  { cx: 62, cy: 53 },
-  { cx: 152.5, cy: 53 },
-  { cx: 244.5, cy: 53 },
+  { cx: 120, cy: 58 },
+  { cx: 300, cy: 58 },
+  { cx: 480, cy: 58 },
 ];
 /** Where the 6 bags hang in the frosting pocket (centers, in the pocket picture's own 700 x 350 pixels). */
 const BAG_SPOTS = [
@@ -70,7 +71,7 @@ const BAG_SPOTS = [
   { cx: 511.8, cy: 145.2 },
   { cx: 620.3, cy: 145.8 },
 ];
-/** The new doughs' bowls are recolored copies of the team's strawberry bowl. */
+/** The team's bowls (each drawn with its English name). */
 const BOWL: Record<DoughId, StationSprite> = {
   vanilla: 'bowl_vanilla',
   chocolate: 'bowl_chocolate',
@@ -177,8 +178,8 @@ export function createDoughBowl(scene: Phaser.Scene, table: Phaser.GameObjects.I
   const pic = addPart(scene, table, BOWL[id], b.cx, b.cy);
   const w = pic.displayWidth;
   const h = pic.displayHeight;
-  // the bowl's name is written on its front, about 76% down
-  return finish(scene, withTag(scene, pic, doughInfo(id).name, 0.76, 10), w, h, lockedUntil, onClick);
+  // the team's bowls carry their English names, so no tag
+  return finish(scene, withTag(scene, pic, '', 0, 10), w, h, lockedUntil, onClick);
 }
 
 /** The cloth pocket all piping bags hang in (one wide picture). */
