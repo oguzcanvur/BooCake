@@ -130,6 +130,19 @@ export class Customer {
     this.monster.shake();
   }
 
+  /** Lunge at the player and hold for `holdMs` (the vampire's bite). */
+  lunge(holdMs: number): void {
+    // his face fills the screen: the order ticket waits out of sight until he is back
+    this.setTicketVisible(false);
+    this.monster.lunge(holdMs, () => this.setTicketVisible(true));
+  }
+
+  private setTicketVisible(v: boolean): void {
+    if (this.gone) return;
+    this.bubble.setVisible(v);
+    this.lines.forEach((t) => t.setVisible(v));
+  }
+
   /** Wiggle (wrong cupcake, etc). */
   shake(): void {
     this.monster.shake();

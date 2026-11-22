@@ -1,10 +1,10 @@
 import Phaser from 'phaser';
 import { sfx } from '../audio';
-import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKET, STATION_X, TRASH, W } from '../config';
+import { DEPTH, DOUGH_TABLES, FONT, H, JARS, LAYOUT, PLATES, POCKET, STATION_X, TRASH, W } from '../config';
 import { CONFIG, WAVE_SPLIT, type SpecialId, type SpecialVisit, type Waves } from '../data/gameConfig';
 import { THIEF_KEYS } from '../assets';
 import { playVoice, type VoiceId } from '../voices';
-import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
+import { SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import {
   DOUGHS,
   FROSTINGS,
@@ -23,7 +23,8 @@ import {
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
 import { drawCupcake, isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
-import { MonsterView } from '../objects/MonsterView';
+import { Guard } from '../objects/Guard';
+import { LUNGE_ARRIVE_MS, MonsterView } from '../objects/MonsterView';
 import { OvenSlot } from '../objects/OvenSlot';
 import { Shop } from '../objects/Shop';
 import { TutorialGuide, type TutorialBox, type TutorialPointer, type TutorialStep } from '../objects/Tutorial';
@@ -146,7 +147,7 @@ export class NightScene extends Phaser.Scene {
   private thieves: Thief[] = [];
   /** The counter seat the thief is standing at (no customer takes it until he leaves). */
   private thiefSeat: number | null = null;
-  private guard: MonsterView | null = null;
+  private guard: Guard | null = null;
   /** The planned special monsters of this night (a warning banner comes first). */
   private plan: { id: SpecialId; at: number; warned: boolean; done: boolean }[] = [];
   private stats: DayStats = NightScene.emptyStats();
@@ -421,8 +422,7 @@ export class NightScene extends Phaser.Scene {
 
     // the security guard stands behind the counter, at its left end
     if (this.day.gear.guard) {
-      this.guard = new MonsterView(this, GUARD.x, GUARD.y, GUARD_MONSTER);
-      this.guard.root.setDepth(DEPTH.monster).setScale(GUARD.scale);
+      this.guard = new Guard(this);
     }
   }
 
@@ -1112,7 +1112,11 @@ export class NightScene extends Phaser.Scene {
       sfx(this, 'nope', 0.4);
       return;
     }
-    this.bite();
+    // he lunges at the player (grows and comes closer); the bite lands when he arrives and he stays for its whole length
+    c.lunge(CONFIG.biteSec * 1000);
+    this.time.delayedCall(LUNGE_ARRIVE_MS, () => {
+      if (this.phase === 'playing') this.bite();
+    });
   }
 
   /** Red screen, "BITTEN!", and no clicking for a moment (CONFIG.biteSec). The ovens keep running. */
@@ -1173,18 +1177,10 @@ export class NightScene extends Phaser.Scene {
     const thief = new Thief(this);
     this.thieves.push(thief);
     playVoice(this, 'thief');
+    let grabbed: { c: CupcakeData; loc: Loc }[] = [];
     thief.run(
       LAYOUT.customerSlotsX[seat],
       (): ThiefOutcome => {
-        if (this.day.gear.guard) {
-          this.earned += CONFIG.guardBonus;
-          this.stats.caught++;
-          this.guard?.hop(22, 160);
-          burst(this, thief.x, thief.y - 30, 'star_01', { count: 10, tint: 0xffe066, gravity: 140 });
-          coinFlight(this, { x: thief.x, y: thief.y }, this.shop.jarPos, 3, () => sfx(this, 'coin', 0.22));
-          sfx(this, 'serve_ok', 0.5);
-          return 'caught';
-        }
         // at most one ready cupcake; if it was served in the meantime he waits for the next one
         const loot = this.thiefLoot().slice(0, CONFIG.thiefSteals);
         if (loot.length === 0) return 'wait';
@@ -1195,6 +1191,12 @@ export class NightScene extends Phaser.Scene {
         this.time.delayedCall(320, () => thief.holdCupcake(loot[0].c));
         if (this.selected && loot.some(({ loc }) => loc.kind === this.selected?.kind && loc.i === this.selected?.i)) this.select(null);
         else this.refreshItems();
+        // with a guard he is caught red-handed: the guard walks over and the cupcake goes back (see thiefCaught)
+        if (this.guard) {
+          grabbed = loot;
+          sfx(this, 'nope', 0.5, 0.7);
+          return 'caught';
+        }
         this.stats.stolen += loot.length;
         sfx(this, 'nope', 0.5, 0.7);
         return 'steal';
@@ -1203,8 +1205,57 @@ export class NightScene extends Phaser.Scene {
         this.thieves = this.thieves.filter((t) => t !== thief);
         if (this.thiefSeat === seat) this.thiefSeat = null;
       },
+      () => this.thiefCaught(thief, grabbed),
     );
     return true;
+  }
+
+  /**
+   * The thief has a cupcake in his hand and the guard is here: the guard walks over and catches him (+$5),
+   * the thief turns sad, puts the cupcake back on the tray and slinks away.
+   */
+  private thiefCaught(thief: Thief, grabbed: { c: CupcakeData; loc: Loc }[]): void {
+    const guard = this.guard;
+    if (!guard || this.phase === 'ended') {
+      thief.vanish();
+      return;
+    }
+    // he comes up to the counter next to the thief, on the door side when there is room (he grows as he gets closer)
+    const gx = thief.x - 150 > 80 ? thief.x - 150 : thief.x + 150;
+    guard.approach(gx, 1300, () => {
+      if (this.phase === 'ended') return;
+      this.earned += CONFIG.guardBonus;
+      this.stats.caught++;
+      guard.hop(22, 160);
+      guard.say(T.guardCatch[Math.floor(Math.random() * T.guardCatch.length)]);
+      burst(this, thief.x, thief.y - 30, 'star_01', { count: 10, tint: 0xffe066, gravity: 140 });
+      coinFlight(this, { x: thief.x, y: thief.y }, this.shop.jarPos, 3, () => sfx(this, 'coin', 0.22));
+      sfx(this, 'serve_ok', 0.5);
+      this.time.delayedCall(950, () => {
+        thief.getCaught();
+        this.time.delayedCall(500, () => {
+          for (const { c, loc } of grabbed) this.flyCupcake(c, { x: thief.x, y: thief.y - 20 }, this.locPos(loc), 420, () => this.putBack(c, loc));
+        });
+        this.time.delayedCall(1800, () => {
+          thief.vanish();
+          guard.retreat(1100);
+        });
+      });
+    });
+  }
+
+  /** The cupcake the thief gave back: onto its old spot, or onto any free tray spot if that one was taken meanwhile. */
+  private putBack(c: CupcakeData, loc: Loc): void {
+    if (this.phase === 'ended') return;
+    if (loc.kind === 'plate' && !this.plates[loc.i]) this.plates[loc.i] = c;
+    else if (loc.kind === 'tray' && !this.tray[loc.i]) this.tray[loc.i] = c;
+    else {
+      const free = this.tray.findIndex((x) => !x);
+      if (free < 0) return;
+      this.tray[free] = c;
+    }
+    sfx(this, 'place', 0.4);
+    this.refreshItems();
   }
 
   // ---------------------------------------------------------------- end of day

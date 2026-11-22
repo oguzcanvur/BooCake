@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { CHAR_FRAME, CHAR_TEX_K, charKey, fxKey, type CharFace } from '../assets';
-import { DEPTH } from '../config';
+import { DEPTH, LAYOUT } from '../config';
 import type { MonsterDef, Mood } from '../data/monsters';
 import { shade } from './cupcake';
 
@@ -59,6 +59,11 @@ export interface MonsterViewOptions {
   /** Overall size (1 = head 88 px wide). At the counter the hands sit COUNTER_OFFSET * scale below the head. */
   scale?: number;
 }
+
+/** The vampire's bite lunge: how long until he has arrived (wind-up included), the wind-up part, and how much bigger he gets. */
+export const LUNGE_ARRIVE_MS = 320;
+const LUNGE_WINDUP_MS = 140;
+const LUNGE_K = 1.5;
 
 /**
  * A monster: either the team's character picture (`def.sprite`) or drawn in code in a soft pastel cartoon style.
@@ -243,6 +248,45 @@ export class MonsterView {
   /** Short wiggle (wrong order, bitten, etc). */
   shake(): void {
     this.scene.tweens.add({ targets: this.parts(), x: `+=8`, duration: 50, yoyo: true, repeat: 3 });
+  }
+
+  /**
+   * Lunge at the player (the vampire's bite): he stays planted behind the counter and leans over it toward the
+   * screen: a short wind-up (pulls back), then he shoots forward and grows (seen from the front he comes closer)
+   * while his body stays behind the counter edge. He holds for `holdMs`, then settles back. `onDone` runs at the end.
+   */
+  lunge(holdMs: number, onDone?: () => void): void {
+    if (this.gone) return;
+    const r = this.root;
+    const home = { x: r.x, y: r.y, sx: r.scaleX, sy: r.scaleY, depth: r.depth };
+    // the counter edge is the pivot: scaling around it keeps his body behind the counter and lifts his head up and forward
+    const pivotY = LAYOUT.counterTop;
+    const at = (k: number) => ({ y: pivotY + (home.y - pivotY) * k, scaleX: home.sx * k, scaleY: home.sy * k });
+    r.setDepth(home.depth + 1);
+    const finish = () => {
+      r.setDepth(home.depth);
+      onDone?.();
+    };
+    this.scene.tweens.add({
+      targets: r,
+      ...at(0.93),
+      duration: LUNGE_WINDUP_MS,
+      ease: 'Sine.easeOut',
+      onComplete: () => {
+        this.scene.tweens.add({
+          targets: r,
+          ...at(LUNGE_K),
+          duration: LUNGE_ARRIVE_MS - LUNGE_WINDUP_MS,
+          ease: 'Expo.easeOut',
+          onComplete: () => {
+            this.scene.time.delayedCall(holdMs, () => {
+              if (this.gone) return;
+              this.scene.tweens.add({ targets: r, ...at(1), duration: 500, ease: 'Sine.easeInOut', onComplete: finish });
+            });
+          },
+        });
+      },
+    });
   }
 
   /** A little jump (used while running). */
