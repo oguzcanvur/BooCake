@@ -92,4 +92,4 @@ Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
 - Alan sahipleri (kim hangi kısmı test edecek) ve itch.io/teslim planı belirsiz.
 - docs/production-plan.md ve visual-upgrade-plan.md eski plan notlarıdır (Godot/960x640 ifadeleri eskidir).
 
-- **Kavanozlar ve torbalar (ekibin 2. çizimleri):** Sprinkles, Cherry, Bats, Ghosts kavanozları ve 6 krema torbası + cep yeni çizimler; etiketleri resimde İngilizce olduğu için `withTag` boş etiketle çağrılır (`JAR_LABELED`). Eyes/Spiders hâlâ eski kavanoz + İngilizce etiket. Vite geliştirme sunucusu, dosya yazılırken okursa boş içerik önbelleğe alabiliyor (resim yüklenmez): sunucuyu yeniden başlat.
+- **Kavanozlar ve torbalar (ekibin 2. çizimleri):** Sprinkles, Cherry, Bats, Ghosts kavanozları ve 6 krema torbası + cep yeni çizimler; etiketleri resimde İngilizce olduğu için `withTag` boş etiketle çağrılır (`JAR_LABELED`). Eyes ve Spiders da yeni çizim (hepsi kendi İngilizce etiketli). Vite geliştirme sunucusu, dosya yazılırken okursa boş içerik önbelleğe alabiliyor (resim yüklenmez): sunucuyu yeniden başlat.

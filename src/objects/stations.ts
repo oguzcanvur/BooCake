@@ -98,7 +98,7 @@ const JAR: Partial<Record<ToppingId, StationSprite>> = {
   ghost: 'jar_ghosts',
 };
 /** Jars whose drawing already carries an English label (the team's newer jars), so no tag goes on them. */
-const JAR_LABELED: ToppingId[] = ['sprinkles', 'cherry', 'bat', 'ghost'];
+const JAR_LABELED: ToppingId[] = ['sprinkles', 'eye', 'spider', 'cherry', 'bat', 'ghost'];
 /**
  * The drawn candies inside the empty jar, like the team's own jars: big candies filling the glass, two at the
  * top peeking out above the label and a little pile at the bottom (in the jar's own 74 x 124 pixels; the glass
