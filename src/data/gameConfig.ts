@@ -45,7 +45,7 @@ const NIGHTS: NightConfig[] = [
   // 1: only the basic cupcake loop, two seats, a customer about every 22 s
   { name: 'Opening Rehearsal', length: 100, goal: 20, patience: 80, seats: 2, waves: [23, 22, 21], specials: [], newIngredients: [] },
   // 2: one new flavor (Red Velvet: 27 -> 36 recipes), still no special monsters
-  { name: 'Flavor Festival', length: 100, goal: 25, patience: 74, seats: 2, waves: [20, 18, 16], specials: [], newIngredients: ['redvelvet'] },
+  { name: 'Flavor Festival', length: 100, goal: 25, patience: 74, seats: 2, waves: [20, 18, 16], specials: [], newIngredients: ['redvelvet', 'cream', 'choco', 'cherry', 'bat'] },
   // 3: the ghost (harmless and funny), third seat opens
   {
     name: 'Ghost Shift',
@@ -58,7 +58,8 @@ const NIGHTS: NightConfig[] = [
       { id: 'ghost', at: 30 },
       { id: 'ghost', at: 72 },
     ],
-    newIngredients: [],
+    // everything else opens here, so nights 3-5 use all 6 doughs, frostings and toppings (ekip isteği)
+    newIngredients: ['lemon', 'matcha', 'caramel', 'ghost'],
   },
   // 4: the vampire, always at the same moment (garlic can be bought before this night)
   {

@@ -523,7 +523,15 @@ export class NightScene extends Phaser.Scene {
             : grp === 'frosting'
               ? { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: id as FrostingId }
               : { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: id as ToppingId };
-        drawCupcake(icons, -panelW / 2 + 110 + (j - (row.ids.length - 1) / 2) * 40, rowY + 14, c, 0.7);
+        // up to 3 side by side; more go in two rows, smaller, so they stay left of the text
+        const n = row.ids.length;
+        const perRow = n > 3 ? Math.ceil(n / 2) : n;
+        const r = Math.floor(j / perRow);
+        const inRow = r === 0 ? perRow : n - perRow;
+        const k = n > 3 ? 0.46 : 0.7;
+        const gap = n > 3 ? 27 : 40;
+        const dy = n > 3 ? (r === 0 ? -6 : 26) : 14;
+        drawCupcake(icons, -panelW / 2 + 110 + ((j % perRow) - (inRow - 1) / 2) * gap, rowY + dy, c, k);
       });
       panel.add(icons);
       panel.add(this.add.text(-panelW / 2 + 190, rowY, T.newFlavor(row.ids.map(ingredientName)), { ...textStyle, color: '#ffe08a' }).setOrigin(0, 0.5));
