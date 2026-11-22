@@ -91,7 +91,8 @@ export class DecorateScene extends Phaser.Scene {
 
     const d = DEPTH.hud;
     const g = this.add.graphics().setDepth(d).setPosition(PANEL.x, PANEL.y);
-    drawPanel(g, PANEL.w, PANEL.h);
+    // no header band: the upgrade cards would cut across it
+    drawPanel(g, PANEL.w, PANEL.h, false);
 
     this.drawTabs();
     this.drawPurse();
