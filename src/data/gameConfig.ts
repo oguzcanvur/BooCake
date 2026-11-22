@@ -120,6 +120,8 @@ export const CONFIG = {
   guardBonus: 5,
   /** The thief steals at most this many cupcakes from the ready tray. */
   thiefSteals: 1,
+  /** Share of regular customers (from night 2 on, and in the league) who say "Surprise me, I trust you!". */
+  surpriseChance: 0.15,
   /** Seconds of warning (a banner) before a planned special monster arrives. */
   specialWarningSec: 5,
   /** Ghosts are patient: their patience drains at this speed (and a ghost that gives up is not counted as lost). */

@@ -39,6 +39,7 @@ export function isFinished(c: CupcakeData): boolean {
 }
 
 export function matchesOrder(c: CupcakeData, order: Order): boolean {
+  if (order.surprise) return c.bake !== 'burnt' && isFinished(c);
   return c.dough === order.dough && c.frosting === order.frosting && c.topping === order.topping;
 }
 

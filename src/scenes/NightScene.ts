@@ -1077,7 +1077,12 @@ export class NightScene extends Phaser.Scene {
     const def = kind ? pickSpecial(kind, this.rand.customers) : pickNormal(this.rand.customers);
     const slot = pick(this.rand.seats, free);
     sfx(this, 'customer_arrive', 0.35);
-    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, randomOrder(this.day.open, this.rand.orders), (cust) => this.onCustomer(cust));
+    const order = randomOrder(this.day.open, this.rand.orders);
+    // now and then a regular customer leaves the flavors to the player (not on night 1 or for the guided first order)
+    const guided = this.tutorialOn && !this.tutorialCustomer;
+    const surpriseOk = !kind && !guided && (this.mode === 'league' || gameState.day >= 1);
+    if (surpriseOk && this.rand.orders() < CONFIG.surpriseChance) order.surprise = true;
+    const customer = new Customer(this, slot, LAYOUT.customerSlotsX[slot], def, this.day.patience, order, (cust) => this.onCustomer(cust));
     this.customers[slot] = customer;
     // the very first regular customer of the very first day is the one the guide follows
     if (this.tutorialOn && !this.tutorialCustomer && !kind) {

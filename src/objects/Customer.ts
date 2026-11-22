@@ -6,6 +6,7 @@ import { doughInfo, frostingInfo, toppingInfo, type Order } from '../data/recipe
 import { drawCupcake, drawTopping } from './cupcake';
 import { MonsterView } from './MonsterView';
 import { unsoftened } from '../softStyle';
+import { T } from '../text';
 
 export type CustomerMood = 'happy' | 'uneasy' | 'angry';
 
@@ -48,17 +49,28 @@ export class Customer {
     const cy = LAYOUT.bubbleY;
     const bx = x + LAYOUT.bubbleDX;
     this.bubble = scene.add.graphics().setDepth(DEPTH.bubble);
-    const names = [doughInfo(order.dough).name, frostingInfo(order.frosting).name, toppingInfo(order.topping).name];
+    // a "surprise me" order has two lines of talk instead of three flavors (and no icons in front of them)
+    const names = order.surprise ? T.surpriseLines : [doughInfo(order.dough).name, frostingInfo(order.frosting).name, toppingInfo(order.topping).name];
+    const textX = order.surprise ? bx - 8 : bx + 14;
     // long names ("Yabanmersini") are squeezed to fit inside the bubble
-    const maxW = BUBBLE.w / 2 - 22;
+    const maxW = order.surprise ? BUBBLE.w / 2 : BUBBLE.w / 2 - 22;
     names.forEach((name, i) => {
       const t = scene.add
-        .text(bx + 14, cy - 26 + i * 22, name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
+        .text(textX, cy - 22 + i * 26 - (order.surprise ? 0 : 4 + i * 4), name, { fontFamily: FONT, fontSize: '16px', color: '#2b1d4f', fontStyle: 'bold' })
         .setOrigin(0, 0.5)
         .setDepth(DEPTH.bubble + 1);
       if (t.width > maxW) t.setScale(maxW / t.width, 1);
       this.lines.push(t);
     });
+    // a big "?" on the surprise order's cupcake ("anything you like"); it fades in and out with the bubble
+    if (order.surprise) {
+      this.lines.push(
+        scene.add
+          .text(bx - BUBBLE.w / 2 + 50, cy + 6, '?', { fontFamily: FONT, fontSize: '40px', color: '#8a5cc4', fontStyle: 'bold', stroke: '#fff8ea', strokeThickness: 6 })
+          .setOrigin(0.5)
+          .setDepth(DEPTH.bubble + 1),
+      );
+    }
 
     this.zone = scene.add.zone(x, this.y + 10, 200, 230).setInteractive({ useHandCursor: true });
     this.zone.on('pointerdown', () => onClick(this));
@@ -191,9 +203,20 @@ export class Customer {
     g.lineStyle(1.5, 0xd6caf0, 1);
     g.strokeCircle(px, cy + 8, 28);
     const o = this.order;
-    drawCupcake(g, px, cy + 14, { dough: o.dough, bake: 'ready', tone: 0.25, frosting: o.frosting, topping: o.topping }, 0.82);
+    if (o.surprise) {
+      // a plain cupcake with a big question mark: "anything you like"
+      drawCupcake(g, px, cy + 14, { dough: 'vanilla', bake: 'ready', tone: 0.25, frosting: 'cream' }, 0.82);
+    } else {
+      drawCupcake(g, px, cy + 14, { dough: o.dough, bake: 'ready', tone: 0.25, frosting: o.frosting, topping: o.topping }, 0.82);
+    }
+    if (!o.surprise) this.drawIcons(g, cx, cy);
 
-    // an icon for each part (the names are text objects next to them)
+    this.drawPatience(g, left, top, f, mood);
+  }
+
+  /** An icon for each part of the order (the names are text objects next to them). */
+  private drawIcons(g: Phaser.GameObjects.Graphics, cx: number, cy: number): void {
+    const o = this.order;
     const ix = cx + 2;
     const rows = [cy - 26, cy - 4, cy + 18];
     // dough and frosting icons use the exact colors of the bowl and bag pictures (no softening)
@@ -220,7 +243,9 @@ export class Customer {
     });
     // topping: the topping itself, small
     drawTopping(g, ix, rows[2], o.topping, 0.52);
+  }
 
+  private drawPatience(g: Phaser.GameObjects.Graphics, left: number, top: number, f: number, mood: string): void {
     // patience bar with an outline
     const bx = left + 14;
     const by = top + BUBBLE.h - 20;

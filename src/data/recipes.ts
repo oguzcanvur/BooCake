@@ -41,6 +41,8 @@ export interface Order {
   dough: DoughId;
   frosting: FrostingId;
   topping: ToppingId;
+  /** "Surprise me, I trust you!": any finished (not burnt) cupcake is right. The flavors above are then unused. */
+  surprise?: boolean;
 }
 
 export function doughInfo(id: DoughId) {

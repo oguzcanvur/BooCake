@@ -108,6 +108,7 @@ export const T = {
   ghostBored: 'Boo... (floats away)',
   waveMiddle: 'More customers are coming!',
   waveRush: 'Rush hour! Last push!',
+  surpriseLines: ['Surprise me!', 'I trust you!'],
   warnGhost: 'A ghost is floating in... just for laughs!',
   warnVampire: (s: number) => `Vampire in ${s} s! A bite freezes you for a moment.`,
   warnVampireGarlic: 'Vampire coming... your garlic is ready!',
