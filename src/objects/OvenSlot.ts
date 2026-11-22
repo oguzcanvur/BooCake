@@ -3,7 +3,8 @@ import { fxKey, stationKey } from '../assets';
 import { COLORS, DEPTH, FONT, INK } from '../config';
 import type { DoughId } from '../data/recipes';
 import { T } from '../text';
-import { drawCupcake, type CupcakeData } from './cupcake';
+import type { CupcakeData } from './cupcake';
+import { placeCupcake } from './cupcakeArt';
 
 /** Displayed size of the oven picture (src/assets/stations/oven.png); its center is the slot's x, y. */
 const OVEN_H = 172;
@@ -31,6 +32,7 @@ export class OvenSlot {
 
   private readonly body: Phaser.GameObjects.Image;
   private readonly dyn: Phaser.GameObjects.Graphics;
+  private readonly pic: Phaser.GameObjects.Image;
   private readonly label: Phaser.GameObjects.Text;
   private readonly glow: Phaser.GameObjects.Image;
   private readonly smoke: Phaser.GameObjects.Particles.ParticleEmitter;
@@ -53,6 +55,7 @@ export class OvenSlot {
       .setScale(0.7)
       .setAlpha(0)
       .setBlendMode(Phaser.BlendModes.ADD);
+    this.pic = scene.add.image(x, y, '__DEFAULT').setDepth(DEPTH.station + 1.5).setVisible(false);
     this.dyn = scene.add.graphics().setDepth(DEPTH.station + 2);
     this.label = scene.add
       .text(x, y + 88, '', { fontFamily: FONT, fontSize: '16px', color: '#ffffff', fontStyle: 'bold', stroke: '#2a1a3a', strokeThickness: 4 })
@@ -113,7 +116,7 @@ export class OvenSlot {
 
   /** A small "I'm full" wiggle. */
   shake(): void {
-    const parts = [this.body, this.dyn, this.label];
+    const parts = [this.body, this.dyn, this.label, this.pic];
     const start = parts.map((p) => p.x);
     this.scene.tweens.add({
       targets: parts,
@@ -171,7 +174,8 @@ export class OvenSlot {
       dyn.fillStyle(0xff9a3c, 0.45);
       dyn.fillEllipse(x, cy + 16, 56, 10);
     }
-    if (this.cupcake && !this.held) drawCupcake(dyn, x, cy + 12, this.cupcake, 0.48);
+    if (this.cupcake && !this.held) placeCupcake(this.pic, this.scene, this.cupcake, x, cy + 12, 0.48);
+    else this.pic.setVisible(false);
     if (this.selected) {
       dyn.lineStyle(4, 0xffffff, 0.95);
       dyn.strokeRoundedRect(wx - 6, wy - 6, WIN.w + 12, WIN.h + 12, 9);

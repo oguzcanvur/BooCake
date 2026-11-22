@@ -1,4 +1,4 @@
-import { decor } from '../data/decor';
+import { WRAPPERS, decor } from '../data/decor';
 import { CONFIG, NIGHT_COUNT } from '../data/gameConfig';
 import { emptyRecord, gameState, type NightRecord, type Upgrades } from './GameState';
 import { league } from './league';
@@ -79,6 +79,8 @@ function apply(data: SaveData): void {
     gameState.seenCards = Array.isArray(s.seenCards) ? s.seenCards : [];
   }
   if (data.decor) Object.assign(decor, data.decor);
+  // saves from before the new cupcake liners used other wrapper names
+  if (!WRAPPERS.some((w) => w.id === decor.wrapper)) decor.wrapper = WRAPPERS[0].id;
   if (data.progress) Object.assign(progress, data.progress);
   if (data.league) {
     league.best = Number(data.league.best) || 0;

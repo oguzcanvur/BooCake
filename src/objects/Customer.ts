@@ -3,7 +3,8 @@ import { DEPTH, FONT, INK, LAYOUT } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import type { MonsterDef, MonsterKind } from '../data/monsters';
 import { doughInfo, frostingInfo, toppingInfo, type Order } from '../data/recipes';
-import { drawCupcake, drawTopping } from './cupcake';
+import { drawTopping } from './cupcake';
+import { placeCupcake } from './cupcakeArt';
 import { MonsterView } from './MonsterView';
 import { unsoftened } from '../softStyle';
 import { T } from '../text';
@@ -25,7 +26,10 @@ export class Customer {
 
   private readonly monster: MonsterView;
   private readonly bubble: Phaser.GameObjects.Graphics;
-  private readonly lines: Phaser.GameObjects.Text[] = [];
+  private readonly lines: (Phaser.GameObjects.Text | Phaser.GameObjects.Image)[] = [];
+  /** The cupcake picture on the order ticket. */
+  private readonly cupPic: Phaser.GameObjects.Image;
+  private ticketHidden = false;
   private readonly zone: Phaser.GameObjects.Zone;
   private disgustUntil = 0;
   private gone = false;
@@ -66,11 +70,14 @@ export class Customer {
     if (order.surprise) {
       this.lines.push(
         scene.add
-          .text(bx - BUBBLE.w / 2 + 50, cy + 6, '?', { fontFamily: FONT, fontSize: '40px', color: '#8a5cc4', fontStyle: 'bold', stroke: '#fff8ea', strokeThickness: 6 })
+          .text(bx - BUBBLE.w / 2 + 50, cy + 8, '?', { fontFamily: FONT, fontSize: '56px', color: '#8a5cc4', fontStyle: 'bold', stroke: '#fff8ea', strokeThickness: 6 })
           .setOrigin(0.5)
           .setDepth(DEPTH.bubble + 1),
       );
     }
+
+    this.cupPic = scene.add.image(0, 0, '__DEFAULT').setDepth(DEPTH.bubble + 1);
+    this.lines.push(this.cupPic);
 
     this.zone = scene.add.zone(x, this.y + 10, 200, 230).setInteractive({ useHandCursor: true });
     this.zone.on('pointerdown', () => onClick(this));
@@ -139,6 +146,7 @@ export class Customer {
 
   private setTicketVisible(v: boolean): void {
     if (this.gone) return;
+    this.ticketHidden = !v;
     this.bubble.setVisible(v);
     this.lines.forEach((t) => t.setVisible(v));
   }
@@ -217,11 +225,12 @@ export class Customer {
     g.strokeCircle(px, cy + 8, 28);
     const o = this.order;
     if (o.surprise) {
-      // a plain cupcake with a big question mark: "anything you like"
-      drawCupcake(g, px, cy + 14, { dough: 'vanilla', bake: 'ready', tone: 0.25, frosting: 'cream' }, 0.82);
+      // no cupcake picture (a specific one would look like the order): only the big "?" on the doily
+      this.cupPic.setVisible(false);
     } else {
-      drawCupcake(g, px, cy + 14, { dough: o.dough, bake: 'ready', tone: 0.25, frosting: o.frosting, topping: o.topping }, 0.82);
+      placeCupcake(this.cupPic, this.scene, { dough: o.dough, bake: 'ready', tone: 0.25, frosting: o.frosting, topping: o.topping }, px, cy + 14, 0.82);
     }
+    if (this.ticketHidden) this.cupPic.setVisible(false);
     if (!o.surprise) this.drawIcons(g, cx, cy);
 
     this.drawPatience(g, left, top, f, mood);

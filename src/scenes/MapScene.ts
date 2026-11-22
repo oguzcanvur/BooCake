@@ -4,7 +4,7 @@ import { sfx } from '../audio';
 import { DEPTH, FONT, H, INK, W } from '../config';
 import { CONFIG, NIGHT_COUNT } from '../data/gameConfig';
 import { fadeIn, fadeOutThen } from '../fx';
-import { drawCupcake } from '../objects/cupcake';
+import { cupcakeImage } from '../objects/cupcakeArt';
 import { unsoftened } from '../softStyle';
 import { gameState, record } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
@@ -61,8 +61,7 @@ export class MapScene extends Phaser.Scene {
     for (let i = 0; i < NIGHT_COUNT; i++) this.drawStop(i, current);
 
     // the cupcake marker: walks from the finished day to the current one, or simply waits on the current one
-    const marker = this.add.graphics().setDepth(DEPTH.hud + 2);
-    drawCupcake(marker, 0, 0, { dough: 'strawberry', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 0.8);
+    const marker = this.add.container(0, 0, [cupcakeImage(this, { dough: 'strawberry', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 0, 0, 0.8)]).setDepth(DEPTH.hud + 2);
     const markerAt = (t: number) => {
       const p = road.getPoint(t);
       marker.setPosition(p.x, p.y - NODE_R - 26);

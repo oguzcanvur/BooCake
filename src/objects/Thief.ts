@@ -1,7 +1,8 @@
 import Phaser from 'phaser';
 import { THIEF_FRAME, THIEF_KEYS } from '../assets';
 import { DEPTH, LAYOUT, W } from '../config';
-import { drawCupcake, type CupcakeData } from './cupcake';
+import type { CupcakeData } from './cupcake';
+import { placeCupcake } from './cupcakeArt';
 
 /**
  * What happens when the thief tries to grab: he steals (one cupcake), finds the tray empty and runs off with
@@ -25,7 +26,7 @@ export class Thief {
   private readonly root: Phaser.GameObjects.Container;
   private readonly inner: Phaser.GameObjects.Container;
   private readonly body: Phaser.GameObjects.Image;
-  private readonly cup: Phaser.GameObjects.Graphics;
+  private readonly cup: Phaser.GameObjects.Image;
   private readonly hand: Phaser.GameObjects.Image;
   private done = false;
   private doneCb: () => void = () => {};
@@ -40,7 +41,7 @@ export class Thief {
     this.root = scene.add.container(W + 120, feetY).setDepth(DEPTH.monster - 1);
     this.inner = scene.add.container(0, 0);
     this.body = scene.add.image(0, 0, THIEF_KEYS.stand).setOrigin(F.ox, 1).setScale(s);
-    this.cup = scene.add.graphics().setVisible(false);
+    this.cup = scene.add.image(0, 0, '__DEFAULT').setVisible(false);
     this.cup.setPosition((F.cupX - F.ox) * F.w * s, -(1 - F.cupY) * F.h * s);
     this.hand = scene.add.image(0, 0, THIEF_KEYS.hand).setOrigin(F.ox, 1).setScale(s).setVisible(false);
     this.inner.add([this.body, this.cup, this.hand]);
@@ -51,9 +52,8 @@ export class Thief {
   holdCupcake(c: CupcakeData): void {
     if (this.done) return;
     this.body.setTexture(THIEF_KEYS.hold);
-    this.cup.clear();
-    drawCupcake(this.cup, 0, 0, c, CUP_SCALE);
-    this.cup.setVisible(true);
+    const { x, y } = this.cup;
+    placeCupcake(this.cup, this.scene, c, x, y, CUP_SCALE);
     this.hand.setVisible(true);
   }
 

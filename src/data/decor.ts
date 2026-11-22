@@ -27,10 +27,10 @@ export interface DecorationItem {
 
 /** Paper wrapper of every cupcake. */
 export const WRAPPERS: ColorOption[] = [
-  { id: 'plum', name: 'Plum', color: 0x3b2560, stars: 0 },
-  { id: 'mint', name: 'Mint', color: 0x3f8f7a, stars: 2 },
-  { id: 'rose', name: 'Rose', color: 0xc0507e, stars: 4 },
-  { id: 'gold', name: 'Gold', color: 0xc9963a, stars: 7 },
+  { id: 'purple', name: 'Purple', color: 0x7a4fb0, stars: 0 },
+  { id: 'cream', name: 'Cream', color: 0xf2e2c4, stars: 2 },
+  { id: 'blue', name: 'Blue', color: 0x5b8fd0, stars: 4 },
+  { id: 'brown', name: 'Brown', color: 0x8a5a3c, stars: 7 },
 ];
 
 /** Plate color (a tint over the team's white plate). */
@@ -59,7 +59,7 @@ export const DECORATIONS: DecorationItem[] = [
 
 /** The player's decoration. Not touched by resetGame (a new game keeps the shop's look and the stars). */
 export const decor = {
-  wrapper: 'plum',
+  wrapper: 'purple',
   plate: 'white',
   cloth: 'purple',
   items: [] as DecorationItem['id'][],

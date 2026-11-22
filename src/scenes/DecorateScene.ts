@@ -5,7 +5,7 @@ import { DEPTH, FONT, INK, W } from '../config';
 import { CONFIG } from '../data/gameConfig';
 import { CLOTHS, DECORATIONS, PLATE_COLORS, WRAPPERS, decor, plateColor, type ClothOption, type ColorOption, type DecorationItem } from '../data/decor';
 import { fadeIn, fadeOutThen, floatText, setupCamera } from '../fx';
-import { drawCupcake } from '../objects/cupcake';
+import { cupcakeImage } from '../objects/cupcakeArt';
 import { Shop } from '../objects/Shop';
 import { gameState, MAX_EXTRA_OVENS, MAX_EXTRA_PLATES, type Upgrades } from '../systems/GameState';
 import { progress, saveGame } from '../systems/save';
@@ -218,8 +218,7 @@ export class DecorateScene extends Phaser.Scene {
     } else if (key === 'plates') {
       const plate = this.add.image(x, y + 30, stationKey('plate')).setOrigin(0.5, 1).setDepth(depth).setTint(plateColor());
       plate.setScale(110 / plate.width);
-      const cake = this.add.graphics().setDepth(depth + 1);
-      drawCupcake(cake, x, y + 2, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'mint', topping: 'sprinkles' }, 0.75);
+      cupcakeImage(this, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'mint', topping: 'sprinkles' }, x, y + 2, 0.75).setDepth(depth + 1);
     } else if (key === 'guard') {
       const guard = this.add.image(x, y + 34, GUARD_KEY).setOrigin(0.5, 1).setDepth(depth);
       guard.setScale(100 / guard.height);
@@ -256,13 +255,12 @@ export class DecorateScene extends Phaser.Scene {
     // preview: a cupcake on a plate, as it looks with the current choices
     const plate = this.add.image(LEFT + 130, ROWS_Y[3] + 8, stationKey('plate')).setOrigin(0.5, 1).setDepth(d + 1);
     plate.setScale(150 / plate.width).setTint(plateColor());
-    const cake = this.add.graphics().setDepth(d + 2);
-    drawCupcake(cake, LEFT + 130, ROWS_Y[3] - 56, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 1.25);
+    cupcakeImage(this, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, LEFT + 130, ROWS_Y[3] - 56, 1.25).setDepth(d + 2);
 
     // every option is a little picture of what it looks like (locked ones too, under a veil)
     this.rowLabel(0, T.decorWrapper);
     WRAPPERS.forEach((o, i) =>
-      this.optionCard(0, i, o.stars, o.id === decor.wrapper, (g, x, y) => this.previewWrapper(g, x, y, o), () => (decor.wrapper = o.id)),
+      this.optionCard(0, i, o.stars, o.id === decor.wrapper, (_g, x, y, d) => this.previewWrapper(x, y, d, o), () => (decor.wrapper = o.id)),
     );
     this.rowLabel(1, T.decorPlates);
     PLATE_COLORS.forEach((o, i) =>
@@ -327,11 +325,8 @@ export class DecorateScene extends Phaser.Scene {
   }
 
   /** A small cupcake in this wrapper color. */
-  private previewWrapper(g: Phaser.GameObjects.Graphics, x: number, y: number, o: ColorOption): void {
-    const keep = decor.wrapper;
-    decor.wrapper = o.id; // drawCupcake reads the chosen wrapper
-    drawCupcake(g, x, y + 8, { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 0.5);
-    decor.wrapper = keep;
+  private previewWrapper(x: number, y: number, depth: number, o: ColorOption): void {
+    cupcakeImage(this, { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, x, y + 8, 0.5, o.id).setDepth(depth);
   }
 
   /** The team's plate picture in this color. */

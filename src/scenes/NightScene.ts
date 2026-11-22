@@ -22,7 +22,8 @@ import {
 } from '../data/recipes';
 import { burst, coinFlight, fadeIn, fadeOutThen, floatText } from '../fx';
 import { Customer } from '../objects/Customer';
-import { drawCupcake, isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
+import { isFinished, matchesOrder, type CupcakeData } from '../objects/cupcake';
+import { CupcakePool, cupcakeImage, placeCupcake } from '../objects/cupcakeArt';
 import { Guard } from '../objects/Guard';
 import { LUNGE_ARRIVE_MS, MonsterView } from '../objects/MonsterView';
 import { OvenSlot } from '../objects/OvenSlot';
@@ -154,10 +155,10 @@ export class NightScene extends Phaser.Scene {
 
   private shop!: Shop;
   private hud!: Hud;
-  private itemsGfx!: Phaser.GameObjects.Graphics;
+  private itemsPool!: CupcakePool;
   /** Cupcake being dragged with the mouse (from the plate or the tray), and its picture under the pointer. */
   private drag: { loc: Loc; item: CupcakeData; x: number; y: number; moving: boolean } | null = null;
-  private dragGfx!: Phaser.GameObjects.Graphics;
+  private dragGfx!: Phaser.GameObjects.Image;
 
   constructor() {
     super('Night');
@@ -264,8 +265,8 @@ export class NightScene extends Phaser.Scene {
     this.input.keyboard?.on('keydown-ESC', () => this.pause());
     this.createStations();
     if (this.tutorialOn) this.tutorialGuide = new TutorialGuide(this);
-    this.itemsGfx = this.add.graphics().setDepth(DEPTH.items);
-    this.dragGfx = this.add.graphics().setDepth(DEPTH.hand).setVisible(false);
+    this.itemsPool = new CupcakePool(this, undefined, DEPTH.items);
+    this.dragGfx = this.add.image(0, 0, '__DEFAULT').setDepth(DEPTH.hand).setVisible(false);
     this.setupDrag();
 
     // Scene event listeners survive scene restarts, so they must be removed on shutdown
@@ -515,7 +516,7 @@ export class NightScene extends Phaser.Scene {
         return;
       }
       // new flavors: a little cupcake for each, showing the new ingredient
-      const icons = this.add.graphics();
+      const icons = new CupcakePool(this, panel);
       row.ids.forEach((id, j) => {
         const grp = ingredientGroup(id);
         const c: CupcakeData =
@@ -532,9 +533,8 @@ export class NightScene extends Phaser.Scene {
         const k = n > 3 ? 0.46 : 0.7;
         const gap = n > 3 ? 27 : 40;
         const dy = n > 3 ? (r === 0 ? -6 : 26) : 14;
-        drawCupcake(icons, -panelW / 2 + 110 + ((j % perRow) - (inRow - 1) / 2) * gap, rowY + dy, c, k);
+        icons.draw(c, -panelW / 2 + 110 + ((j % perRow) - (inRow - 1) / 2) * gap, rowY + dy, k);
       });
-      panel.add(icons);
       panel.add(this.add.text(-panelW / 2 + 190, rowY, T.newFlavor(row.ids.map(ingredientName)), { ...textStyle, color: '#ffe08a' }).setOrigin(0, 0.5));
     });
 
@@ -608,9 +608,7 @@ export class NightScene extends Phaser.Scene {
       if (!d.moving && Phaser.Math.Distance.Between(d.x, d.y, p.worldX, p.worldY) < 10) return;
       if (!d.moving) {
         d.moving = true;
-        this.dragGfx.clear();
-        drawCupcake(this.dragGfx, 0, 0, d.item, 1.1);
-        this.dragGfx.setVisible(true);
+        placeCupcake(this.dragGfx, this, d.item, 0, 0, 1.1);
         if (d.loc.kind === 'oven') this.ovens[d.loc.i].held = true;
         this.refreshItems();
       }
@@ -720,27 +718,26 @@ export class NightScene extends Phaser.Scene {
 
   /** Redraw the cupcakes on the plates and on the ready tray; the selected one is lifted up a little. */
   private refreshItems(): void {
-    const g = this.itemsGfx;
-    g.clear();
+    const pool = this.itemsPool;
+    pool.begin();
     const LIFT = 10;
     const dragged = this.drag?.moving ? this.drag.loc : null;
     this.plates.forEach((c, i) => {
       if (!c || (dragged?.kind === 'plate' && dragged.i === i)) return;
       const lift = this.isSelected({ kind: 'plate', i }) ? LIFT : 0;
-      drawCupcake(g, PLATES[i].x, PLATES[i].bottom - ON_PLATE - lift, c, 1.1);
+      pool.draw(c, PLATES[i].x, PLATES[i].bottom - ON_PLATE - lift, 1.1);
     });
     this.tray.forEach((c, i) => {
       if (!c || (dragged?.kind === 'tray' && dragged.i === i)) return;
       const lift = this.isSelected({ kind: 'tray', i }) ? LIFT : 0;
-      drawCupcake(g, STATION_X.tray[i], LAYOUT.trayY + 8 - lift, c, 1.0);
+      pool.draw(c, STATION_X.tray[i], LAYOUT.trayY + 8 - lift, 1.0);
     });
+    pool.end();
   }
 
   /** A cupcake that flies from one point to another and shrinks (serving, stealing). */
   private flyCupcake(c: CupcakeData, from: { x: number; y: number }, to: { x: number; y: number }, ms = 280, onDone?: () => void): void {
-    const g = this.add.graphics().setDepth(DEPTH.fx + 2);
-    drawCupcake(g, 0, 0, c, 1);
-    g.setPosition(from.x, from.y);
+    const g = this.add.container(from.x, from.y, [cupcakeImage(this, c, 0, 0, 1)]).setDepth(DEPTH.fx + 2);
     this.tweens.add({
       targets: g,
       x: to.x,
@@ -976,9 +973,7 @@ export class NightScene extends Phaser.Scene {
 
   /** The ghost: the cupcake falls right through it onto the floor, but it still pays in full. */
   private serveGhost(c: Customer, item: CupcakeData, pay: number, tip: number): void {
-    const g = this.add.graphics().setDepth(DEPTH.monster + 1);
-    drawCupcake(g, 0, 0, item, 1);
-    g.setPosition(c.x, c.y - 6);
+    const g = this.add.container(c.x, c.y - 6, [cupcakeImage(this, item, 0, 0, 1)]).setDepth(DEPTH.monster + 1);
     this.tweens.add({ targets: g, y: LAYOUT.counterTop + 60, angle: 40, alpha: 0, duration: 650, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
     sfx(this, 'place', 0.6, 0.55);
     this.time.delayedCall(300, () => {
