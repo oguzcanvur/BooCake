@@ -99,3 +99,5 @@ Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
 - **Sürpriz sipariş (ekip isteği):** 2. geceden itibaren (ve ligde) normal müşterilerin %15'i (`CONFIG.surpriseChance`) "Surprise me! / I trust you!" der (`Order.surprise`): balonda soru işaretli düz cupcake, ikon yok; bitmiş ve yanmamış her cupcake doğru sayılır (`matchesOrder`). Rehber müşterisi ve özel canavarlar sürpriz istemez. Ligde seed'li sipariş akışıyla belirlenir (herkese aynı).
 
 - **Decorate sekmesi resimli (ekip isteği):** her seçenek küçük bir resim kartı (`DecorateScene.optionCard`): o renkte cupcake, renkli tabak (ekibin resmi), örtü şeridi, süsün küçük çizimi. Seçili olan altın çerçeveli; kilitli olan soluk perde + köşede yıldız rozeti, tıklayınca "N more stars to unlock" yazar.
+
+- **Karakter sesleri (ekip isteği):** her müşteri gelince kendi sesini çıkarır (`src/voices.ts`, kodla Web Audio, dosya yok; ses düğmesi kapatır): hayalet "wooo", cadı "hehehe", kurt adam uluma, vampir "mwa-ha-ha", mumya "mmmhh", zombi "uuurgh" (testere dalga + iki sesli harf filtresi), hırsız sinsi parmak ucu notaları. 1–1,6 sn; tepe ~0,2–0,28. Claude dinleyemedi, ekip dinleyip ayarlatmalı.

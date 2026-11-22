@@ -3,6 +3,7 @@ import { sfx } from '../audio';
 import { DEPTH, DOUGH_TABLES, FONT, GUARD, H, JARS, LAYOUT, PLATES, POCKET, STATION_X, TRASH, W } from '../config';
 import { CONFIG, WAVE_SPLIT, type SpecialId, type SpecialVisit, type Waves } from '../data/gameConfig';
 import { THIEF_KEYS } from '../assets';
+import { playVoice, type VoiceId } from '../voices';
 import { GUARD_MONSTER, SPECIAL_MONSTERS, pickNormal, pickSpecial } from '../data/monsters';
 import {
   DOUGHS,
@@ -1084,7 +1085,9 @@ export class NightScene extends Phaser.Scene {
     // seeded: in the league every player gets the same customers, orders and seats in the same order
     const def = kind ? pickSpecial(kind, this.rand.customers) : pickNormal(this.rand.customers);
     const slot = pick(this.rand.seats, free);
-    sfx(this, 'customer_arrive', 0.35);
+    sfx(this, 'customer_arrive', 0.25);
+    // each character says hello in its own voice (ghost "wooo", witch "hehehe"...) as it pops up
+    if (def.sprite) this.time.delayedCall(250, () => playVoice(this, def.sprite as VoiceId));
     const order = randomOrder(this.day.open, this.rand.orders);
     // now and then a regular customer leaves the flavors to the player (not on night 1 or for the guided first order)
     const guided = this.tutorialOn && !this.tutorialCustomer;
@@ -1169,7 +1172,7 @@ export class NightScene extends Phaser.Scene {
     this.thiefSeat = seat;
     const thief = new Thief(this);
     this.thieves.push(thief);
-    sfx(this, 'customer_arrive', 0.3, 1.5);
+    playVoice(this, 'thief');
     thief.run(
       LAYOUT.customerSlotsX[seat],
       (): ThiefOutcome => {
