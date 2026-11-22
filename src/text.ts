@@ -19,6 +19,7 @@ export const T = {
   decorateTitle: 'Decorate your shop',
   decorStars: (n: number) => `${n} stars`,
   decorHint: 'Earn stars to unlock more. Just for looks!',
+  needStars: (n: number) => `${n} more star${n === 1 ? '' : 's'} to unlock`,
   decorWrapper: 'Cupcake wrapper',
   decorPlates: 'Plates',
   decorCloth: 'Counter cloth',

@@ -3,7 +3,7 @@ import { stationKey } from '../assets';
 import { sfx } from '../audio';
 import { DEPTH, FONT, INK, W } from '../config';
 import { CONFIG } from '../data/gameConfig';
-import { CLOTHS, DECORATIONS, PLATE_COLORS, WRAPPERS, decor, plateColor, type ColorOption, type DecorationItem } from '../data/decor';
+import { CLOTHS, DECORATIONS, PLATE_COLORS, WRAPPERS, decor, plateColor, type ClothOption, type ColorOption, type DecorationItem } from '../data/decor';
 import { GUARD_MONSTER } from '../data/monsters';
 import { fadeIn, fadeOutThen, floatText, setupCamera } from '../fx';
 import { drawCupcake } from '../objects/cupcake';
@@ -35,6 +35,8 @@ const RIGHT = PANEL.x + PANEL.w / 2;
 const ROW_X = 300;
 const SWATCH_X = 520;
 const SWATCH_GAP = 88;
+/** Size of an option's picture card. */
+const CARD_PIC = { w: 72, h: 46 };
 const ROWS_Y = [512, 566, 620, 674];
 /** Upgrades tab: card size and centers. */
 const CARD = { w: 206, h: 222, y: 592, xs: [168, 386, 604, 822] };
@@ -258,16 +260,24 @@ export class DecorateScene extends Phaser.Scene {
     const cake = this.add.graphics().setDepth(d + 2);
     drawCupcake(cake, LEFT + 130, ROWS_Y[3] - 56, { dough: 'chocolate', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 1.25);
 
-    this.colorRow(0, T.decorWrapper, WRAPPERS, decor.wrapper, (id) => (decor.wrapper = id));
-    this.colorRow(1, T.decorPlates, PLATE_COLORS, decor.plate, (id) => (decor.plate = id));
-    this.colorRow(
-      2,
-      T.decorCloth,
-      CLOTHS.map((c) => ({ id: c.id, name: c.name, color: c.base, stars: c.stars })),
-      decor.cloth,
-      (id) => (decor.cloth = id),
+    // every option is a little picture of what it looks like (locked ones too, under a veil)
+    this.rowLabel(0, T.decorWrapper);
+    WRAPPERS.forEach((o, i) =>
+      this.optionCard(0, i, o.stars, o.id === decor.wrapper, (g, x, y) => this.previewWrapper(g, x, y, o), () => (decor.wrapper = o.id)),
     );
-    this.decorationRow(3);
+    this.rowLabel(1, T.decorPlates);
+    PLATE_COLORS.forEach((o, i) =>
+      this.optionCard(1, i, o.stars, o.id === decor.plate, (_g, x, y, depth) => this.previewPlate(x, y, o, depth), () => (decor.plate = o.id)),
+    );
+    this.rowLabel(2, T.decorCloth);
+    CLOTHS.forEach((o, i) => this.optionCard(2, i, o.stars, o.id === decor.cloth, (g, x, y) => this.previewCloth(g, x, y, o), () => (decor.cloth = o.id)));
+    this.rowLabel(3, T.decorItems);
+    DECORATIONS.forEach((item, i) => {
+      const on = decor.items.includes(item.id);
+      this.optionCard(3, i, item.stars, on, (g, x, y) => this.previewDecoration(g, x, y, item), () => {
+        decor.items = on ? decor.items.filter((id) => id !== item.id) : [...decor.items, item.id];
+      });
+    });
   }
 
   private rowLabel(row: number, label: string): void {
@@ -277,85 +287,156 @@ export class DecorateScene extends Phaser.Scene {
       .setDepth(DEPTH.hud + 1);
   }
 
-  /** A row of round color swatches: the chosen one has a gold ring, locked ones show the stars they need. */
-  private colorRow(row: number, label: string, options: ColorOption[], current: string, choose: (id: string) => void): void {
-    this.rowLabel(row, label);
+  /**
+   * One option as a small picture card: the preview of what it gives, a gold frame when chosen (or switched on),
+   * and, while still locked, a soft veil with a star badge (tapping it says how many stars are missing).
+   */
+  private optionCard(
+    row: number,
+    i: number,
+    stars: number,
+    chosen: boolean,
+    draw: (g: Phaser.GameObjects.Graphics, x: number, y: number, depth: number) => void,
+    choose: () => void,
+  ): void {
+    const x = SWATCH_X + i * SWATCH_GAP;
     const y = ROWS_Y[row];
-    options.forEach((o, i) => {
-      const x = SWATCH_X + i * SWATCH_GAP;
-      const open = decor.stars >= o.stars;
-      const g = this.add.graphics().setDepth(DEPTH.hud + 1);
-      g.fillStyle(0x000000, 0.3);
-      g.fillCircle(x + 1, y + 3, 19);
-      g.fillStyle(open ? o.color : 0x5a4a78, 1);
-      g.fillCircle(x, y, 19);
-      g.fillStyle(0xffffff, 0.3);
-      g.fillCircle(x - 6, y - 6, 5);
-      g.lineStyle(2.5, INK, 1);
-      g.strokeCircle(x, y, 19);
-      if (o.id === current) {
-        g.lineStyle(4, 0xffd166, 1);
-        g.strokeCircle(x, y, 25);
+    const open = decor.stars >= stars;
+    const w = CARD_PIC.w;
+    const h = CARD_PIC.h;
+    const d = DEPTH.hud + 1;
+    const bg = this.add.graphics().setDepth(d);
+    bg.fillStyle(0x000000, 0.28);
+    bg.fillRoundedRect(x - w / 2 + 1, y - h / 2 + 3, w, h, 10);
+    bg.fillStyle(0xfff6e6, open ? 0.9 : 0.55);
+    bg.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    const pic = this.add.graphics().setDepth(d + 1);
+    draw(pic, x, y, d + 1);
+    if (!open) {
+      const veil = this.add.graphics().setDepth(d + 2);
+      veil.fillStyle(0x3a2a55, 0.42);
+      veil.fillRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+      this.lockBadge(x + w / 2 - 14, y + h / 2 - 8, stars);
+    }
+    const frame = this.add.graphics().setDepth(d + 2);
+    frame.lineStyle(chosen ? 4 : 2.5, chosen ? 0xffd166 : INK, 1);
+    frame.strokeRoundedRect(x - w / 2, y - h / 2, w, h, 10);
+    this.add
+      .zone(x, y, w, h)
+      .setInteractive({ useHandCursor: true })
+      .on('pointerdown', () => this.pick(open, choose, x, y, stars));
+  }
+
+  /** A small cupcake in this wrapper color. */
+  private previewWrapper(g: Phaser.GameObjects.Graphics, x: number, y: number, o: ColorOption): void {
+    const keep = decor.wrapper;
+    decor.wrapper = o.id; // drawCupcake reads the chosen wrapper
+    drawCupcake(g, x, y + 8, { dough: 'vanilla', bake: 'ready', tone: 0.2, frosting: 'pink', topping: 'sprinkles' }, 0.5);
+    decor.wrapper = keep;
+  }
+
+  /** The team's plate picture in this color. */
+  private previewPlate(x: number, y: number, o: ColorOption, depth: number): void {
+    const plate = this.add.image(x, y + 14, stationKey('plate')).setOrigin(0.5, 1).setDepth(depth).setTint(o.color);
+    plate.setScale(54 / plate.width);
+  }
+
+  /** A strip of counter cloth: the cloth, its gold trim and the scalloped hem. */
+  private previewCloth(g: Phaser.GameObjects.Graphics, x: number, y: number, o: ClothOption): void {
+    const w = 52;
+    const top = y - 12;
+    g.fillStyle(o.dark, 1);
+    for (let k = 0; k < 5; k++) g.fillCircle(x - w / 2 + 5 + k * 10.5, top + 20, 5.5);
+    g.fillStyle(o.base, 1);
+    g.fillRect(x - w / 2, top, w, 20);
+    g.fillStyle(o.trim, 1);
+    g.fillRect(x - w / 2, top + 4, w, 3);
+    for (let k = 0; k < 5; k++) g.fillCircle(x - w / 2 + 5 + k * 10.5, top + 14, 1.5);
+    g.lineStyle(1.8, INK, 1);
+    g.strokeRect(x - w / 2, top, w, 20);
+  }
+
+  /** A tiny drawing of each decoration (the shop draws the full-size ones). */
+  private previewDecoration(g: Phaser.GameObjects.Graphics, x: number, y: number, item: DecorationItem): void {
+    if (item.id === 'webs') {
+      // a corner web: spokes and a few threads
+      const cx = x - 20;
+      const cy = y - 16;
+      g.lineStyle(1.4, 0x6a5a7a, 1);
+      for (let k = 0; k <= 4; k++) {
+        const a = (k / 4) * (Math.PI / 2);
+        g.lineBetween(cx, cy, cx + Math.cos(a) * 40, cy + Math.sin(a) * 32);
       }
-      if (!open) this.lockBadge(x, y, o.stars);
-      this.add
-        .zone(x, y, 48, 48)
-        .setInteractive({ useHandCursor: open })
-        .on('pointerdown', () => this.pick(open, () => choose(o.id), x, y));
-    });
+      for (const r of [12, 22, 32]) {
+        g.beginPath();
+        g.arc(cx, cy, r, 0, Math.PI / 2, false);
+        g.strokePath();
+      }
+      g.fillStyle(0x2e2438, 1);
+      g.fillCircle(x + 8, y + 4, 4);
+    } else if (item.id === 'garland') {
+      // a string with little bat-purple and pumpkin-orange flags
+      g.lineStyle(1.5, 0x5a4a3a, 1);
+      g.lineBetween(x - 26, y - 12, x + 26, y - 12);
+      [-18, -6, 6, 18].forEach((dx, k) => {
+        g.fillStyle(k % 2 ? 0xf0a24a : 0x6a4fa0, 1);
+        g.fillTriangle(x + dx - 5, y - 12, x + dx + 5, y - 12, x + dx, y + 4);
+        g.lineStyle(1.2, INK, 1);
+        g.strokeTriangle(x + dx - 5, y - 12, x + dx + 5, y - 12, x + dx, y + 4);
+      });
+    } else if (item.id === 'lights') {
+      // a sagging wire with glowing bulbs
+      g.lineStyle(1.5, 0x3a3a3a, 1);
+      g.beginPath();
+      g.moveTo(x - 26, y - 10);
+      g.lineTo(x - 9, y - 2);
+      g.lineTo(x + 9, y - 2);
+      g.lineTo(x + 26, y - 10);
+      g.strokePath();
+      [
+        [-18, -6, 0xffe066],
+        [-6, -2, 0xff8fc7],
+        [6, -2, 0x8fffd0],
+        [18, -6, 0xb98cff],
+      ].forEach(([dx, dy, c]) => {
+        g.fillStyle(c, 0.35);
+        g.fillCircle(x + dx, y + dy + 6, 7);
+        g.fillStyle(c, 1);
+        g.fillCircle(x + dx, y + dy + 6, 3.5);
+      });
+    } else {
+      // a jack-o'-lantern
+      g.fillStyle(0xf08a2a, 1);
+      g.fillEllipse(x, y + 4, 34, 26);
+      g.lineStyle(1.8, INK, 1);
+      g.strokeEllipse(x, y + 4, 34, 26);
+      g.lineBetween(x, y - 8, x, y + 16);
+      g.fillStyle(0x6e8a3a, 1);
+      g.fillRect(x - 2, y - 14, 4, 7);
+      g.fillStyle(0x4a2a1a, 1);
+      g.fillTriangle(x - 9, y, x - 4, y, x - 6.5, y - 5);
+      g.fillTriangle(x + 4, y, x + 9, y, x + 6.5, y - 5);
+      g.fillRect(x - 7, y + 7, 14, 3);
+    }
   }
 
-  /** The decorations: pills that switch each one on or off. */
-  private decorationRow(row: number): void {
-    this.rowLabel(row, T.decorItems);
-    const y = ROWS_Y[row];
-    DECORATIONS.forEach((item: DecorationItem, i) => {
-      const x = SWATCH_X + 52 + i * 150;
-      const open = decor.stars >= item.stars;
-      const on = decor.items.includes(item.id);
-      const g = this.add.graphics().setDepth(DEPTH.hud + 1);
-      const w = 138;
-      const h = 36;
-      g.fillStyle(0x000000, 0.3);
-      g.fillRoundedRect(x - w / 2 + 1, y - h / 2 + 3, w, h, h / 2);
-      g.fillStyle(!open ? 0x5a4a78 : on ? 0x4fcf86 : 0x8a74b8, 1);
-      g.fillRoundedRect(x - w / 2, y - h / 2, w, h, h / 2);
-      g.lineStyle(on ? 3.5 : 2.5, on ? 0xffd166 : INK, 1);
-      g.strokeRoundedRect(x - w / 2, y - h / 2, w, h, h / 2);
-      this.add
-        .text(x, y - 1, open ? `${on ? '✓ ' : ''}${item.name}` : '', { fontFamily: FONT, fontSize: '15px', color: '#ffffff', fontStyle: 'bold' })
-        .setOrigin(0.5)
-        .setDepth(DEPTH.hud + 2);
-      if (!open) this.lockBadge(x, y, item.stars);
-      this.add
-        .zone(x, y, w, h)
-        .setInteractive({ useHandCursor: open })
-        .on('pointerdown', () =>
-          this.pick(
-            open,
-            () => {
-              decor.items = on ? decor.items.filter((id) => id !== item.id) : [...decor.items, item.id];
-            },
-            x,
-            y,
-          ),
-        );
-    });
-  }
-
-  /** Small star + number on a locked option. */
   private lockBadge(x: number, y: number, stars: number): void {
     const g = this.add.graphics().setDepth(DEPTH.hud + 2);
-    drawStar(g, x - 8, y, 9, true, 1.5);
+    g.fillStyle(0x24163a, 0.9);
+    g.fillRoundedRect(x - 17, y - 10, 34, 20, 10);
+    g.lineStyle(1.5, 0xffd166, 0.9);
+    g.strokeRoundedRect(x - 17, y - 10, 34, 20, 10);
+    drawStar(g, x - 7, y, 7, true, 1.2);
     this.add
-      .text(x + 2, y, String(stars), { fontFamily: FONT, fontSize: '15px', color: '#ffe08a', fontStyle: 'bold', stroke: '#1d1230', strokeThickness: 3 })
+      .text(x + 4, y, String(stars), { fontFamily: FONT, fontSize: '13px', color: '#ffe08a', fontStyle: 'bold' })
       .setOrigin(0, 0.5)
-      .setDepth(DEPTH.hud + 2);
+      .setDepth(DEPTH.hud + 3);
   }
 
-  private pick(open: boolean, apply: () => void, x: number, y: number): void {
+  private pick(open: boolean, apply: () => void, x: number, y: number, stars = 0): void {
     if (!open) {
       sfx(this, 'nope', 0.35);
+      floatText(this, x, y - 34, T.needStars(stars - decor.stars), '#ffe08a', 18);
       this.tweens.add({ targets: this.add.circle(x, y, 22, 0xff6b6b, 0.35).setDepth(DEPTH.hud + 3), alpha: 0, duration: 300 });
       return;
     }
