@@ -118,7 +118,6 @@ export class NightScene extends Phaser.Scene {
   private wave: Wave = 0;
   private streak = 0;
   /** Banners on screen right now (each new one goes below the others). */
-  private banners = 0;
   private phase: Phase = 'intro';
   private elapsed = 0;
   private earned = 0;
@@ -210,7 +209,6 @@ export class NightScene extends Phaser.Scene {
     this.day = this.setup();
     this.wave = 0;
     this.streak = 0;
-    this.banners = 0;
     this.phase = 'intro';
     this.elapsed = 0;
     this.earned = 0;
@@ -255,11 +253,9 @@ export class NightScene extends Phaser.Scene {
     this.shop = new Shop(this);
     if (this.day.gear.garlic) this.shop.showGarlic();
     this.hud = new Hud(this, this.day.goal, this.mode === 'league' ? T.leagueShort : T.day(gameState.day + 1), this.day.length);
-    this.hud.onStar = (i, x, y) => {
+    this.hud.onStar = (_i, x, y) => {
       sfx(this, 'star', 0.5);
       burst(this, x, y, 'star_04', { count: 10, tint: 0xffe066, gravity: 60 });
-      // the third star does not end the night: the player keeps going for a record
-      if (i === CONFIG.stars.length - 1) floatText(this, W / 2, 300, T.allStarsKeepGoing, '#ffe08a', 30);
     };
     this.hud.onPause = () => this.pause();
     this.input.keyboard?.on('keydown-P', () => this.pause());
@@ -274,13 +270,11 @@ export class NightScene extends Phaser.Scene {
     // (otherwise "Tekrar dene" / the next day would add a duplicate listener every time).
     const onReady = (x: number, y: number) => {
       sfx(this, 'oven_ready', 0.5);
-      floatText(this, x, y - 96, T.ready, '#7dffb0');
       burst(this, x, y - 10, 'star_04', { count: 8, tint: 0xb6ffd0, gravity: 40, speed: [60, 160] });
     };
-    const onBurned = (x: number, y: number) => {
+    const onBurned = () => {
       this.stats.burnt++;
       sfx(this, 'burnt', 0.45);
-      floatText(this, x, y - 96, T.burnt, '#ff6b6b');
       this.cameras.main.shake(140, 0.004);
     };
     this.events.on('cupcake-ready', onReady);
@@ -303,12 +297,8 @@ export class NightScene extends Phaser.Scene {
     // the ovens run at half speed during the first-order guide, so the first cupcake can be read about and caught in time
     for (const oven of this.ovens) oven.update(tutorial ? dt * 0.5 : dt);
 
-    // waves: calm start, steady middle, short rush at the end (a banner says when it changes)
-    const wave = this.waveAt(this.elapsed);
-    if (wave !== this.wave) {
-      this.wave = wave;
-      this.banner(wave === 2 ? T.waveRush : T.waveMiddle, wave === 2 ? '#ffb4b4' : '#ffe08a');
-    }
+    // waves: calm start, steady middle, short rush at the end
+    this.wave = this.waveAt(this.elapsed);
 
     // regular customers
     if (!tutorial) {
@@ -354,12 +344,10 @@ export class NightScene extends Phaser.Scene {
         sfx(this, 'customer_left', 0.4);
         if (c.kind === 'ghost') {
           // the ghost is only for laughs: it floats off without counting as a lost customer
-          floatText(this, c.x, c.y - 10, T.ghostBored, '#c9bdf0');
           c.leave('happy');
         } else {
           this.stats.left++;
           this.breakStreak();
-          floatText(this, c.x, c.y - 10, T.leftAngry, '#ff6b6b');
           c.leave('angry');
         }
         this.customers[i] = null;
@@ -562,53 +550,15 @@ export class NightScene extends Phaser.Scene {
     );
   }
 
-  /** A big line of text across the middle of the screen for a moment (waves, warnings). */
-  private banner(text: string, color: string): void {
-    // two banners at once (a wave change and a warning) stack instead of overlapping
-    const row = this.banners++;
-    const y = 250 + row * 58;
-    const t = this.add
-      .text(W / 2, y, text, { fontFamily: FONT, fontSize: '40px', color, fontStyle: 'bold', stroke: '#140d24', strokeThickness: 8, align: 'center' })
-      .setOrigin(0.5)
-      .setDepth(DEPTH.overlay - 3)
-      .setScale(0.6)
-      .setAlpha(0);
-    this.tweens.add({ targets: t, scale: 1, alpha: 1, duration: 260, ease: 'Back.easeOut' });
-    this.tweens.add({
-      targets: t,
-      alpha: 0,
-      y: y - 20,
-      delay: 2600,
-      duration: 400,
-      onComplete: () => {
-        t.destroy();
-        this.banners--;
-      },
-    });
-  }
-
-  /** A few seconds before a planned special monster: say who is coming and what to do about it. */
-  private warnSpecial(id: SpecialId): void {
+  /** A planned special monster is coming: a short tick sound (no text on screen while playing). */
+  private warnSpecial(_id: SpecialId): void {
     sfx(this, 'tick', 0.5, 0.7);
-    const g = this.day.gear;
-    const text =
-      id === 'thief'
-        ? g.guard
-          ? T.warnThiefGuard
-          : T.warnThief
-        : id === 'vampire'
-          ? g.garlic
-            ? T.warnVampireGarlic
-            : T.warnVampire(CONFIG.specialWarningSec)
-          : T.warnGhost;
-    this.banner(text, id === 'ghost' ? '#c9bdf0' : '#ffb4b4');
   }
 
-  /** A correct cupcake: the streak grows (and says so from 3 on). */
-  private addStreak(x: number, y: number): void {
+  /** A correct cupcake: the streak grows (shown in the night summary). */
+  private addStreak(): void {
     this.streak++;
     this.stats.bestStreak = Math.max(this.stats.bestStreak, this.streak);
-    if (this.streak >= 3) floatText(this, x, y - 70, T.streak(this.streak), '#ffd166', 24);
   }
 
   /** A wrong cupcake or a lost customer ends the streak. */
@@ -990,7 +940,7 @@ export class NightScene extends Phaser.Scene {
       this.earned += pay;
       this.stats.served++;
       if (c.mood === 'happy') this.stats.happy++;
-      this.addStreak(c.x, c.y);
+      this.addStreak();
       this.customers[c.slot] = null;
       c.lock();
       if (c.kind === 'ghost') this.serveGhost(c, item, pay, tip);
@@ -1003,7 +953,6 @@ export class NightScene extends Phaser.Scene {
       this.flyCupcake(item, from, { x: c.x, y: c.y - 10 }, 240, () =>
         burst(this, c.x, c.y - 20, 'smoke_05', { count: 7, tint: 0xff4d6d, gravity: -40, speed: [30, 110], scale: [0.25, 0.6], additive: false }),
       );
-      floatText(this, c.x, c.y - 16, T.wrongOrder, '#ff6b6b');
       c.hitPatience(CONFIG.wrongOrderPatiencePenalty);
       c.shake();
     }
@@ -1023,7 +972,6 @@ export class NightScene extends Phaser.Scene {
     g.setPosition(c.x, c.y - 6);
     this.tweens.add({ targets: g, y: LAYOUT.counterTop + 60, angle: 40, alpha: 0, duration: 650, ease: 'Quad.easeIn', onComplete: () => g.destroy() });
     sfx(this, 'place', 0.6, 0.55);
-    floatText(this, c.x, c.y - 60, T.ghostDrop, '#c9bdf0');
     this.time.delayedCall(300, () => {
       sfx(this, 'serve_ok', 0.5);
       this.payout(c, pay, tip);
@@ -1146,7 +1094,6 @@ export class NightScene extends Phaser.Scene {
     if (this.day.gear.garlic) {
       c.disgust();
       sfx(this, 'nope', 0.4);
-      floatText(this, c.x, c.y - 30, T.garlicScares, '#c9f7a8', 26);
       return;
     }
     this.bite();
@@ -1217,7 +1164,6 @@ export class NightScene extends Phaser.Scene {
           this.earned += CONFIG.guardBonus;
           this.stats.caught++;
           this.guard?.hop(22, 160);
-          floatText(this, thief.x, thief.y - 90, `${T.thiefCaught} +$${CONFIG.guardBonus}`, '#7dffb0', 26);
           burst(this, thief.x, thief.y - 30, 'star_01', { count: 10, tint: 0xffe066, gravity: 140 });
           coinFlight(this, { x: thief.x, y: thief.y }, this.shop.jarPos, 3, () => sfx(this, 'coin', 0.22));
           sfx(this, 'serve_ok', 0.5);
@@ -1235,7 +1181,6 @@ export class NightScene extends Phaser.Scene {
         else this.refreshItems();
         this.stats.stolen += loot.length;
         sfx(this, 'nope', 0.5, 0.7);
-        floatText(this, thief.x, thief.y - 90, T.thiefStole, '#ff6b6b', 26);
         return 'steal';
       },
       () => {

@@ -93,3 +93,5 @@ Tüm sayılar tek yerde: `src/data/gameConfig.ts` (`CONFIG`).
 - docs/production-plan.md ve visual-upgrade-plan.md eski plan notlarıdır (Godot/960x640 ifadeleri eskidir).
 
 - **Kavanozlar ve torbalar (ekibin 2. çizimleri):** Sprinkles, Cherry, Bats, Ghosts kavanozları ve 6 krema torbası + cep yeni çizimler; etiketleri resimde İngilizce olduğu için `withTag` boş etiketle çağrılır (`JAR_LABELED`). Eyes ve Spiders da yeni çizim (hepsi kendi İngilizce etiketli). Vite geliştirme sunucusu, dosya yazılırken okursa boş içerik önbelleğe alabiliyor (resim yüklenmez): sunucuyu yeniden başlat.
+
+- **Oyun sırasında yazı yok (ekip isteği, "saçma duruyor"):** dalga afişleri, özel canavar uyarı afişleri (yalnızca tık sesi kaldı), seri ("Streak"), 3. yıldız yazısı, fırın üstündeki Ready/Burnt ve karakter üstü yazılar (Left angry, Wrong cupcake, Oops, Garlic, thief stole/caught) kaldırıldı. Kalanlar: para (+$), hatalı hamlede kısa ipucu (`hint`, ör. "Oven is full!") ve 1. gece rehberi. Dalga/özel canavar bilgisi giriş kartında yazmaya devam ediyor.
