@@ -128,7 +128,18 @@ export const fxKey = (n: FxName): string => `fx_${n}`;
 export const sfxKey = (n: SfxName): string => `sfx_${n}`;
 
 /** Queue every asset the game uses. Call from a scene's preload(). */
+/** The team's layered cupcake pieces (src/assets/cupcake/). */
+export const CUPCAKE_PIECES: string[] = [
+  ...['purple', 'blue', 'cream', 'brown'].flatMap((l) => [`liner_${l}_back`, `liner_${l}_front`]),
+  ...['redvelvet', 'lemon', 'matcha', 'vanilla', 'chocolate', 'strawberry'].map((d) => `cake_${d}`),
+  ...['pink', 'mint', 'lilac', 'cream', 'choco', 'caramel'].map((f) => `frost_${f}`),
+  ...[0, 1, 2, 3].flatMap((i) => [`top_eye_${i}`, `top_bat_${i}`, `top_ghost_${i}`]),
+  'top_spider_0', 'top_spider_1', 'top_cherry', 'top_sprinkles',
+];
+export const cupPieceKey = (n: string): string => `cup_${n}`;
+
 export function queueAssets(scene: Phaser.Scene): void {
+  for (const n of CUPCAKE_PIECES) scene.load.image(cupPieceKey(n), binaryUrl(`cupcake/${n}.webp`));
   scene.load.image(BG_SHOP, binaryUrl('bg/shop.webp'));
   scene.load.image(BG_MAP, binaryUrl('bg/map.webp'));
   for (const n of CHAR_SPRITES) for (const f of ['happy', 'neutral', 'angry'] as const) scene.load.image(charKey(n, f), binaryUrl(`chars/${n}${CHAR_FILE[f]}.webp`));

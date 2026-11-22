@@ -3,7 +3,8 @@ import { DEPTH, FONT, H, W } from '../config';
 import { THIEF_KEYS } from '../assets';
 import { SPECIAL_MONSTERS } from '../data/monsters';
 import { fadeIn, fadeOutThen } from '../fx';
-import { drawCupcake, type CupcakeData } from '../objects/cupcake';
+import type { CupcakeData } from '../objects/cupcake';
+import { cupcakeImage } from '../objects/cupcakeArt';
 import { MonsterView } from '../objects/MonsterView';
 import { Shop } from '../objects/Shop';
 import { T } from '../text';
@@ -55,17 +56,16 @@ export class HowToScene extends Phaser.Scene {
       panel.add(this.add.text(-panelW / 2 + 76, y - 1, String(i + 1), { fontFamily: FONT, fontSize: '30px', color: '#2b1d4f', fontStyle: 'bold' }).setOrigin(0.5));
 
       // picture
-      const pic = this.add.graphics();
-      panel.add(pic);
+      const cup = (c: CupcakeData, cx: number, cy: number, s: number) => panel.add(cupcakeImage(this, c, cx, cy, s));
       const px = -panelW / 2 + 172;
       if (i === 0) {
-        drawCupcake(pic, px, y + 4, raw, 0.9);
-        drawCupcake(pic, px + 64, y + 4, baked, 0.9);
+        cup(raw, px, y + 4, 0.9);
+        cup(baked, px + 64, y + 4, 0.9);
       } else if (i === 1) {
-        drawCupcake(pic, px, y + 6, baked, 0.9);
-        drawCupcake(pic, px + 64, y + 6, done, 0.9);
+        cup(baked, px, y + 6, 0.9);
+        cup(done, px + 64, y + 6, 0.9);
       } else if (i === 2) {
-        drawCupcake(pic, px + 32, y + 6, done, 1);
+        cup(done, px + 32, y + 6, 1);
       } else {
         const vamp = new MonsterView(this, 0, 0, SPECIAL_MONSTERS.vampire);
         const thief = this.add.image(0, 0, THIEF_KEYS.stand).setOrigin(0.5, 0.6);
